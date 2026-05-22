@@ -1,0 +1,45 @@
+{
+  "nav": {
+    "experiences": "Expériences",
+    "creations":   "Créations",
+    "formations":  "Formations",
+    "contact":     "Contact"
+  },
+  "common": {
+    "download_cv": "Télécharger CV",
+    "present":     "Présent"
+  },
+  "experiences": {
+    "title":      "Expériences",
+    "positions":  "Postes",
+    "years":      "Années",
+    "top_skills": "Top compétences"
+  },
+  "creations": {
+    "title":   "Créations",
+    "website": "Site web →",
+    "github":  "GitHub →",
+    "close":   "Fermer"
+  },
+  "formations": {
+    "title":        "Formations",
+    "skills_title": "Compétences"
+  },
+  "contact": {
+    "title":        "Contact",
+    "tagline":      "Intéressé par mon profil ? N'hésitez pas à me contacter, je serai ravi d'échanger avec vous.",
+    "open_to_work": "Disponible",
+    "form": {
+      "name_label":          "Nom",
+      "name_placeholder":    "Votre nom",
+      "email_label":         "Email",
+      "email_placeholder":   "votre@email.com",
+      "message_label":       "Message",
+      "message_placeholder": "Votre message...",
+      "submit":              "Envoyer",
+      "success":             "Message envoyé !",
+      "error":               "Une erreur est survenue.",
+      "captcha_wait":        "Vérification en cours, veuillez patienter..."
+    }
+  }
+}

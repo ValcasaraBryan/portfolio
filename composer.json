@@ -1,0 +1,10 @@
+{
+    "name": "bryan/portefolio",
+    "require": {
+        "phpmailer/phpmailer": "^6.9",
+        "altcha-org/altcha": "^2.0"
+    },
+    "config": {
+        "vendor-dir": "site/vendor"
+    }
+}

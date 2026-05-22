@@ -1,0 +1,23 @@
+# Credentials — never commit
+.env
+
+# Composer
+site/vendor/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+*.md
+!README.md
+
+*.sh
+
+bdd/*
+!bdd/*.sh
+
+
+.vscode/

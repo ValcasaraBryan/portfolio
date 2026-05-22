@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion — Admin Portefolio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "react":              "https://esm.sh/react@18.2.0",
+      "react/jsx-runtime":  "https://esm.sh/react@18.2.0/jsx-runtime",
+      "react-dom/client":   "https://esm.sh/react-dom@18.2.0/client",
+      "@emotion/react":     "https://esm.sh/@emotion/react@11.11.0?deps=react@18.2.0",
+      "@emotion/styled":    "https://esm.sh/@emotion/styled@11.11.0?deps=react@18.2.0,@emotion/react@11.11.0",
+      "@mui/material":      "https://esm.sh/@mui/material@5.15.0?deps=react@18.2.0,react-dom@18.2.0,@emotion/react@11.11.0,@emotion/styled@11.11.0",
+      "@mui/icons-material":"https://esm.sh/@mui/icons-material@5.15.0?deps=react@18.2.0,@mui/material@5.15.0"
+    }
+  }
+  </script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #111; color: #fff; }
+    #root { display: flex; min-height: 100vh; align-items: center; justify-content: center; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="module">
+    import React, { useState, useEffect } from 'react';
+    import { createRoot } from 'react-dom/client';
+    import {
+      Box, Card, CardContent, Typography, TextField,
+      Button, Alert, CircularProgress,
+      createTheme, ThemeProvider, CssBaseline,
+    } from '@mui/material';
+
+    const API = '../api';
+
+    const theme = createTheme({
+      palette: {
+        mode: 'dark',
+        primary:    { main: '#7ED9B1' },
+        background: { default: '#111', paper: '#1a1a1a' },
+      },
+      typography: { fontFamily: "'Inter', sans-serif" },
+    });
+
+    function LoginPage() {
+      const [username, setUsername] = useState('');
+      const [password, setPassword] = useState('');
+      const [error,    setError]    = useState('');
+      const [loading,  setLoading]  = useState(true);
+      const [submitting, setSubmitting] = useState(false);
+
+      useEffect(() => {
+        fetch(`${API}/auth.php?action=check`)
+          .then(r => r.json())
+          .then(data => {
+            if (data.authenticated) {
+              window.location.replace('index.html');
+            } else {
+              setLoading(false);
+            }
+          })
+          .catch(() => setLoading(false));
+      }, []);
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+        setSubmitting(true);
+        try {
+          const res = await fetch(`${API}/auth.php?action=login`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ username, password }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            if (data.must_change_password) {
+              window.location.replace('change_password.html');
+            } else {
+              window.location.replace('index.html');
+            }
+          } else {
+            setError(data.error ?? 'Identifiants incorrects');
+          }
+        } catch {
+          setError('Erreur réseau, réessayez.');
+        } finally {
+          setSubmitting(false);
+        }
+      };
+
+      if (loading) {
+        return React.createElement(
+          Box, { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' },
+          React.createElement(CircularProgress, { color: 'primary' })
+        );
+      }
+
+      return React.createElement(
+        Box, { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', px: 2 },
+        React.createElement(
+          Card, { sx: { width: '100%', maxWidth: 400, p: 1 } },
+          React.createElement(
+            CardContent, null,
+            React.createElement(
+              Box, { textAlign: 'center', mb: 4 },
+              React.createElement(Typography, { variant: 'h5', fontWeight: 700, color: 'primary' }, 'Portefolio'),
+              React.createElement(Typography, { variant: 'body2', color: 'text.secondary', mt: 0.5 }, 'Administration')
+            ),
+            React.createElement(
+              'form', { onSubmit: handleSubmit },
+              React.createElement(TextField, {
+                label: 'Identifiant',
+                value: username,
+                onChange: e => setUsername(e.target.value),
+                fullWidth: true,
+                required: true,
+                autoFocus: true,
+                autoComplete: 'username',
+                sx: { mb: 2 },
+              }),
+              React.createElement(TextField, {
+                label: 'Mot de passe',
+                type: 'password',
+                value: password,
+                onChange: e => setPassword(e.target.value),
+                fullWidth: true,
+                required: true,
+                autoComplete: 'current-password',
+                sx: { mb: error ? 2 : 3 },
+              }),
+              error && React.createElement(Alert, { severity: 'error', sx: { mb: 2 } }, error),
+              React.createElement(
+                Button, {
+                  type: 'submit',
+                  variant: 'contained',
+                  fullWidth: true,
+                  disabled: submitting,
+                  size: 'large',
+                },
+                submitting
+                  ? React.createElement(CircularProgress, { size: 22, color: 'inherit' })
+                  : 'Se connecter'
+              )
+            )
+          )
+        )
+      );
+    }
+
+    createRoot(document.getElementById('root')).render(
+      React.createElement(ThemeProvider, { theme },
+        React.createElement(CssBaseline),
+        React.createElement(LoginPage)
+      )
+    );
+  </script>
+</body>
+</html>

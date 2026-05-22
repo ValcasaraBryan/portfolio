@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Bryan VALCASARA — Full-Stack Developer & Web Security Expert">
+  <title>Bryan VALCASARA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./assets/css/main.css">
+</head>
+<body>
+  <div class="layout">
+
+    <!-- Mobile: profile header -->
+    <header class="profile-header">
+      <img class="profile-header__avatar profile-avatar"
+           src="./assets/img/avatar.jpg" alt="Bryan VALCASARA">
+      <div class="profile-header__info">
+        <div class="profile-header__name profile-name">Bryan VALCASARA</div>
+        <div class="profile-header__title profile-title"></div>
+      </div>
+      <div class="profile-header__actions">
+        <div class="lang-toggle">
+          <button class="lang-toggle__btn active" data-lang="fr">FR</button>
+          <button class="lang-toggle__btn"        data-lang="en">EN</button>
+        </div>
+        <a href="./cv.pdf" download class="btn btn--outline btn--sm" data-i18n="common.download_cv"></a>
+      </div>
+    </header>
+
+    <!-- Desktop: drawer -->
+    <aside class="drawer">
+      <img class="drawer__avatar profile-avatar"
+           src="./assets/img/avatar.jpg" alt="Bryan VALCASARA">
+      <div class="drawer__name profile-name">Bryan VALCASARA</div>
+      <div class="drawer__title profile-title"></div>
+
+      <nav class="drawer__nav">
+        <button class="drawer__nav-item" data-tab="experiences" data-i18n="nav.experiences"></button>
+        <button class="drawer__nav-item" data-tab="creations"   data-i18n="nav.creations"></button>
+        <button class="drawer__nav-item" data-tab="formations"  data-i18n="nav.formations"></button>
+        <button class="drawer__nav-item" data-tab="contact"     data-i18n="nav.contact"></button>
+      </nav>
+
+      <div class="drawer__footer">
+        <div class="lang-toggle">
+          <button class="lang-toggle__btn active" data-lang="fr">FR</button>
+          <button class="lang-toggle__btn"        data-lang="en">EN</button>
+        </div>
+        <a href="./cv.pdf" download class="btn btn--outline" data-i18n="common.download_cv"></a>
+        <div class="social-links">
+          <a href="https://github.com/ValcasaraBryan"
+             target="_blank" rel="noopener" class="social-link" title="GitHub">GH</a>
+          <a href="https://www.valcasarabryan.fr"
+             target="_blank" rel="noopener" class="social-link" title="Website">WEB</a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main-content">
+      <section id="tab-experiences" class="tab-panel"></section>
+      <section id="tab-creations"   class="tab-panel"></section>
+      <section id="tab-formations"  class="tab-panel"></section>
+      <section id="tab-contact"     class="tab-panel"></section>
+    </main>
+
+    <!-- Mobile: bottom tab bar -->
+    <nav class="bottom-tab-bar">
+      <button class="bottom-tab-bar__item" data-tab="experiences">
+        <span class="bottom-tab-bar__icon">💼</span>
+        <span data-i18n="nav.experiences"></span>
+      </button>
+      <button class="bottom-tab-bar__item" data-tab="creations">
+        <span class="bottom-tab-bar__icon">🛠</span>
+        <span data-i18n="nav.creations"></span>
+      </button>
+      <button class="bottom-tab-bar__item" data-tab="formations">
+        <span class="bottom-tab-bar__icon">🎓</span>
+        <span data-i18n="nav.formations"></span>
+      </button>
+      <button class="bottom-tab-bar__item" data-tab="contact">
+        <span class="bottom-tab-bar__icon">✉</span>
+        <span data-i18n="nav.contact"></span>
+      </button>
+    </nav>
+
+  </div>
+
+  <script async defer type="module" src="https://cdn.jsdelivr.net/gh/altcha-org/altcha/dist/altcha.min.js"></script>
+  <script src="./assets/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+{
+  "nav": {
+    "experiences": "Experience",
+    "creations":   "Projects",
+    "formations":  "Education",
+    "contact":     "Contact"
+  },
+  "common": {
+    "download_cv": "Download CV",
+    "present":     "Present"
+  },
+  "experiences": {
+    "title":      "Experience",
+    "positions":  "Positions",
+    "years":      "Years",
+    "top_skills": "Top skills"
+  },
+  "creations": {
+    "title":   "Projects",
+    "website": "Website →",
+    "github":  "GitHub →",
+    "close":   "Close"
+  },
+  "formations": {
+    "title":        "Education",
+    "skills_title": "Skills"
+  },
+  "contact": {
+    "title":        "Contact",
+    "tagline":      "Interested in my profile? Feel free to reach out — I'd love to connect.",
+    "open_to_work": "Open to work",
+    "form": {
+      "name_label":          "Name",
+      "name_placeholder":    "Your name",
+      "email_label":         "Email",
+      "email_placeholder":   "your@email.com",
+      "message_label":       "Message",
+      "message_placeholder": "Your message...",
+      "submit":              "Send",
+      "success":             "Message sent!",
+      "error":               "Something went wrong.",
+      "captcha_wait":        "Verification in progress, please wait..."
+    }
+  }
+}

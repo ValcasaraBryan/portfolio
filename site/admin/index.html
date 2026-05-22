@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Portefolio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "react":              "https://esm.sh/react@18.2.0",
+      "react/jsx-runtime":  "https://esm.sh/react@18.2.0/jsx-runtime",
+      "react-dom/client":   "https://esm.sh/react-dom@18.2.0/client",
+      "@emotion/react":     "https://esm.sh/@emotion/react@11.11.0?deps=react@18.2.0",
+      "@emotion/styled":    "https://esm.sh/@emotion/styled@11.11.0?deps=react@18.2.0,@emotion/react@11.11.0",
+      "@mui/material":      "https://esm.sh/@mui/material@5.15.0?deps=react@18.2.0,react-dom@18.2.0,@emotion/react@11.11.0,@emotion/styled@11.11.0",
+      "@mui/icons-material":"https://esm.sh/@mui/icons-material@5.15.0?deps=react@18.2.0,@mui/material@5.15.0"
+    }
+  }
+  </script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #111; color: #fff; }
+    #root { display: flex; min-height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="module">
+    import React, { useState, useEffect, useCallback } from 'react';
+    import { createRoot }    from 'react-dom/client';
+    import {
+      Box, Drawer, List, ListItem, ListItemButton, ListItemText,
+      AppBar, Toolbar, Typography, Button, IconButton,
+      Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
+      Dialog, DialogTitle, DialogContent, DialogActions,
+      TextField, Alert, Snackbar, CircularProgress, Chip, Autocomplete,
+      createTheme, ThemeProvider, CssBaseline,
+    } from '@mui/material';
+    import { Star, StarBorder } from '@mui/icons-material';
+
+    const API = '../api';
+    const DRAWER_WIDTH = 220;
+
+    const theme = createTheme({
+      palette: {
+        mode: 'dark',
+        primary:    { main: '#7ED9B1' },
+        background: { default: '#111', paper: '#1a1a1a' },
+      },
+      typography: { fontFamily: "'Inter', sans-serif" },
+    });
+
+    /* ── generic fetch helpers ─────────────────────────────── */
+    const apiFetch = async (path, opts = {}) => {
+      const res = await fetch(`${API}/${path}`, {
+        headers: { 'Content-Type': 'application/json' },
+        ...opts,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    };
+
+    /* ── SECTIONS CONFIG ───────────────────────────────────── */
+    const SECTIONS = [
+      { id: 'experiences', label: 'Experiences', endpoint: 'experiences.php',
+        columns: ['company','role','type','location','start_date','end_date','skills'],
+        fields: [
+          { key: 'company' },
+          { key: 'role',     suggestions: rows => [...new Set(rows.map(r => r.role).filter(Boolean))] },
+          { key: 'type',     suggestions: ['Work-study','Permanent contract','Internship','Self-employed','Fixed-term'] },
+          { key: 'location', suggestions: rows => [...new Set(rows.map(r => r.location).filter(Boolean))] },
+          { key: 'start_date' },
+          { key: 'end_date' },
+          { key: 'description' },
+          { key: 'skill_ids', type: 'skills', label: 'Skills' },
+        ],
+      },
+      { id: 'projects', label: 'Projects', endpoint: 'projects.php',
+        columns: ['is_favorite','name','category','url','github_url','skills'],
+        fields: [
+          { key: 'name' },
+          { key: 'photo_url' },
+          { key: 'description' },
+          { key: 'date' },
+          { key: 'url' },
+          { key: 'github_url' },
+          { key: 'category', suggestions: ['Personal','Enterprise','Self-employed'] },
+          { key: 'skill_ids', type: 'skills', label: 'Skills' },
+        ],
+      },
+      { id: 'formations', label: 'Education', endpoint: 'formations.php',
+        columns: ['school','title','level','city','skills','certifications'],
+        fields: [
+          { key: 'school',   suggestions: rows => [...new Set(rows.map(r => r.school).filter(Boolean))] },
+          { key: 'title' },
+          { key: 'level',    suggestions: rows => [...new Set(rows.map(r => r.level).filter(Boolean))] },
+          { key: 'city',     suggestions: rows => [...new Set(rows.map(r => r.city).filter(Boolean))] },
+          { key: 'start_date' },
+          { key: 'end_date' },
+          { key: 'description' },
+          { key: 'mention' },
+          { key: 'skill_ids', type: 'skills', label: 'Skills' },
+        ],
+      },
+      { id: 'skills', label: 'Skills', endpoint: 'skills.php',
+        columns: ['name_fr','name_en','category_fr','category_en'],
+        fields: [
+          { key: 'name_fr' },
+          { key: 'name_en' },
+          { key: 'category_fr', suggestions: rows => [...new Set(rows.map(r => r.category_fr).filter(Boolean))] },
+          { key: 'category_en', suggestions: rows => [...new Set(rows.map(r => r.category_en).filter(Boolean))] },
+        ],
+      },
+      { id: 'contact', label: 'Messages', endpoint: 'contact.php',
+        columns: ['name','email','sent_at'],
+        fields: [],
+        readonly: true,
+      },
+    ];
+
+    /* ── SKILLS PICKER ─────────────────────────────────────── */
+    function SkillsPicker({ value, onChange }) {
+      const [allSkills, setAllSkills] = useState([]);
+
+      useEffect(() => {
+        apiFetch('skills.php?lang=fr')
+          .then(data => setAllSkills(data ?? []))
+          .catch(() => {});
+      }, []);
+
+      const byCategory = allSkills.reduce((acc, s) => {
+        (acc[s.category] ??= []).push(s);
+        return acc;
+      }, {});
+
+      const selected = new Set(value ?? []);
+
+      const toggle = id => {
+        const next = new Set(selected);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        onChange([...next]);
+      };
+
+      if (!allSkills.length) return React.createElement(CircularProgress, { size: 20, color: 'primary' });
+
+      return React.createElement(Box, { sx: { border: '1px solid #333', borderRadius: 1, p: 1.5 } },
+        React.createElement(Typography, { variant: 'caption', sx: { color: 'text.secondary', display: 'block', mb: 1.5 } }, 'Skills'),
+        ...Object.entries(byCategory).map(([cat, items]) =>
+          React.createElement(Box, { key: cat, sx: { mb: 1.5 } },
+            React.createElement(Typography, { variant: 'caption', sx: { color: '#7ED9B1', display: 'block', mb: 0.5, fontWeight: 600 } }, cat),
+            React.createElement(Box, { sx: { display: 'flex', flexWrap: 'wrap', gap: 0.5 } },
+              ...items.map(s =>
+                React.createElement(Chip, {
+                  key:       s.id,
+                  label:     s.name,
+                  size:      'small',
+                  clickable: true,
+                  onClick:   () => toggle(s.id),
+                  color:     selected.has(s.id) ? 'primary' : 'default',
+                  variant:   selected.has(s.id) ? 'filled'  : 'outlined',
+                  sx:        { fontSize: '0.7rem' },
+                })
+              )
+            )
+          )
+        )
+      );
+    }
+
+    /* ── AUTO FIELD ───────────────────────────────────────── */
+    function AutoField({ fieldDef, form, setForm, rows }) {
+      const key   = fieldDef.key;
+      const label = (fieldDef.label ?? key).replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      const raw   = fieldDef.suggestions;
+      const opts  = raw ? (typeof raw === 'function' ? raw(rows) : raw) : null;
+      const value = String(form[key] ?? '');
+
+      if (opts) {
+        return React.createElement(Autocomplete, {
+          key,
+          freeSolo: true,
+          options: opts,
+          inputValue: value,
+          onInputChange: (_, v) => setForm(prev => ({ ...prev, [key]: v })),
+          renderInput: params => React.createElement(TextField, { ...params, label, size: 'small' }),
+        });
+      }
+
+      return React.createElement(TextField, {
+        key,
+        label,
+        size: 'small',
+        value,
+        onChange: e => setForm(prev => ({ ...prev, [key]: e.target.value })),
+        multiline: key === 'description',
+        rows:      key === 'description' ? 4 : 1,
+      });
+    }
+
+    /* ── CRUD TABLE ────────────────────────────────────────── */
+    function CrudTable({ section }) {
+      const [rows,    setRows]    = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [dialog,  setDialog]  = useState(null);
+      const [form,    setForm]    = useState({});
+      const [snack,   setSnack]   = useState(null);
+
+      const load = useCallback(async () => {
+        setLoading(true);
+        try { setRows(await apiFetch(section.endpoint)); }
+        catch { setSnack({ msg: 'Failed to load data', sev: 'error' }); }
+        finally { setLoading(false); }
+      }, [section]);
+
+      useEffect(() => { load(); }, [load]);
+
+      const openCreate = () => { setForm({}); setDialog('create'); };
+      const openEdit   = row  => { setForm({ ...row, skill_ids: (row.skills ?? []).map(s => s.id) }); setDialog('edit'); };
+      const closeDialog= ()   => { setDialog(null); setForm({}); };
+
+      const save = async () => {
+        try {
+          if (dialog === 'create') {
+            await apiFetch(section.endpoint, { method: 'POST', body: JSON.stringify(form) });
+          } else {
+            await apiFetch(section.endpoint, { method: 'PUT',  body: JSON.stringify(form) });
+          }
+          setSnack({ msg: 'Saved successfully', sev: 'success' });
+          closeDialog();
+          load();
+        } catch { setSnack({ msg: 'Save failed', sev: 'error' }); }
+      };
+
+      const remove = async id => {
+        if (!window.confirm('Delete this entry?')) return;
+        try {
+          await apiFetch(`${section.endpoint}?id=${id}`, { method: 'DELETE' });
+          setSnack({ msg: 'Deleted', sev: 'info' });
+          load();
+        } catch { setSnack({ msg: 'Delete failed', sev: 'error' }); }
+      };
+
+      const toggleFavorite = async (id, current) => {
+        try {
+          await apiFetch(section.endpoint, {
+            method: 'PATCH',
+            body: JSON.stringify({ id, is_favorite: current ? 0 : 1 }),
+          });
+          setRows(prev => prev.map(r => r.id === id ? { ...r, is_favorite: current ? 0 : 1 } : r));
+        } catch { setSnack({ msg: 'Update failed', sev: 'error' }); }
+      };
+
+      if (loading) return React.createElement(Box, { sx: { p: 4, textAlign: 'center' } },
+        React.createElement(CircularProgress, { color: 'primary' }));
+
+      return React.createElement(Box, null,
+        React.createElement(Box, { sx: { mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+          React.createElement(Typography, { variant: 'h6' }, section.label),
+          !section.readonly && React.createElement(Button, {
+            variant: 'contained', size: 'small', onClick: openCreate,
+          }, '+ New'),
+        ),
+        React.createElement(TableContainer, { component: Paper },
+          React.createElement(Table, { size: 'small' },
+            React.createElement(TableHead, null,
+              React.createElement(TableRow, null,
+                ...section.columns.map(c =>
+                  c === 'is_favorite'
+                    ? React.createElement(TableCell, { key: c, sx: { color: '#FFD700', width: 48, px: 1 } },
+                        React.createElement(Star, { fontSize: 'small' })
+                      )
+                    : React.createElement(TableCell, { key: c, sx: { color: '#7ED9B1', fontWeight: 700 } },
+                        c.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                      )
+                ),
+                !section.readonly && React.createElement(TableCell, { align: 'right' }, 'Actions'),
+              )
+            ),
+            React.createElement(TableBody, null,
+              rows.map((row, i) =>
+                React.createElement(TableRow, { key: row.id ?? i, hover: true },
+                  ...section.columns.map(c => {
+                    if (c === 'is_favorite') {
+                      return React.createElement(TableCell, { key: c, sx: { width: 48, px: 1 } },
+                        React.createElement(IconButton, {
+                          size: 'small',
+                          onClick: e => { e.stopPropagation(); toggleFavorite(row.id, row.is_favorite); },
+                          sx: { color: row.is_favorite ? '#FFD700' : '#555' },
+                        },
+                          row.is_favorite
+                            ? React.createElement(Star,       { fontSize: 'small' })
+                            : React.createElement(StarBorder, { fontSize: 'small' })
+                        )
+                      );
+                    }
+                    if (c === 'skills') {
+                      const byCategory = (row.skills ?? []).reduce((acc, s) => {
+                        (acc[s.category] ??= []).push(s);
+                        return acc;
+                      }, {});
+                      return React.createElement(TableCell, { key: c, sx: { fontSize: '0.8rem', maxWidth: 300, verticalAlign: 'top' } },
+                        Object.keys(byCategory).length === 0 ? '—' :
+                        React.createElement(Box, { sx: { display: 'flex', flexDirection: 'column', gap: 0.5, py: 0.5 } },
+                          ...Object.entries(byCategory).map(([cat, items]) =>
+                            React.createElement(Box, { key: cat, sx: { display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center' } },
+                              React.createElement(Typography, { variant: 'caption', sx: { color: '#7ED9B1', fontWeight: 700, fontSize: '0.65rem', whiteSpace: 'nowrap' } }, cat + ':'),
+                              ...items.map(s =>
+                                React.createElement(Chip, { key: s.id, label: s.name, size: 'small', sx: { fontSize: '0.65rem', height: 18 } })
+                              )
+                            )
+                          )
+                        )
+                      );
+                    }
+                    if (c === 'certifications') {
+                      const certs = row.certifications ?? [];
+                      return React.createElement(TableCell, { key: c, sx: { fontSize: '0.8rem', maxWidth: 220, verticalAlign: 'top' } },
+                        certs.length === 0 ? '—' :
+                        React.createElement(Box, { sx: { display: 'flex', flexDirection: 'column', gap: 0.4, py: 0.5 } },
+                          ...certs.map(cert =>
+                            React.createElement(Typography, { key: cert.id, variant: 'caption', sx: { display: 'block', fontSize: '0.72rem', color: '#ccc' } },
+                              (cert.year ? cert.year + ' — ' : '') + cert.name
+                            )
+                          )
+                        )
+                      );
+                    }
+                    return React.createElement(TableCell, { key: c, sx: { fontSize: '0.8rem', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
+                      String(row[c] ?? '—')
+                    );
+                  }),
+                  !section.readonly && React.createElement(TableCell, { align: 'right' },
+                    React.createElement(Button, { size: 'small', onClick: () => openEdit(row), sx: { mr: 1 } }, 'Edit'),
+                    React.createElement(Button, { size: 'small', color: 'error', onClick: () => remove(row.id) }, 'Delete'),
+                  ),
+                )
+              )
+            )
+          )
+        ),
+
+        /* Dialog */
+        !section.readonly && React.createElement(Dialog, { open: !!dialog, onClose: closeDialog, maxWidth: 'sm', fullWidth: true },
+          React.createElement(DialogTitle, null, dialog === 'create' ? 'New entry' : 'Edit entry'),
+          React.createElement(DialogContent, { sx: { display: 'flex', flexDirection: 'column', gap: 2, pt: 2 } },
+            ...section.fields.map(f => {
+              if (f.type === 'skills') {
+                return React.createElement(SkillsPicker, {
+                  key:      f.key,
+                  value:    form[f.key] ?? [],
+                  onChange: ids => setForm(prev => ({ ...prev, [f.key]: ids })),
+                });
+              }
+              return React.createElement(AutoField, { key: f.key, fieldDef: f, form, setForm, rows });
+            })
+          ),
+          React.createElement(DialogActions, null,
+            React.createElement(Button, { onClick: closeDialog }, 'Cancel'),
+            React.createElement(Button, { variant: 'contained', onClick: save }, 'Save'),
+          )
+        ),
+
+        /* Snackbar */
+        React.createElement(Snackbar, {
+          open: !!snack, autoHideDuration: 3000,
+          onClose: () => setSnack(null),
+          anchorOrigin: { vertical: 'bottom', horizontal: 'center' },
+        },
+          snack && React.createElement(Alert, { severity: snack.sev, variant: 'filled' }, snack.msg)
+        ),
+      );
+    }
+
+    /* ── ADMIN APP ─────────────────────────────────────────── */
+    function AdminApp() {
+      const [active, setActive] = useState('experiences');
+      const [ready,  setReady]  = useState(false);
+      const section = SECTIONS.find(s => s.id === active);
+
+      useEffect(() => {
+        fetch(`${API}/auth.php?action=check`)
+          .then(r => r.json())
+          .then(data => {
+            if (data.authenticated) { setReady(true); }
+            else { window.location.replace('login.html'); }
+          })
+          .catch(() => { window.location.replace('login.html'); });
+      }, []);
+
+      const logout = async () => {
+        await fetch(`${API}/auth.php?action=logout`, { method: 'POST' });
+        window.location.replace('login.html');
+      };
+
+      if (!ready) return React.createElement(
+        Box, { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' },
+        React.createElement(CircularProgress, { color: 'primary' })
+      );
+
+      return React.createElement(ThemeProvider, { theme },
+        React.createElement(CssBaseline, null),
+        React.createElement(Box, { sx: { display: 'flex' } },
+
+          /* Sidebar */
+          React.createElement(Drawer, {
+            variant: 'permanent',
+            sx: {
+              width: DRAWER_WIDTH,
+              '& .MuiDrawer-paper': {
+                width: DRAWER_WIDTH, boxSizing: 'border-box',
+                background: '#0a0a0a', borderRight: '1px solid #222',
+              },
+            },
+          },
+            React.createElement(Toolbar, null,
+              React.createElement(Typography, { variant: 'subtitle2', color: 'primary', fontWeight: 700 }, 'Admin Panel')
+            ),
+            React.createElement(List, null,
+              SECTIONS.map(s =>
+                React.createElement(ListItem, { key: s.id, disablePadding: true },
+                  React.createElement(ListItemButton, {
+                    selected: active === s.id,
+                    onClick:  () => setActive(s.id),
+                    sx: { '&.Mui-selected': { color: '#7ED9B1', background: 'rgba(126,217,177,0.08)' } },
+                  },
+                    React.createElement(ListItemText, { primary: s.label, primaryTypographyProps: { fontSize: '0.875rem' } })
+                  )
+                )
+              )
+            )
+          ),
+
+          /* Main */
+          React.createElement(Box, { component: 'main', sx: { flexGrow: 1, p: 3 } },
+            React.createElement(AppBar, { position: 'static', color: 'transparent', elevation: 0, sx: { mb: 3, borderBottom: '1px solid #222' } },
+              React.createElement(Toolbar, null,
+                React.createElement(Typography, { variant: 'h6', sx: { flexGrow: 1 } }, 'Portefolio Admin'),
+                React.createElement(Button, { href: '../index.html', size: 'small', color: 'primary', sx: { mr: 1 } }, 'View site →'),
+                React.createElement(Button, { onClick: logout, size: 'small', color: 'inherit', variant: 'outlined', sx: { borderColor: '#444' } }, 'Déconnexion'),
+              )
+            ),
+            section && React.createElement(CrudTable, { key: active, section }),
+          )
+        )
+      );
+    }
+
+    createRoot(document.getElementById('root')).render(React.createElement(AdminApp));
+  </script>
+</body>
+</html>
