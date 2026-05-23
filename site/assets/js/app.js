@@ -183,51 +183,147 @@ async function renderProjects() {
   projectsCache = data;
   const panel = document.getElementById('tab-creations');
 
+  /* Tri : is_favorite en tête (déjà fait par l'API) */
+  const featured    = data?.find(p => p.is_favorite) ?? data?.[0] ?? null;
+  const rest        = (data ?? []).filter(p => p !== featured);
+  const sideCards   = rest.slice(0, 2);
+  const bottomCards = rest.slice(2, 5);
+  const total = data?.length ?? 0;
+  const shown = (featured ? 1 : 0) + sideCards.length + bottomCards.length;
+
+  /* Helpers */
+  const yr    = d  => d ? new Date(d).getFullYear() : '';
+  const stack = ss => (ss ?? []).slice(0, 3).map(s => s.name ?? s).join(' · ');
+  const mediaLabels = `
+    <span class="proj-card__media-label">IMG · 16:9</span>`;
+
+  /* Carte featured */
+  const featuredHtml = featured ? `
+    <div class="proj-card proj-card--featured" data-cat="${(featured.category ?? '').toLowerCase()}" onclick="openModal(${featured.id})">
+      <div class="proj-card__media proj-card__media--hatch">
+        ${featured.photo_url ? `<img src="${featured.photo_url}" alt="${featured.name}" class="proj-card__img">` : ''}
+        <span class="proj-card__tag">FEATURED</span>
+      </div>
+      <div class="proj-card__body proj-card__body--featured">
+        <div class="proj-card__name proj-card__name--lg">[ ${featured.name} ]</div>
+        ${featured.description ? `<p class="proj-card__pitch">${featured.description.slice(0, 140)}${featured.description.length > 140 ? '…' : ''}</p>` : ''}
+        ${featured.skills?.length ? `<p class="proj-card__stack-line">Stack: ${stack(featured.skills)}.</p>` : ''}
+      </div>
+    </div>` : '';
+
+  /* Cartes latérales */
+  const sideHtml = sideCards.map(p => `
+    <div class="proj-card proj-card--side" data-cat="${(p.category ?? '').toLowerCase()}" onclick="openModal(${p.id})">
+      <div class="proj-card__media proj-card__media--hatch proj-card__media--sm">
+        ${p.photo_url ? `<img src="${p.photo_url}" alt="${p.name}" class="proj-card__img">` : ''}
+        ${mediaLabels}
+        <span class="proj-card__year">${yr(p.date)}</span>
+      </div>
+      <div class="proj-card__body">
+        <div class="proj-card__name">[ ${p.name} ]</div>
+        ${p.skills?.length ? `<div class="proj-card__cat-line">${stack(p.skills)}</div>` : ''}
+      </div>
+    </div>`).join('');
+
+  /* Cartes du bas */
+  const bottomHtml = bottomCards.map(p => `
+    <div class="proj-card" data-cat="${(p.category ?? '').toLowerCase()}" onclick="openModal(${p.id})">
+      <div class="proj-card__media proj-card__media--hatch proj-card__media--ratio">
+        ${p.photo_url ? `<img src="${p.photo_url}" alt="${p.name}" class="proj-card__img">` : ''}
+        ${mediaLabels}
+        <span class="proj-card__year">${yr(p.date)}</span>
+      </div>
+      <div class="proj-card__body">
+        <div class="proj-card__name">[ ${p.name} ]</div>
+        ${p.skills?.length ? `<div class="proj-card__cat-line">${stack(p.skills)}</div>` : ''}
+      </div>
+    </div>`).join('');
+
+  const showingStr = t('creations.showing')
+    .replace('{n}', shown).replace('{total}', total);
+
   panel.innerHTML = `
-    <h2 class="section-title" data-i18n="creations.title"></h2>
-    <div class="projects-grid">
-      ${(data ?? []).map(p => `
-        <div class="project-card" onclick="openModal(${p.id})">
-          <div class="project-card__thumb">
-            ${p.photo_url
-              ? `<img src="${p.photo_url}" alt="${p.name}">`
-              : `<span>${p.name[0]}</span>`}
-            ${p.is_favorite ? `<span class="project-card__favorite" title="Favori">★</span>` : ''}
-          </div>
-          <div class="project-card__body">
-            <div class="project-card__name">${p.name}</div>
-            ${chips((p.skills ?? []).slice(0, 3))}
-          </div>
+    <div class="proj-section">
+
+      <!-- Header: breadcrumb + filtres -->
+      <div class="proj-header">
+        <span class="proj-breadcrumb">/02 · CREATIONS · ${total} PROJECTS</span>
+        <div class="proj-filters">
+          <button class="proj-filter active" data-filter="all">${t('creations.filter_all')}</button>
+          <button class="proj-filter" data-filter="web">${t('creations.filter_web')}</button>
+          <button class="proj-filter" data-filter="opensource">${t('creations.filter_opensource')}</button>
+          <button class="proj-filter" data-filter="side">${t('creations.filter_side')}</button>
         </div>
-      `).join('')}
+      </div>
+
+      <!-- Titre -->
+      <div class="proj-title-area">
+        <h2 class="proj-title">${t('creations.display_title')}</h2>
+        <p class="proj-subtitle">${t('creations.subtitle')}</p>
+      </div>
+
+      <!-- Grille -->
+      <div class="proj-grid">
+        ${(featured || sideCards.length) ? `
+        <div class="proj-grid__top">
+          ${featuredHtml}
+          ${sideCards.length ? `<div class="proj-grid__side">${sideHtml}</div>` : ''}
+        </div>` : ''}
+        ${bottomCards.length ? `<div class="proj-grid__row">${bottomHtml}</div>` : ''}
+      </div>
+
+      <!-- Footer -->
+      <div class="proj-footer">
+        <span class="proj-showing">${showingStr}</span>
+        <a href="https://github.com/ValcasaraBryan" target="_blank" rel="noopener"
+           class="btn btn--outline btn--sm">${t('creations.see_all')}</a>
+      </div>
+
     </div>
+    <!-- Modal -->
     <div class="modal-overlay hidden" id="proj-modal" onclick="closeModal(event)">
       <div class="modal" id="proj-modal-body"></div>
     </div>
   `;
+
+  /* Filtres par category */
+  panel.querySelectorAll('.proj-filter').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const f = btn.dataset.filter;
+      panel.querySelectorAll('.proj-filter').forEach(b => b.classList.toggle('active', b === btn));
+      panel.querySelectorAll('.proj-card').forEach(card => {
+        const cat = card.dataset.cat ?? '';
+        card.style.display =
+          (f === 'all' || cat === f || cat.includes(f)) ? '' : 'none';
+      });
+    });
+  });
+
   applyI18n();
 }
 
 function openModal(id) {
   const p = projectsCache?.find(x => x.id === id);
   if (!p) return;
+  const year = p.date ? new Date(p.date).getFullYear() : null;
   document.getElementById('proj-modal-body').innerHTML = `
-    <h3 class="modal__title">${p.name}</h3>
-    ${p.date ? `<span class="period" style="margin-bottom:10px;display:inline-flex">${fmtDate(p.date)}</span>` : ''}
+    <div class="modal-header">
+      <h3 class="modal__title">[ ${p.name} ]</h3>
+      ${year ? `<span class="modal__meta">${year}</span>` : ''}
+    </div>
+    ${p.category ? `<p class="modal__category">${p.category}</p>` : ''}
     <p class="modal__description">${p.description ?? ''}</p>
     ${chips(p.skills)}
-    <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">
+    <div class="modal__actions">
       ${p.url
         ? `<a href="${p.url}" target="_blank" rel="noopener noreferrer"
-              class="btn btn--outline btn--sm" style="width:100%"
-              onclick="event.stopPropagation()">${t('creations.website')}</a>`
+              class="btn btn--outline btn--sm" onclick="event.stopPropagation()">${t('creations.website')}</a>`
         : ''}
       ${p.github_url
         ? `<a href="${p.github_url}" target="_blank" rel="noopener noreferrer"
-              class="btn btn--outline btn--sm" style="width:100%"
-              onclick="event.stopPropagation()">${t('creations.github')}</a>`
+              class="btn btn--outline btn--sm" onclick="event.stopPropagation()">${t('creations.github')}</a>`
         : ''}
-      <button class="btn btn--outline btn--sm" style="width:100%"
+      <button class="btn btn--outline btn--sm"
               onclick="document.getElementById('proj-modal').classList.add('hidden')">
         ${t('creations.close')}
       </button>

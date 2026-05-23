@@ -25,10 +25,18 @@
     "hover_hint":       "Hover a row to see project highlights."
   },
   "creations": {
-    "title":   "Projects",
-    "website": "Website →",
-    "github":  "GitHub →",
-    "close":   "Close"
+    "title":             "Projects",
+    "display_title":     "Things I've built",
+    "subtitle":          "Click a card for case study (problem → process → stack → outcome).",
+    "website":           "Website →",
+    "github":            "GitHub →",
+    "close":             "Close",
+    "filter_all":        "All",
+    "filter_web":        "Web",
+    "filter_opensource": "Open source",
+    "filter_side":       "Side",
+    "showing":           "Showing {n} of {total}",
+    "see_all":           "See all on GitHub →"
   },
   "formations": {
     "title":        "Education",

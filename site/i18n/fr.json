@@ -25,10 +25,18 @@
     "hover_hint":       "Passez sur une ligne pour voir les détails."
   },
   "creations": {
-    "title":   "Créations",
-    "website": "Site web →",
-    "github":  "GitHub →",
-    "close":   "Fermer"
+    "title":             "Créations",
+    "display_title":     "Mes projets",
+    "subtitle":          "Cliquez sur une carte pour voir le cas d'usage (problème → process → stack → résultat).",
+    "website":           "Site web →",
+    "github":            "GitHub →",
+    "close":             "Fermer",
+    "filter_all":        "Tout",
+    "filter_web":        "Web",
+    "filter_opensource": "Open source",
+    "filter_side":       "Side",
+    "showing":           "Affichage de {n} sur {total}",
+    "see_all":           "Tout voir sur GitHub →"
   },
   "formations": {
     "title":        "Formations",
