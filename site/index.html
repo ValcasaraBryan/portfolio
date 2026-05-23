@@ -7,7 +7,7 @@
   <title>Bryan VALCASARA</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Caveat:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./assets/css/main.css">
 </head>
 <body>
@@ -32,31 +32,67 @@
 
     <!-- Desktop: drawer -->
     <aside class="drawer">
+
+      <!-- 1. Identity: name + title -->
+      <div class="drawer__identity">
+        <div class="drawer__name profile-name"></div>
+        <div class="drawer__subtitle profile-title"></div>
+      </div>
+
+      <!-- 2. Portrait -->
       <img class="drawer__avatar profile-avatar"
            src="./assets/img/avatar.jpg" alt="Bryan VALCASARA">
-      <div class="drawer__name profile-name">Bryan VALCASARA</div>
-      <div class="drawer__title profile-title"></div>
 
-      <nav class="drawer__nav">
-        <button class="drawer__nav-item" data-tab="experiences" data-i18n="nav.experiences"></button>
-        <button class="drawer__nav-item" data-tab="creations"   data-i18n="nav.creations"></button>
-        <button class="drawer__nav-item" data-tab="formations"  data-i18n="nav.formations"></button>
-        <button class="drawer__nav-item" data-tab="contact"     data-i18n="nav.contact"></button>
-      </nav>
-
-      <div class="drawer__footer">
+      <!-- 3. Lang toggle + location -->
+      <div class="drawer__lang-row">
         <div class="lang-toggle">
           <button class="lang-toggle__btn active" data-lang="fr">FR</button>
           <button class="lang-toggle__btn"        data-lang="en">EN</button>
         </div>
-        <a href="./cv.pdf" download class="btn btn--outline" data-i18n="common.download_cv"></a>
+        <span class="drawer__location" data-i18n="common.location">Paris · open</span>
+      </div>
+
+      <!-- 4. Nav -->
+      <nav class="drawer__nav">
+        <button class="drawer__nav-item" data-tab="experiences">
+          <span data-i18n="nav.experiences">Expériences</span>
+          <span class="drawer__nav-num">/01</span>
+        </button>
+        <button class="drawer__nav-item" data-tab="creations">
+          <span data-i18n="nav.creations">Créations</span>
+          <span class="drawer__nav-num">/02</span>
+        </button>
+        <button class="drawer__nav-item" data-tab="formations">
+          <span data-i18n="nav.formations">Formations</span>
+          <span class="drawer__nav-num">/03</span>
+        </button>
+        <button class="drawer__nav-item" data-tab="contact">
+          <span data-i18n="nav.contact">Contact</span>
+          <span class="drawer__nav-num">/04</span>
+        </button>
+      </nav>
+
+      <!-- 5. Download CV -->
+      <a href="./cv.pdf" download class="drawer__cv-btn">
+        ↓ <span data-i18n="common.download_cv">Télécharger CV</span>&nbsp;<em>.pdf</em>
+      </a>
+
+      <!-- 6. Divider -->
+      <div class="drawer__divider"></div>
+
+      <!-- 7. Footer: copyright + social links -->
+      <div class="drawer__footer">
+        <span class="drawer__copy">© 2026</span>
         <div class="social-links">
           <a href="https://github.com/ValcasaraBryan"
              target="_blank" rel="noopener" class="social-link" title="GitHub">GH</a>
-          <a href="https://www.valcasarabryan.fr"
-             target="_blank" rel="noopener" class="social-link" title="Website">WEB</a>
+          <a href="https://linkedin.com/in/bryan-valcasara"
+             target="_blank" rel="noopener" class="social-link" title="LinkedIn">IN</a>
+          <a href="mailto:valcasarabryan@gmail.com"
+             class="social-link" title="Email">@</a>
         </div>
       </div>
+
     </aside>
 
     <!-- Main content -->

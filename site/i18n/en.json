@@ -6,14 +6,23 @@
     "contact":     "Contact"
   },
   "common": {
-    "download_cv": "Download CV",
-    "present":     "Present"
+    "download_cv":  "Download CV",
+    "present":      "Present",
+    "location":     "Paris · open",
+    "open_status":  "Open"
   },
   "experiences": {
-    "title":      "Experience",
-    "positions":  "Positions",
-    "years":      "Years",
-    "top_skills": "Top skills"
+    "title":            "Experience",
+    "display_title":    "Where I've worked",
+    "positions":        "Positions",
+    "years":            "Years",
+    "top_skills":       "Top skills",
+    "filter_all":       "All",
+    "filter_fulltime":  "Full-time",
+    "filter_internship":"Internship",
+    "roles_label":      "roles",
+    "years_label":      "years",
+    "hover_hint":       "Hover a row to see project highlights."
   },
   "creations": {
     "title":   "Projects",

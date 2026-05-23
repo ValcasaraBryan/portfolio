@@ -68,53 +68,113 @@ async function get(endpoint) {
 
 /* ── EXPERIENCES ───────────────────────────────────────────── */
 async function renderExperiences() {
-  const data = await get('experiences.php');
+  const data  = await get('experiences.php');
   const panel = document.getElementById('tab-experiences');
 
   const totalYears = data
     ? Math.round(data.reduce((acc, e) => {
-        const s = new Date(e.start_date);
+        const s   = new Date(e.start_date);
         const end = e.end_date ? new Date(e.end_date) : new Date();
         return acc + (end - s) / 31536000000;
       }, 0))
     : 0;
 
   const topSkills = data
-    ? [...new Set(data.flatMap(e => e.skills ?? []).map(s => s.name))].slice(0, 3).join(', ')
+    ? [...new Set(data.flatMap(e => e.skills ?? []).map(s => s.name))].slice(0, 3).join(' / ')
     : '—';
 
+  /* Catégorie de filtre selon le type de contrat */
+  function filterCat(type) {
+    const t = (type ?? '').toLowerCase();
+    if (t === 'cdi' || t === 'cdd')          return 'fulltime';
+    if (t === 'stage' || t === 'alternance') return 'internship';
+    return 'other';
+  }
+
   panel.innerHTML = `
-    <h2 class="section-title" data-i18n="experiences.title"></h2>
-    <div class="experience-summary">
-      <div class="stat-card">
-        <div class="stat-card__value">${data?.length ?? 0}</div>
-        <div class="stat-card__label" data-i18n="experiences.positions"></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-card__value">${totalYears}+</div>
-        <div class="stat-card__label" data-i18n="experiences.years"></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-card__value" style="font-size:0.8rem;line-height:1.3">${topSkills || '—'}</div>
-        <div class="stat-card__label" data-i18n="experiences.top_skills"></div>
-      </div>
-    </div>
-    <div class="timeline">
-      ${(data ?? []).map(exp => `
-        <div class="experience-card">
-          <div class="experience-card__company">${exp.company}</div>
-          <div class="experience-card__role">${exp.role}</div>
-          <div class="experience-card__meta">
-            ${exp.type     ? `<span>${exp.type}</span>` : ''}
-            ${exp.location ? `<span>${exp.location}</span>` : ''}
-            <span class="period">${period(exp.start_date, exp.end_date)}</span>
-          </div>
-          ${exp.description ? `<div class="experience-card__description">${exp.description}</div>` : ''}
-          ${chips(exp.skills)}
+    <div class="exp-section">
+
+      <!-- Breadcrumb + filtres -->
+      <div class="exp-header">
+        <span class="exp-breadcrumb">/01 · EXPERIENCE</span>
+        <div class="exp-filters">
+          <button class="exp-filter active" data-filter="all">${t('experiences.filter_all')}</button>
+          <button class="exp-filter" data-filter="fulltime">${t('experiences.filter_fulltime')}</button>
+          <button class="exp-filter" data-filter="internship">${t('experiences.filter_internship')}</button>
         </div>
-      `).join('')}
+      </div>
+
+      <!-- Titre + annotation + sous-titre -->
+      <div class="exp-title-area">
+        <div class="exp-title-row">
+          <h2 class="exp-title">${t('experiences.display_title')}</h2>
+          <p class="exp-annotation">↑ summary strip = quick glance for HR</p>
+        </div>
+        <p class="exp-subtitle">
+          ${data?.length ?? 0} ${t('experiences.roles_label')} · ${totalYears}+ ${t('experiences.years_label')} · ${topSkills || '—'}.<br>
+          ${t('experiences.hover_hint')}
+        </p>
+      </div>
+
+      <!-- Highlights strip -->
+      <div class="exp-highlights">
+        <div class="exp-highlight-cell">
+          <div class="exp-highlight-label">YEARS</div>
+          <div class="exp-highlight-value">${totalYears}+</div>
+        </div>
+        <div class="exp-highlight-cell">
+          <div class="exp-highlight-label">ROLES</div>
+          <div class="exp-highlight-value">${data?.length ?? 0}</div>
+        </div>
+        <div class="exp-highlight-cell">
+          <div class="exp-highlight-label">MAIN STACK</div>
+          <div class="exp-highlight-value exp-highlight-value--stack">${topSkills || '—'}</div>
+        </div>
+        <div class="exp-highlight-cell">
+          <div class="exp-highlight-label">STATUS</div>
+          <div class="exp-highlight-value">
+            <span class="exp-status-dot"></span> ${t('common.open_status')}
+          </div>
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="exp-timeline">
+        ${(data ?? []).map((exp, i) => {
+          const isCurrent = !exp.end_date;
+          const cat       = filterCat(exp.type);
+          const co        = exp.company  ? `[ ${exp.company} ]`   : '';
+          const loc       = exp.location ? ` · ${exp.location}`   : '';
+          const typ       = exp.type     ? ` · ${exp.type}`       : '';
+          return `
+          <div class="timeline-row ${isCurrent ? 'current' : ''}" data-filter-cat="${cat}">
+            <div class="timeline-year">${periodDisplay(exp.start_date, exp.end_date)}</div>
+            <div class="timeline-detail">
+              <div class="timeline-role ${isCurrent ? 'current' : ''}">${exp.role}</div>
+              <div class="timeline-company">${co}${loc}${typ}</div>
+              ${exp.description ? `<p class="timeline-desc">${exp.description}</p>` : ''}
+              ${exp.skills?.length ? `<div class="chips-list">${exp.skills.map(s => `<span class="chip">${s.name ?? s}</span>`).join('')}</div>` : ''}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+
     </div>
   `;
+
+  /* Filtres */
+  panel.querySelectorAll('.exp-filter').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const f = btn.dataset.filter;
+      panel.querySelectorAll('.exp-filter')
+        .forEach(b => b.classList.toggle('active', b === btn));
+      panel.querySelectorAll('.timeline-row').forEach(row => {
+        row.style.display =
+          f === 'all' || row.dataset.filterCat === f ? '' : 'none';
+      });
+    });
+  });
+
   applyI18n();
 }
 
@@ -299,6 +359,15 @@ async function sendContact(e) {
 function chips(items) {
   if (!items?.length) return '';
   return `<div class="chips-list">${items.map(s => `<span class="chip">${s.name ?? s}</span>`).join('')}</div>`;
+}
+
+/** Affiche "2024 — now", "2022 — 2024" ou "2020" */
+function periodDisplay(start, end) {
+  if (!start) return '';
+  const sy = new Date(start).getFullYear();
+  if (!end)  return `${sy} — now`;
+  const ey = new Date(end).getFullYear();
+  return sy === ey ? String(sy) : `${sy} — ${ey}`;
 }
 
 function period(start, end) {

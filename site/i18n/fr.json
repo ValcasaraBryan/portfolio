@@ -6,14 +6,23 @@
     "contact":     "Contact"
   },
   "common": {
-    "download_cv": "Télécharger CV",
-    "present":     "Présent"
+    "download_cv":  "Télécharger CV",
+    "present":      "Présent",
+    "location":     "Paris · open",
+    "open_status":  "Disponible"
   },
   "experiences": {
-    "title":      "Expériences",
-    "positions":  "Postes",
-    "years":      "Années",
-    "top_skills": "Top compétences"
+    "title":            "Expériences",
+    "display_title":    "Mes expériences",
+    "positions":        "Postes",
+    "years":            "Années",
+    "top_skills":       "Top compétences",
+    "filter_all":       "Tout",
+    "filter_fulltime":  "CDI / CDD",
+    "filter_internship":"Stage",
+    "roles_label":      "postes",
+    "years_label":      "ans",
+    "hover_hint":       "Passez sur une ligne pour voir les détails."
   },
   "creations": {
     "title":   "Créations",
