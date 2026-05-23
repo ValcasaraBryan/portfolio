@@ -108,7 +108,6 @@ async function renderExperiences() {
       <div class="exp-title-area">
         <div class="exp-title-row">
           <h2 class="exp-title">${t('experiences.display_title')}</h2>
-          <p class="exp-annotation">↑ summary strip = quick glance for HR</p>
         </div>
         <p class="exp-subtitle">
           ${data?.length ?? 0} ${t('experiences.roles_label')} · ${totalYears}+ ${t('experiences.years_label')} · ${topSkills || '—'}.<br>
@@ -396,8 +395,36 @@ function notify(msg) {
   setTimeout(() => el.classList.remove('visible'), 3000);
 }
 
+/* ── THEME ─────────────────────────────────────────────────── */
+function initTheme() {
+  const saved = localStorage.getItem('theme') || 'light';
+  document.documentElement.dataset.theme = saved;
+  // les icônes sont gérées via CSS (::before selon data-theme),
+  // on met juste à jour le aria-label / title
+  _syncThemeButtons();
+}
+
+function toggleTheme() {
+  const current = document.documentElement.dataset.theme;
+  const next    = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('theme', next);
+  _syncThemeButtons();
+}
+
+function _syncThemeButtons() {
+  const isDark  = document.documentElement.dataset.theme === 'dark';
+  const label   = isDark ? 'Passer en mode clair' : 'Passer en mode sombre';
+  document.querySelectorAll('.theme-toggle').forEach(btn => {
+    btn.title       = label;
+    btn.setAttribute('aria-label', label);
+  });
+}
+
 /* ── INIT ──────────────────────────────────────────────────── */
 async function init() {
+  initTheme();   /* ← en premier pour éviter le flash */
+
   await loadLang('fr');
 
   const profile = await get('profile.php');
@@ -413,6 +440,9 @@ async function init() {
 
   document.querySelectorAll('.lang-toggle__btn')
     .forEach(b => b.addEventListener('click', () => loadLang(b.dataset.lang)));
+
+  document.querySelectorAll('.theme-toggle')
+    .forEach(b => b.addEventListener('click', toggleTheme));
 
   document.querySelectorAll('[data-tab]')
     .forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));

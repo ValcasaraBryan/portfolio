@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +8,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Caveat:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Anti-flash : doit précéder le CSS pour éviter le scintillement -->
+  <script>
+    (function(){
+      var t = localStorage.getItem('theme');
+      if (t === 'dark') document.documentElement.dataset.theme = 'dark';
+    })();
+  </script>
   <link rel="stylesheet" href="./assets/css/main.css">
 </head>
 <body>
@@ -22,9 +29,12 @@
         <div class="profile-header__title profile-title"></div>
       </div>
       <div class="profile-header__actions">
-        <div class="lang-toggle">
-          <button class="lang-toggle__btn active" data-lang="fr">FR</button>
-          <button class="lang-toggle__btn"        data-lang="en">EN</button>
+        <div class="profile-header__top-row">
+          <div class="lang-toggle">
+            <button class="lang-toggle__btn active" data-lang="fr">FR</button>
+            <button class="lang-toggle__btn"        data-lang="en">EN</button>
+          </div>
+          <button class="theme-toggle" id="theme-toggle-mobile" title="Mode sombre" aria-label="Basculer le thème">☾</button>
         </div>
         <a href="./cv.pdf" download class="btn btn--outline btn--sm" data-i18n="common.download_cv"></a>
       </div>
@@ -43,13 +53,14 @@
       <img class="drawer__avatar profile-avatar"
            src="./assets/img/avatar.jpg" alt="Bryan VALCASARA">
 
-      <!-- 3. Lang toggle + location -->
+      <!-- 3. Lang toggle + location + theme -->
       <div class="drawer__lang-row">
         <div class="lang-toggle">
           <button class="lang-toggle__btn active" data-lang="fr">FR</button>
           <button class="lang-toggle__btn"        data-lang="en">EN</button>
         </div>
         <span class="drawer__location" data-i18n="common.location">Paris · open</span>
+        <button class="theme-toggle" id="theme-toggle-desktop" title="Mode sombre" aria-label="Basculer le thème">☾</button>
       </div>
 
       <!-- 4. Nav -->
