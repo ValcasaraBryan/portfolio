@@ -94,16 +94,16 @@ async function renderExperiences() {
     ? [...new Set(data.flatMap(e => e.skills ?? []).map(s => s.name))].slice(0, 3).join(' / ')
     : '—';
 
-  /* Types uniques présents dans les données (dédupliqués, insensible à la casse)
-   * Chaque entrée : { key: 'cdi', label: 'CDI' }
-   * - key   → valeur normalisée utilisée pour data-filter et la comparaison
-   * - label → valeur d'origine retournée par l'API (déjà traduite si dispo)
+  /* Types uniques présents dans les données (dédupliqués)
+   * Chaque entrée : { key: 'work_study', label: 'Alternance' }
+   * - key   → clé enum stable (type_key) — identique quelle que soit la langue active
+   * - label → libellé traduit retourné par l'API (type) pour l'affichage du bouton
    */
   const uniqueTypes = [
     ...new Map(
       (data ?? [])
-        .filter(e => e.type?.trim())
-        .map(e => [e.type.trim().toLowerCase(), e.type.trim()])
+        .filter(e => e.type_key?.trim())
+        .map(e => [e.type_key, e.type ?? e.type_key])   // key=enum stable, label=traduit
     ).entries()
   ].map(([key, label]) => ({ key, label }));
 
@@ -158,7 +158,7 @@ async function renderExperiences() {
       <div class="exp-timeline">
         ${(data ?? []).map((exp) => {
           const isCurrent = !exp.end_date;
-          const typeKey   = (exp.type ?? '').trim().toLowerCase(); // même clé que les boutons
+          const typeKey   = exp.type_key ?? '';   // clé enum stable — même valeur que les boutons
           const co        = exp.company  ? `[ ${exp.company} ]`   : '';
           const loc       = exp.location ? ` · ${exp.location}`   : '';
           const typ       = exp.type     ? ` · ${exp.type}`       : '';
@@ -241,13 +241,10 @@ function _renderProjPage() {
   const data   = projectsCache ?? [];
   const filter = _projFilter;
 
-  /* Pool filtré */
+  /* Pool filtré — correspondance exacte sur la clé normalisée */
   const pool = filter === 'all'
     ? data
-    : data.filter(p => {
-        const cat = (p.category ?? '').toLowerCase();
-        return cat === filter || cat.includes(filter);
-      });
+    : data.filter(p => (p.category ?? '').trim().toLowerCase() === filter);
 
   const total      = pool.length;
   const totalPages = Math.max(1, Math.ceil(total / PROJ_PER_PAGE));
@@ -366,10 +363,9 @@ function _renderProjPage() {
 
 function _goPage(n) {
   const data       = projectsCache ?? [];
-  const pool       = _projFilter === 'all' ? data : data.filter(p => {
-    const cat = (p.category ?? '').toLowerCase();
-    return cat === _projFilter || cat.includes(_projFilter);
-  });
+  const pool       = _projFilter === 'all'
+    ? data
+    : data.filter(p => (p.category ?? '').trim().toLowerCase() === _projFilter);
   const totalPages = Math.max(1, Math.ceil(pool.length / PROJ_PER_PAGE));
   if (n < 1 || n > totalPages) return;
   _projPage = n;
@@ -394,10 +390,9 @@ async function renderProjects() {
         <div class="proj-filters">
           <button class="proj-filter active" data-filter="all">${t('creations.filter_all')}</button>
           ${['web', 'opensource', 'side']
-            .filter(cat => (data ?? []).some(p => {
-              const c = (p.category ?? '').toLowerCase();
-              return c === cat || c.includes(cat);
-            }))
+            .filter(cat => (data ?? []).some(p =>
+              (p.category ?? '').trim().toLowerCase() === cat
+            ))
             .map(cat => `<button class="proj-filter" data-filter="${cat}">${t('creations.filter_' + cat)}</button>`)
             .join('')}
         </div>
@@ -420,15 +415,14 @@ async function renderProjects() {
   `;
 
   /* Filtres — reset si le filtre courant n'existe plus dans les données */
-  const availableFilters = ['all', 'web', 'opensource', 'side'].filter(cat =>
-    cat === 'all' || (data ?? []).some(p => {
-      const c = (p.category ?? '').toLowerCase();
-      return c === cat || c.includes(cat);
-    })
+  const availableCats = new Set(
+    ['all', 'web', 'opensource', 'side'].filter(cat =>
+      cat === 'all' || (data ?? []).some(p =>
+        (p.category ?? '').trim().toLowerCase() === cat
+      )
+    )
   );
-  if (!availableFilters.includes(_projFilter)) {
-    _projFilter = 'all';
-  }
+  if (!availableCats.has(_projFilter)) _projFilter = 'all';
 
   panel.querySelectorAll('.proj-filter').forEach(btn => {
     btn.addEventListener('click', () => {

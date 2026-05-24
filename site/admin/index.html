@@ -39,12 +39,22 @@
       Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
       Dialog, DialogTitle, DialogContent, DialogActions,
       TextField, Alert, Snackbar, CircularProgress, Chip, Autocomplete,
-      createTheme, ThemeProvider, CssBaseline,
+      MenuItem, createTheme, ThemeProvider, CssBaseline,
     } from '@mui/material';
     import { Star, StarBorder } from '@mui/icons-material';
 
     const API = '../api';
     const DRAWER_WIDTH = 220;
+
+    /* ── Enum canonique EN + labels bilingues ─────────────────── */
+    const EXP_TYPE_MAP = [
+      { key: 'internship',          fr: 'Stage',       en: 'Internship' },
+      { key: 'permanent_contract',  fr: 'CDI',         en: 'Permanent contract' },
+      { key: 'fixed_term_contract', fr: 'CDD',         en: 'Fixed-term contract' },
+      { key: 'work_study',          fr: 'Alternance',  en: 'Work-study' },
+      { key: 'freelance',           fr: 'Freelance',   en: 'Freelance' },
+      { key: 'self_employed',       fr: 'Indépendant', en: 'Self-employed' },
+    ];
 
     const theme = createTheme({
       palette: {
@@ -68,15 +78,20 @@
     /* ── SECTIONS CONFIG ───────────────────────────────────── */
     const SECTIONS = [
       { id: 'experiences', label: 'Experiences', endpoint: 'experiences.php',
+        bilingual: true,
         columns: ['company','role','type','location','start_date','end_date','skills'],
         fields: [
           { key: 'company' },
-          { key: 'role',     suggestions: rows => [...new Set(rows.map(r => r.role).filter(Boolean))] },
-          { key: 'type',     suggestions: ['Work-study','Permanent contract','Internship','Self-employed','Fixed-term'] },
-          { key: 'location', suggestions: rows => [...new Set(rows.map(r => r.location).filter(Boolean))] },
+          { key: 'location',    suggestions: rows => [...new Set(rows.map(r => r.location).filter(Boolean))] },
           { key: 'start_date' },
           { key: 'end_date' },
-          { key: 'description' },
+          { key: 'type', type: 'type_selector' },
+          { key: '_sep_fr', type: 'separator', label: '🇫🇷 Français' },
+          { key: 'role',        label: 'Rôle (FR)' },
+          { key: 'description', label: 'Description (FR)' },
+          { key: '_sep_en', type: 'separator', label: '🇬🇧 English' },
+          { key: 'role_en',        label: 'Role (EN)' },
+          { key: 'description_en', label: 'Description (EN)' },
           { key: 'skill_ids', type: 'skills', label: 'Skills' },
         ],
       },
@@ -172,13 +187,71 @@
       );
     }
 
+    /* ── TYPE SELECTOR (exp) ──────────────────────────────── */
+    function TypeSelector({ form, setForm }) {
+      const current = form.type ?? '';                          // clé enum (ex: 'work_study')
+      const entry   = EXP_TYPE_MAP.find(e => e.key === current);
+
+      const handleChange = key => {
+        const match = EXP_TYPE_MAP.find(e => e.key === key);
+        setForm(prev => ({
+          ...prev,
+          type:    key,              // clé enum → stockée dans experiences.type
+          type_fr: match?.fr ?? key, // label FR → stocké dans experience_translations
+          type_en: match?.en ?? key, // label EN → stocké dans experience_translations
+        }));
+      };
+
+      return React.createElement(Box, { sx: { display: 'flex', flexDirection: 'column', gap: 0.5 } },
+        React.createElement(TextField, {
+          select: true,
+          label: 'Type',
+          size: 'small',
+          value: current,
+          onChange: e => handleChange(e.target.value),
+          fullWidth: true,
+        },
+          React.createElement(MenuItem, { value: '' }, '—'),
+          ...EXP_TYPE_MAP.map(e =>
+            React.createElement(MenuItem, { key: e.key, value: e.key },
+              `${e.fr}  /  ${e.en}`
+            )
+          )
+        ),
+        entry && React.createElement(Typography, {
+          variant: 'caption',
+          sx: { color: '#7ED9B1', pl: 1 },
+        }, `→ FR : "${entry.fr}" · EN : "${entry.en}"`)
+      );
+    }
+
     /* ── AUTO FIELD ───────────────────────────────────────── */
     function AutoField({ fieldDef, form, setForm, rows }) {
       const key   = fieldDef.key;
-      const label = (fieldDef.label ?? key).replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      const label = fieldDef.label
+        ?? key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
       const raw   = fieldDef.suggestions;
       const opts  = raw ? (typeof raw === 'function' ? raw(rows) : raw) : null;
       const value = String(form[key] ?? '');
+      const isMultiline = key === 'description' || key === 'description_en';
+
+      /* Sélecteur de type bilingue */
+      if (fieldDef.type === 'type_selector') {
+        return React.createElement(TypeSelector, { key, form, setForm });
+      }
+
+      /* Séparateur de section FR / EN */
+      if (fieldDef.type === 'separator') {
+        return React.createElement(Box, {
+          key,
+          sx: { borderBottom: '1px solid #333', pb: 0.5, mt: 1 },
+        },
+          React.createElement(Typography, {
+            variant: 'caption',
+            sx: { color: '#7ED9B1', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' },
+          }, label)
+        );
+      }
 
       if (opts) {
         return React.createElement(Autocomplete, {
@@ -196,15 +269,16 @@
         label,
         size: 'small',
         value,
-        onChange: e => setForm(prev => ({ ...prev, [key]: e.target.value })),
-        multiline: key === 'description',
-        rows:      key === 'description' ? 4 : 1,
+        onChange:  e => setForm(prev => ({ ...prev, [key]: e.target.value })),
+        multiline: isMultiline,
+        rows:      isMultiline ? 4 : 1,
       });
     }
 
     /* ── CRUD TABLE ────────────────────────────────────────── */
     function CrudTable({ section }) {
       const [rows,    setRows]    = useState([]);
+      const [rowsEn,  setRowsEn]  = useState([]);
       const [loading, setLoading] = useState(true);
       const [dialog,  setDialog]  = useState(null);
       const [form,    setForm]    = useState({});
@@ -212,15 +286,47 @@
 
       const load = useCallback(async () => {
         setLoading(true);
-        try { setRows(await apiFetch(section.endpoint)); }
-        catch { setSnack({ msg: 'Failed to load data', sev: 'error' }); }
+        try {
+          if (section.bilingual) {
+            const [fr, en] = await Promise.all([
+              apiFetch(section.endpoint + '?lang=fr'),
+              apiFetch(section.endpoint + '?lang=en'),
+            ]);
+            setRows(fr ?? []);
+            setRowsEn(en ?? []);
+          } else {
+            setRows(await apiFetch(section.endpoint));
+          }
+        } catch { setSnack({ msg: 'Failed to load data', sev: 'error' }); }
         finally { setLoading(false); }
       }, [section]);
 
       useEffect(() => { load(); }, [load]);
 
       const openCreate = () => { setForm({}); setDialog('create'); };
-      const openEdit   = row  => { setForm({ ...row, skill_ids: (row.skills ?? []).map(s => s.id) }); setDialog('edit'); };
+      const openEdit   = row  => {
+        const base = { ...row, skill_ids: (row.skills ?? []).map(s => s.id) };
+        if (section.bilingual) {
+          const en = rowsEn.find(r => r.id === row.id) ?? {};
+          /* type_key = clé enum depuis l'API (ex: 'work_study') */
+          base.type           = row.type_key   ?? '';
+          /* labels traduits pour affichage / envoi */
+          base.type_fr        = row.type       ?? '';   // label FR (row vient de ?lang=fr)
+          base.type_en        = en.type        ?? '';   // label EN
+          base.role_en        = en.role        ?? '';
+          base.description_en = en.description ?? '';
+          /* Fallback : dériver les labels depuis EXP_TYPE_MAP si absents */
+          if (base.type) {
+            const match = EXP_TYPE_MAP.find(e => e.key === base.type);
+            if (match) {
+              if (!base.type_fr) base.type_fr = match.fr;
+              if (!base.type_en) base.type_en = match.en;
+            }
+          }
+        }
+        setForm(base);
+        setDialog('edit');
+      };
       const closeDialog= ()   => { setDialog(null); setForm({}); };
 
       const save = async () => {

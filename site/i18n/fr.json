@@ -39,7 +39,7 @@
     "filter_all":         "Tout",
     "filter_web":         "Web",
     "filter_opensource":  "Open source",
-    "filter_side":        "Side",
+    "filter_side":        "Perso",
     "showing":            "{start}–{end} sur {total}",
     "see_all":            "Tout voir sur GitHub →",
     "site_offline":       "Site hors ligne",
