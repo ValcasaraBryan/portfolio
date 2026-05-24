@@ -10,7 +10,8 @@
     "cv_unavailable":   "CV unavailable",
     "present":          "Present",
     "location":         "Paris · open",
-    "open_status":      "Open"
+    "open_status":      "Open",
+    "load_error":       "Failed to load content. Please try again."
   },
   "experiences": {
     "title":              "Experience",

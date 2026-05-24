@@ -27,12 +27,23 @@ async function loadLang(newLang) {
     tabLoaded[tab] = true;
     if (tab === activeTab) {
       const panel = document.getElementById(`tab-${tab}`);
-      panel?.classList.add('tab-panel--rendering');
+      /* Skeleton visible sur l'onglet actif seulement (les autres sont cachés).
+       * Même logique que switchTab : pas de --rendering pendant le skeleton. */
+      if (panel) panel.innerHTML = getSkeletonHtml(tab);
       loadTab(tab)
-        .then(() => requestAnimationFrame(() => panel?.classList.remove('tab-panel--rendering')))
-        .catch(()  => panel?.classList.remove('tab-panel--rendering'));
+        .then(() => {
+          if (panel) {
+            panel.classList.add('tab-panel--rendering');
+            requestAnimationFrame(() =>
+              requestAnimationFrame(() => panel.classList.remove('tab-panel--rendering'))
+            );
+          }
+        })
+        .catch(() => {
+          if (panel) panel.innerHTML = `<p class="tab-error">${I18n.t('common.load_error')}</p>`;
+        });
     } else {
-      loadTab(tab); // silencieux — l'onglet est caché (display:none)
+      loadTab(tab); // silencieux — l'onglet est caché (display:none), pas de skeleton
     }
   }
 
@@ -53,13 +64,30 @@ function switchTab(name) {
 
   if (!tabLoaded[name]) {
     tabLoaded[name] = true;
-    /* Masquage instantané → rendu → fondu en entrée */
-    panel?.classList.add('tab-panel--rendering');
+    /* Skeleton visible immédiatement — PAS de --rendering qui masquerait le skeleton.
+     * Quand le contenu réel arrive, on fait un micro-fondu : on cache brièvement
+     * (opacity:0 peint sur un frame via double-rAF) puis on laisse la transition
+     * CSS ramener à opacity:1. */
+    if (panel) panel.innerHTML = getSkeletonHtml(name);
     loadTab(name)
-      .then(() => requestAnimationFrame(() => panel?.classList.remove('tab-panel--rendering')))
-      .catch(()  => panel?.classList.remove('tab-panel--rendering'));
+      .then(() => {
+        if (panel) {
+          panel.classList.add('tab-panel--rendering');          // opacity:0 sans transition
+          requestAnimationFrame(() =>                           // frame 1 : peint opacity:0
+            requestAnimationFrame(() =>                         // frame 2 : retire la classe
+              panel.classList.remove('tab-panel--rendering')   //           → fade-in 180ms
+            )
+          );
+        }
+      })
+      .catch(() => {
+        if (panel) panel.innerHTML = `<p class="tab-error">${I18n.t('common.load_error')}</p>`;
+      });
   }
 }
+
+/** Délègue à AppUtils.getSkeletonHtml — fonction pure testable. */
+function getSkeletonHtml(tab) { return AppUtils.getSkeletonHtml(tab); }
 
 async function loadTab(name) {
   switch (name) {
@@ -717,8 +745,33 @@ function renderSocialLinks(links) {
 async function init() {
   initTheme();   /* ← en premier pour éviter le flash */
 
+  /* ① Listeners enregistrés AVANT tout await
+   *   → drawer et onglets cliquables dès le premier frame, même pendant le chargement */
+  document.querySelectorAll('.lang-toggle__btn')
+    .forEach(b => b.addEventListener('click', () => loadLang(b.dataset.lang)));
+  document.querySelectorAll('.theme-toggle')
+    .forEach(b => b.addEventListener('click', toggleTheme));
+  document.querySelectorAll('[data-tab]')
+    .forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+
+  /* ② Onglet initial actif dans le DOM + skeleton visible AVANT le premier await
+   *   → loadLang détectera '[data-tab].active' = 'experiences' et lui appliquera le bon flow
+   *   → L'utilisateur voit le skeleton dès le premier paint (skeleton = HTML statique, pas besoin d'i18n) */
+  const initialTab   = 'experiences';
+  const initialPanel = document.getElementById(`tab-${initialTab}`);
+  document.querySelectorAll('[data-tab]')
+    .forEach(b => b.classList.toggle('active', b.dataset.tab === initialTab));
+  if (initialPanel) {
+    initialPanel.classList.add('active');
+    initialPanel.innerHTML = getSkeletonHtml(initialTab);
+  }
+
+  /* ③ Chargement i18n + pré-render tous les onglets
+   *   loadLang voit 'experiences' comme onglet actif → skeleton + loadTab pour lui,
+   *   loadTab silencieux pour les autres */
   await loadLang(localStorage.getItem('lang') || 'fr');
 
+  /* ④ Profil (en séquentiel pour afficher le nom/avatar dès qu'il arrive) */
   const profile = await get('profile.php');
   if (profile) {
     document.querySelectorAll('.profile-name')
@@ -731,19 +784,8 @@ async function init() {
     renderSocialLinks(profile.links);
   }
 
-  // Chargement initial du lien CV
   updateCvLink(lang);
-
-  document.querySelectorAll('.lang-toggle__btn')
-    .forEach(b => b.addEventListener('click', () => loadLang(b.dataset.lang)));
-
-  document.querySelectorAll('.theme-toggle')
-    .forEach(b => b.addEventListener('click', toggleTheme));
-
-  document.querySelectorAll('[data-tab]')
-    .forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
-
-  switchTab('experiences');
+  /* switchTab('experiences') supprimé : loadLang s'en charge via la détection de l'onglet actif */
 }
 
 document.addEventListener('DOMContentLoaded', init);

@@ -322,6 +322,27 @@
         throw new Error('Le projet featured apparaît aussi dans rest → doublon');
     });
 
+    /* ── 4 · Skeleton ───────────────────────────────────────── */
+    group('4 · AppUtils.getSkeletonHtml');
+
+    test("getSkeletonHtml('creations') → chaîne non vide", () => {
+      const html = AppUtils.getSkeletonHtml('creations');
+      if (typeof html !== 'string' || html.trim() === '')
+        throw new Error('chaîne vide ou non-string');
+    });
+
+    test("getSkeletonHtml('creations') → contient skeleton-card", () => {
+      const html = AppUtils.getSkeletonHtml('creations');
+      if (!html.includes('skeleton-card'))
+        throw new Error('class skeleton-card absente');
+    });
+
+    test("getSkeletonHtml('unknown') → fallback non vide", () => {
+      const html = AppUtils.getSkeletonHtml('unknown');
+      if (typeof html !== 'string' || html.trim() === '')
+        throw new Error('fallback vide ou non-string');
+    });
+
     /* ══════════════════════════════════════════════════════════
        Rendu final
     ══════════════════════════════════════════════════════════ */

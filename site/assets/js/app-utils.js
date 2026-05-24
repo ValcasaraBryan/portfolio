@@ -154,4 +154,41 @@ const AppUtils = {
     }
     return { valid: errors.length === 0, errors };
   },
+
+  /* ── Skeleton ────────────────────────────────────────────── */
+
+  /**
+   * Retourne le HTML de skeleton (placeholder animé) pour un onglet donné.
+   * HTML entièrement statique — aucune donnée utilisateur, aucun risque XSS.
+   * @param {string} tab — nom de l'onglet ('experiences'|'creations'|'formations'|'contact')
+   * @returns {string}
+   */
+  getSkeletonHtml(tab) {
+    const card = (lines = 3) => `
+      <div class="skeleton-card">
+        <div class="skeleton-block skeleton-title"></div>
+        ${Array(lines).fill('<div class="skeleton-block skeleton-line"></div>').join('')}
+        <div style="margin-top:12px">
+          ${Array(3).fill('<div class="skeleton-block skeleton-chip"></div>').join('')}
+        </div>
+      </div>`;
+
+    switch (tab) {
+      case 'experiences':
+        return Array(3).fill(card(4)).join('');
+      case 'creations':
+        return `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+          ${Array(6).fill(card(2)).join('')}
+        </div>`;
+      case 'formations':
+        return `<div style="display:flex;gap:24px">
+          <div style="flex:2">${Array(2).fill(card(3)).join('')}</div>
+          <div style="flex:1">${card(5)}</div>
+        </div>`;
+      case 'contact':
+        return card(4);
+      default:
+        return card();
+    }
+  },
 };

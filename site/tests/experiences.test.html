@@ -330,6 +330,35 @@
         throw new Error(`Doublons détectés dans uniqueTypes : ${keys.join(', ')}`);
     });
 
+    /* ── 5 · Skeleton ───────────────────────────────────────── */
+    group('5 · AppUtils.getSkeletonHtml');
+
+    test("getSkeletonHtml('experiences') → chaîne non vide", () => {
+      const html = AppUtils.getSkeletonHtml('experiences');
+      if (typeof html !== 'string' || html.trim() === '')
+        throw new Error('chaîne vide ou non-string');
+    });
+
+    test("getSkeletonHtml('experiences') → contient skeleton-card", () => {
+      const html = AppUtils.getSkeletonHtml('experiences');
+      if (!html.includes('skeleton-card'))
+        throw new Error('class skeleton-card absente');
+    });
+
+    test("getSkeletonHtml('unknown') → fallback non vide", () => {
+      const html = AppUtils.getSkeletonHtml('unknown');
+      if (typeof html !== 'string' || html.trim() === '')
+        throw new Error('fallback vide ou non-string');
+    });
+
+    test("getSkeletonHtml ne contient pas de données utilisateur", () => {
+      const tabs = ['experiences', 'creations', 'formations', 'contact'];
+      for (const tab of tabs) {
+        const html = AppUtils.getSkeletonHtml(tab);
+        if (html.includes('<script')) throw new Error(`<script> détecté pour tab=${tab}`);
+      }
+    });
+
     /* ══════════════════════════════════════════════════════════
        Rendu final
     ══════════════════════════════════════════════════════════ */
