@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests profil & liens — Portfolio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0d0d0d;
+      color: #e2e2e2;
+      padding: 32px;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: .15em; color: #fff; margin-bottom: 6px; }
+    .hint { color: #555; font-size: 0.78rem; margin-bottom: 32px; }
+    .hint code { color: #888; }
+
+    .summary {
+      display: flex; gap: 20px; align-items: center;
+      padding: 12px 18px; border: 1px solid #2a2a2a;
+      border-radius: 4px; margin-bottom: 32px; font-size: 0.85rem;
+    }
+    .summary__pass  { color: #4ade80; font-weight: 700; }
+    .summary__fail  { color: #f87171; font-weight: 700; }
+    .summary__total { color: #888; }
+    .summary__time  { color: #444; margin-left: auto; font-size: 0.75rem; }
+    .summary--all-pass { border-color: #14532d; background: #052e16; }
+    .summary--has-fail { border-color: #7f1d1d; background: #2d0e0e; }
+
+    .group { margin-bottom: 26px; }
+    .group__title {
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: .2em;
+      color: #444; border-bottom: 1px solid #1c1c1c;
+      padding-bottom: 5px; margin-bottom: 8px;
+    }
+
+    .test { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 0.81rem; }
+    .test__icon  { flex-shrink: 0; width: 14px; }
+    .test--pass .test__label { color: #c8c8c8; }
+    .test--fail .test__label { color: #fca5a5; }
+    .test__detail { color: #f87171; font-size: 0.73rem; }
+
+    #loading { color: #555; font-size: 0.85rem; padding: 12px 0; }
+    #loading.error { color: #f87171; }
+  </style>
+</head>
+<body>
+
+  <h1>Tests unitaires · Profil & Liens sociaux</h1>
+  <p class="hint">
+    Servir depuis le serveur PHP : <code>http://localhost/tests/profile.test.html</code><br>
+    <strong style="color:#f87171">⚠ Nécessite une session admin active</strong> pour les tests d'écriture (PUT/POST/DELETE).
+    Connectez-vous à <code>/admin/</code> dans le même navigateur avant de lancer ces tests.
+  </p>
+
+  <div id="loading">⏳ Exécution des tests…</div>
+  <div id="app" style="display:none">
+    <div class="summary" id="summary"></div>
+    <div id="groups"></div>
+  </div>
+
+  <script>
+  (async () => {
+    /* ══════════════════════════════════════════════════════════
+       Mini test runner (identique à i18n.test.html)
+    ══════════════════════════════════════════════════════════ */
+    const _groups  = [];
+    const _results = [];
+    let   _current = null;
+
+    function group(name) {
+      _current = { name, tests: [] };
+      _groups.push(_current);
+    }
+
+    function _record(label, pass, detail = '') {
+      _current.tests.push({ label, pass, detail });
+      _results.push(pass);
+    }
+
+    async function testAsync(label, fn) {
+      try   { await fn(); _record(label, true); }
+      catch (e) { _record(label, false, e.message); }
+    }
+
+    function expect(received) {
+      return {
+        toBe(exp) {
+          if (received !== exp)
+            throw new Error(`reçu "${received}" · attendu "${exp}"`);
+        },
+        toNotBe(exp) {
+          if (received === exp)
+            throw new Error(`"${received}" ne devrait pas être égal à "${exp}"`);
+        },
+        toBeTruthy() {
+          if (!received)
+            throw new Error(`valeur falsy : "${received}"`);
+        },
+        toBeArray() {
+          if (!Array.isArray(received))
+            throw new Error(`attendu un tableau, reçu : ${typeof received}`);
+        },
+        toBeNumber() {
+          if (typeof received !== 'number')
+            throw new Error(`attendu un nombre, reçu : ${typeof received}`);
+        },
+        toBeGreaterThan(n) {
+          if (received <= n)
+            throw new Error(`${received} n'est pas > ${n}`);
+        },
+      };
+    }
+
+    /* Wrapper fetch JSON avec vérification response.ok */
+    async function api(path, opts = {}) {
+      const res = await fetch(`../api/${path}`, {
+        headers: { 'Content-Type': 'application/json' },
+        ...opts,
+      });
+      const json = await res.json().catch(() => ({}));
+      return { status: res.status, ok: res.ok, json };
+    }
+
+    const t0 = performance.now();
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 1 — GET /api/profile.php?lang=fr
+    ══════════════════════════════════════════════════════════ */
+    group('1 · GET profile?lang=fr — structure de la réponse');
+
+    let profileFr;
+
+    await testAsync('GET lang=fr → HTTP 200', async () => {
+      const r = await api('profile.php?lang=fr');
+      expect(r.status).toBe(200);
+      profileFr = r.json;
+    });
+
+    await testAsync('Réponse contient le champ "name"', async () => {
+      expect(typeof profileFr?.name).toBe('string');
+    });
+
+    await testAsync('Réponse contient le champ "title"', async () => {
+      expect(typeof profileFr?.title).toBe('string');
+    });
+
+    await testAsync('Réponse contient le champ "status"', async () => {
+      expect(typeof profileFr?.status).toBe('string');
+    });
+
+    await testAsync('Réponse contient le champ "links" (tableau)', async () => {
+      expect(profileFr?.links).toBeArray();
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 2 — GET /api/profile.php?lang=en
+    ══════════════════════════════════════════════════════════ */
+    group('2 · GET profile?lang=en — internationalisation');
+
+    let profileEn;
+
+    await testAsync('GET lang=en → HTTP 200', async () => {
+      const r = await api('profile.php?lang=en');
+      expect(r.status).toBe(200);
+      profileEn = r.json;
+    });
+
+    await testAsync('lang=en : "title" présent et non vide', async () => {
+      expect(profileEn?.title?.length ?? 0).toBeGreaterThan(0);
+    });
+
+    await testAsync('lang=fr et lang=en retournent le même "name"', async () => {
+      expect(profileEn?.name).toBe(profileFr?.name);
+    });
+
+    await testAsync('lang invalide → fallback sur fr (HTTP 200)', async () => {
+      const r = await api('profile.php?lang=xx');
+      expect(r.status).toBe(200);
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 3 — PUT /api/profile.php (nécessite session admin)
+    ══════════════════════════════════════════════════════════ */
+    group('3 · PUT profile — mise à jour bilingue');
+
+    const SENTINEL_EN = `Test-EN-${Date.now()}`;
+    let putOk = false;
+
+    await testAsync('PUT met à jour title_en → HTTP 200', async () => {
+      const payload = {
+        name:      profileFr?.name      ?? 'Test',
+        photo_url: profileFr?.photo_url ?? '',
+        location:  profileFr?.location  ?? '',
+        email:     profileFr?.email     ?? '',
+        phone:     profileFr?.phone     ?? '',
+        title_fr:  profileFr?.title     ?? 'Titre FR',
+        status_fr: profileFr?.status    ?? 'Statut FR',
+        title_en:  SENTINEL_EN,
+        status_en: profileEn?.status    ?? 'Status EN',
+      };
+      const r = await api('profile.php', { method: 'PUT', body: JSON.stringify(payload) });
+      if (r.status === 401) throw new Error('Non authentifié — connectez-vous à /admin/ avant de lancer les tests');
+      expect(r.status).toBe(200);
+      putOk = r.ok;
+    });
+
+    await testAsync('GET lang=en après PUT → title === valeur sentinelle', async () => {
+      if (!putOk) throw new Error('PUT précédent a échoué — test ignoré');
+      const r = await api('profile.php?lang=en');
+      expect(r.json?.title).toBe(SENTINEL_EN);
+    });
+
+    await testAsync('GET lang=fr après PUT → title FR inchangé', async () => {
+      if (!putOk) throw new Error('PUT précédent a échoué — test ignoré');
+      const r = await api('profile.php?lang=fr');
+      expect(r.json?.title).toBe(profileFr?.title ?? '');
+    });
+
+    await testAsync('PUT avec photo_url invalide → HTTP 400', async () => {
+      const payload = { ...profileFr, photo_url: 'javascript:alert(1)', title_fr: profileFr?.title, status_fr: profileFr?.status };
+      const r = await api('profile.php', { method: 'PUT', body: JSON.stringify(payload) });
+      if (r.status === 401) throw new Error('Non authentifié');
+      expect(r.status).toBe(400);
+    });
+
+    await testAsync('PUT sans session → HTTP 401', async () => {
+      // Simule une requête sans cookie de session via fetch cross-origin omit
+      const res = await fetch('../api/profile.php', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Hack' }),
+        credentials: 'omit',
+      });
+      expect(res.status).toBe(401);
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 4 — GET /api/links.php
+    ══════════════════════════════════════════════════════════ */
+    group('4 · GET links — liste des liens');
+
+    let links;
+
+    await testAsync('GET links → HTTP 200', async () => {
+      const r = await api('links.php');
+      expect(r.status).toBe(200);
+      links = r.json;
+    });
+
+    await testAsync('GET links → tableau JSON', async () => {
+      expect(links).toBeArray();
+    });
+
+    await testAsync('Chaque lien a les champs id, platform, url', async () => {
+      if (!links?.length) return; // pas de données, test non applicable
+      for (const l of links) {
+        if (typeof l.id !== 'number') throw new Error(`id non-number : ${JSON.stringify(l)}`);
+        if (typeof l.platform !== 'string') throw new Error(`platform manquant : ${JSON.stringify(l)}`);
+        if (typeof l.url !== 'string') throw new Error(`url manquant : ${JSON.stringify(l)}`);
+      }
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 5 — CRUD complet links (nécessite session admin)
+    ══════════════════════════════════════════════════════════ */
+    group('5 · CRUD links — cycle complet POST / PUT / DELETE');
+
+    let createdId = null;
+
+    await testAsync('POST lien valide → HTTP 201 + id numérique', async () => {
+      const r = await api('links.php', {
+        method: 'POST',
+        body: JSON.stringify({ platform: 'TestPlatform', url: 'https://example.com/test', icon: 'test-icon' }),
+      });
+      if (r.status === 401) throw new Error('Non authentifié — connectez-vous à /admin/ avant de lancer les tests');
+      expect(r.status).toBe(201);
+      expect(r.json?.id).toBeNumber();
+      expect(r.json?.id).toBeGreaterThan(0);
+      createdId = r.json?.id;
+    });
+
+    await testAsync('GET après POST → le nouveau lien est présent', async () => {
+      if (!createdId) throw new Error('POST précédent a échoué');
+      const r = await api('links.php');
+      const found = r.json?.find(l => l.id === createdId);
+      expect(found?.platform).toBe('TestPlatform');
+      expect(found?.url).toBe('https://example.com/test');
+    });
+
+    await testAsync('PUT lien → HTTP 200, valeurs mises à jour', async () => {
+      if (!createdId) throw new Error('POST précédent a échoué');
+      const r = await api(`links.php?id=${createdId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ platform: 'TestPlatformUpdated', url: 'https://example.com/updated', icon: 'new-icon' }),
+      });
+      expect(r.status).toBe(200);
+      // Vérification via GET
+      const r2 = await api('links.php');
+      const found = r2.json?.find(l => l.id === createdId);
+      expect(found?.platform).toBe('TestPlatformUpdated');
+      expect(found?.url).toBe('https://example.com/updated');
+    });
+
+    await testAsync('DELETE lien → HTTP 200', async () => {
+      if (!createdId) throw new Error('POST précédent a échoué');
+      const r = await api(`links.php?id=${createdId}`, { method: 'DELETE' });
+      expect(r.status).toBe(200);
+      createdId = null;
+    });
+
+    await testAsync('GET après DELETE → lien absent', async () => {
+      const r = await api('links.php');
+      const found = r.json?.find(l => l.platform === 'TestPlatformUpdated');
+      expect(found).toBe(undefined);
+    });
+
+    await testAsync('POST URL invalide → HTTP 400', async () => {
+      const r = await api('links.php', {
+        method: 'POST',
+        body: JSON.stringify({ platform: 'X', url: 'pas-une-url', icon: '' }),
+      });
+      if (r.status === 401) throw new Error('Non authentifié');
+      expect(r.status).toBe(400);
+    });
+
+    await testAsync('DELETE id=abc → intval→0 → HTTP 400', async () => {
+      const r = await api('links.php?id=abc', { method: 'DELETE' });
+      if (r.status === 401) throw new Error('Non authentifié');
+      expect(r.status).toBe(400);
+    });
+
+    await testAsync('DELETE id inexistant → HTTP 404', async () => {
+      const r = await api('links.php?id=999999', { method: 'DELETE' });
+      if (r.status === 401) throw new Error('Non authentifié');
+      expect(r.status).toBe(404);
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       Rendu final
+    ══════════════════════════════════════════════════════════ */
+    const elapsed = Math.round(performance.now() - t0);
+    const total   = _results.length;
+    const passed  = _results.filter(Boolean).length;
+    const failed  = total - passed;
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display     = 'block';
+
+    document.getElementById('summary').className =
+      'summary ' + (failed === 0 ? 'summary--all-pass' : 'summary--has-fail');
+    document.getElementById('summary').innerHTML = `
+      <span class="summary__total">Total : <strong>${total}</strong></span>
+      <span class="summary__pass">✅ ${passed} passés</span>
+      ${failed ? `<span class="summary__fail">❌ ${failed} échoués</span>` : ''}
+      <span class="summary__time">${elapsed} ms</span>
+    `;
+
+    const groupsEl = document.getElementById('groups');
+    for (const g of _groups) {
+      const gFail = g.tests.filter(t => !t.pass).length;
+      const div   = document.createElement('div');
+      div.className = 'group';
+      div.innerHTML = `
+        <div class="group__title">
+          ${gFail === 0 ? '✅' : '❌'} ${g.name}
+          &nbsp;·&nbsp; ${g.tests.filter(t => t.pass).length}/${g.tests.length}
+        </div>
+        ${g.tests.map(t => `
+          <div class="test ${t.pass ? 'test--pass' : 'test--fail'}">
+            <span class="test__icon">${t.pass ? '✓' : '✗'}</span>
+            <span class="test__label">${t.label}</span>
+            ${t.detail ? `<span class="test__detail">→ ${t.detail}</span>` : ''}
+          </div>
+        `).join('')}
+      `;
+      groupsEl.appendChild(div);
+    }
+
+    document.title = `${failed === 0 ? '✅' : '❌'} Tests profil (${passed}/${total})`;
+  })();
+  </script>
+</body>
+</html>

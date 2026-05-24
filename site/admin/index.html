@@ -136,6 +136,15 @@
         fields: [],
         readonly: true,
       },
+      { id: 'links', label: 'Liens sociaux', endpoint: 'links.php',
+        bilingual: false,
+        columns: ['platform','url','icon'],
+        fields: [
+          { key: 'platform', suggestions: ['GitHub','LinkedIn','Email','Twitter','Behance','Dribbble'] },
+          { key: 'url' },
+          { key: 'icon' },
+        ],
+      },
     ];
 
     /* ── SKILLS PICKER ─────────────────────────────────────── */
@@ -273,6 +282,103 @@
         multiline: isMultiline,
         rows:      isMultiline ? 4 : 1,
       });
+    }
+
+    /* ── PROFILE FORM ─────────────────────────────────────── */
+    function ProfileForm() {
+      const [form,    setForm]    = useState({});
+      const [loading, setLoading] = useState(true);
+      const [saving,  setSaving]  = useState(false);
+      const [snack,   setSnack]   = useState(null);
+
+      useEffect(() => {
+        Promise.all([
+          apiFetch('profile.php?lang=fr'),
+          apiFetch('profile.php?lang=en'),
+        ]).then(([fr, en]) => {
+          setForm({
+            name:      fr.name      ?? '',
+            photo_url: fr.photo_url ?? '',
+            location:  fr.location  ?? '',
+            email:     fr.email     ?? '',
+            phone:     fr.phone     ?? '',
+            title_fr:  fr.title     ?? '',
+            status_fr: fr.status    ?? '',
+            title_en:  en.title     ?? '',
+            status_en: en.status    ?? '',
+          });
+          setLoading(false);
+        }).catch(() => {
+          setSnack({ msg: 'Failed to load profile', sev: 'error' });
+          setLoading(false);
+        });
+      }, []);
+
+      const field = (key, label, multiline = false) =>
+        React.createElement(TextField, {
+          key, label, size: 'small',
+          value:    form[key] ?? '',
+          onChange: e => setForm(prev => ({ ...prev, [key]: e.target.value })),
+          multiline, rows: multiline ? 3 : 1,
+        });
+
+      const separator = label =>
+        React.createElement(Box, {
+          key: label,
+          sx: { borderBottom: '1px solid #333', pb: 0.5, mt: 1 },
+        },
+          React.createElement(Typography, {
+            variant: 'caption',
+            sx: { color: '#7ED9B1', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' },
+          }, label)
+        );
+
+      const save = async () => {
+        setSaving(true);
+        try {
+          await apiFetch('profile.php', { method: 'PUT', body: JSON.stringify(form) });
+          setSnack({ msg: 'Profil enregistré', sev: 'success' });
+        } catch {
+          setSnack({ msg: 'Échec de la sauvegarde', sev: 'error' });
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      if (loading) return React.createElement(Box, { sx: { p: 4, textAlign: 'center' } },
+        React.createElement(CircularProgress, { color: 'primary' }));
+
+      return React.createElement(Box, { sx: { maxWidth: 600 } },
+        React.createElement(Typography, { variant: 'h6', sx: { mb: 3 } }, 'Profil'),
+
+        React.createElement(Box, { sx: { display: 'flex', flexDirection: 'column', gap: 2 } },
+          field('name',      'Nom'),
+          field('photo_url', 'Photo URL'),
+          field('location',  'Localisation'),
+          field('email',     'E-mail'),
+          field('phone',     'Téléphone'),
+          separator('🇫🇷 Français'),
+          field('title_fr',  'Titre (FR)'),
+          field('status_fr', 'Statut (FR)'),
+          separator('🇬🇧 English'),
+          field('title_en',  'Title (EN)'),
+          field('status_en', 'Status (EN)'),
+        ),
+
+        React.createElement(Box, { sx: { mt: 3 } },
+          React.createElement(Button, {
+            variant: 'contained', onClick: save, disabled: saving,
+          }, saving ? 'Enregistrement…' : 'Enregistrer'),
+        ),
+
+        React.createElement(Snackbar, {
+          open: !!snack, autoHideDuration: 3000,
+          onClose: () => setSnack(null),
+          anchorOrigin: { vertical: 'bottom', horizontal: 'center' },
+        },
+          snack && React.createElement(Alert, { severity: snack.sev, variant: 'filled' }, snack.msg)
+        ),
+      );
     }
 
     /* ── CRUD TABLE ────────────────────────────────────────── */
@@ -483,6 +589,9 @@
     }
 
     /* ── ADMIN APP ─────────────────────────────────────────── */
+    const PROFILE_NAV = { id: 'profile', label: 'Profil' };
+    const ALL_NAV     = [...SECTIONS, PROFILE_NAV];
+
     function AdminApp() {
       const [active, setActive] = useState('experiences');
       const [ready,  setReady]  = useState(false);
@@ -527,7 +636,7 @@
               React.createElement(Typography, { variant: 'subtitle2', color: 'primary', fontWeight: 700 }, 'Admin Panel')
             ),
             React.createElement(List, null,
-              SECTIONS.map(s =>
+              ALL_NAV.map(s =>
                 React.createElement(ListItem, { key: s.id, disablePadding: true },
                   React.createElement(ListItemButton, {
                     selected: active === s.id,
@@ -550,7 +659,9 @@
                 React.createElement(Button, { onClick: logout, size: 'small', color: 'inherit', variant: 'outlined', sx: { borderColor: '#444' } }, 'Déconnexion'),
               )
             ),
-            section && React.createElement(CrudTable, { key: active, section }),
+            active === 'profile'
+              ? React.createElement(ProfileForm, { key: 'profile' })
+              : section && React.createElement(CrudTable, { key: active, section }),
           )
         )
       );
