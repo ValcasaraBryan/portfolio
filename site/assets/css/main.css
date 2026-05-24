@@ -191,8 +191,9 @@ a { color: inherit; text-decoration: none; }
 .bottom-tab-bar__icon { font-size: 1.15rem; }
 
 /* ── TAB PANELS ───────────────────────────────────────────── */
-.tab-panel        { display: none; }
-.tab-panel.active { display: block; }
+.tab-panel                { display: none; }
+.tab-panel.active         { display: block; transition: opacity 180ms ease; }
+.tab-panel--rendering     { opacity: 0 !important; transition: none !important; }
 
 /* ── SECTION TITLE ───────────────────────────────────────── */
 .section-title {

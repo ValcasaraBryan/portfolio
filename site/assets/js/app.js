@@ -14,15 +14,26 @@ async function loadLang(newLang) {
   document.querySelectorAll('.lang-toggle__btn')
     .forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
 
-  // Invalider TOUS les onglets — ils se rechargeront à la prochaine visite
-  Object.keys(tabLoaded).forEach(k => delete tabLoaded[k]);
   projectsCache = null;
+  Object.keys(tabLoaded).forEach(k => delete tabLoaded[k]);
 
-  // Recharger l'onglet actif immédiatement
+  // Re-render de tous les onglets immédiatement :
+  // — l'onglet actif avec fondu (visible)
+  // — les autres en arrière-plan (cachés) → prêts sans flash au prochain switch
   const activeTab = document.querySelector('[data-tab].active')?.dataset.tab;
-  if (activeTab) {
-    tabLoaded[activeTab] = true;
-    loadTab(activeTab);
+  const allTabs   = ['experiences', 'creations', 'formations', 'contact'];
+
+  for (const tab of allTabs) {
+    tabLoaded[tab] = true;
+    if (tab === activeTab) {
+      const panel = document.getElementById(`tab-${tab}`);
+      panel?.classList.add('tab-panel--rendering');
+      loadTab(tab)
+        .then(() => requestAnimationFrame(() => panel?.classList.remove('tab-panel--rendering')))
+        .catch(()  => panel?.classList.remove('tab-panel--rendering'));
+    } else {
+      loadTab(tab); // silencieux — l'onglet est caché (display:none)
+    }
   }
 }
 
@@ -36,7 +47,15 @@ function switchTab(name) {
     .forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   const panel = document.getElementById(`tab-${name}`);
   if (panel) panel.classList.add('active');
-  if (!tabLoaded[name]) { tabLoaded[name] = true; loadTab(name); }
+
+  if (!tabLoaded[name]) {
+    tabLoaded[name] = true;
+    /* Masquage instantané → rendu → fondu en entrée */
+    panel?.classList.add('tab-panel--rendering');
+    loadTab(name)
+      .then(() => requestAnimationFrame(() => panel?.classList.remove('tab-panel--rendering')))
+      .catch(()  => panel?.classList.remove('tab-panel--rendering'));
+  }
 }
 
 async function loadTab(name) {
