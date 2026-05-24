@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests CV API — Portfolio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0d0d0d;
+      color: #e2e2e2;
+      padding: 32px;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: .15em; color: #fff; margin-bottom: 6px; }
+    .hint { color: #555; font-size: 0.78rem; margin-bottom: 16px; }
+    .hint code { color: #888; }
+    .warn {
+      background: #2a1500; border: 1px solid #7a3e00; color: #f5a623;
+      padding: 10px 14px; border-radius: 4px; font-size: 0.8rem; margin-bottom: 24px;
+    }
+
+    /* Barre de résumé */
+    .summary {
+      display: flex; gap: 20px; align-items: center;
+      padding: 12px 18px; border: 1px solid #2a2a2a;
+      border-radius: 4px; margin-bottom: 32px; font-size: 0.85rem;
+    }
+    .summary__pass  { color: #4ade80; font-weight: 700; }
+    .summary__fail  { color: #f87171; font-weight: 700; }
+    .summary__total { color: #888; }
+    .summary__time  { color: #444; margin-left: auto; font-size: 0.75rem; }
+    .summary--all-pass { border-color: #14532d; background: #052e16; }
+    .summary--has-fail { border-color: #7f1d1d; background: #2d0e0e; }
+
+    /* Groupes */
+    .group { margin-bottom: 26px; }
+    .group__title {
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: .2em;
+      color: #444; border-bottom: 1px solid #1c1c1c;
+      padding-bottom: 5px; margin-bottom: 8px;
+    }
+
+    /* Lignes de test */
+    .test { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 0.81rem; }
+    .test__icon  { flex-shrink: 0; width: 14px; }
+    .test--pass .test__label { color: #c8c8c8; }
+    .test--fail .test__label { color: #fca5a5; }
+    .test__detail { color: #f87171; font-size: 0.73rem; }
+
+    #loading { color: #555; font-size: 0.85rem; padding: 12px 0; }
+    #loading.error { color: #f87171; }
+  </style>
+</head>
+<body>
+
+  <h1>Tests unitaires · API CV</h1>
+  <p class="hint">Servir depuis le serveur PHP : <code>http://localhost/tests/cv.test.html</code></p>
+  <p class="warn">
+    ⚠️ Les tests POST nécessitent une session admin active. Connectez-vous à <a href="../admin/login.html" style="color:#f5a623">/admin/login.html</a> avant de lancer ces tests.
+  </p>
+
+  <div id="loading">⏳ Exécution des tests…</div>
+  <div id="app" style="display:none">
+    <div class="summary" id="summary"></div>
+    <div id="groups"></div>
+  </div>
+
+  <script>
+    /* ─── Micro-framework de test ──────────────────────────── */
+    const results  = [];
+    let   groupEl  = null;
+
+    function group(title) {
+      groupEl = document.createElement('div');
+      groupEl.className = 'group';
+      groupEl.innerHTML = `<div class="group__title">${title}</div>`;
+      document.getElementById('groups').appendChild(groupEl);
+    }
+
+    function record(label, passed, detail = '') {
+      results.push(passed);
+      const row = document.createElement('div');
+      row.className = `test test--${passed ? 'pass' : 'fail'}`;
+      row.innerHTML = `
+        <span class="test__icon">${passed ? '✓' : '✗'}</span>
+        <span class="test__label">${label}</span>
+        ${detail ? `<span class="test__detail">→ ${detail}</span>` : ''}
+      `;
+      groupEl.appendChild(row);
+    }
+
+    function renderSummary(ms) {
+      const pass  = results.filter(Boolean).length;
+      const fail  = results.length - pass;
+      const el    = document.getElementById('summary');
+      el.className = `summary ${fail === 0 ? 'summary--all-pass' : 'summary--has-fail'}`;
+      el.innerHTML = `
+        <span class="summary__pass">${pass} passed</span>
+        <span class="summary__fail">${fail} failed</span>
+        <span class="summary__total">${results.length} total</span>
+        <span class="summary__time">${ms} ms</span>
+      `;
+    }
+
+    /* ─── Helpers fetch ────────────────────────────────────── */
+    const BASE = '../api/cv.php';
+
+    async function getMeta(lang) {
+      const r = await fetch(`${BASE}?lang=${lang}`);
+      return { status: r.status, body: await r.json() };
+    }
+
+    /**
+     * Crée un mini PDF valide en mémoire (octets minimaux pour que
+     * finfo reconnaisse le MIME application/pdf côté serveur).
+     */
+    function makePdfBlob() {
+      const content =
+        '%PDF-1.4\n' +
+        '1 0 obj<</Type /Catalog /Pages 2 0 R>>endobj\n' +
+        '2 0 obj<</Type /Pages /Kids [3 0 R] /Count 1>>endobj\n' +
+        '3 0 obj<</Type /Page /MediaBox [0 0 3 3]>>endobj\n' +
+        'xref\n0 4\n0000000000 65535 f\n' +
+        '0000000009 00000 n\n0000000058 00000 n\n0000000115 00000 n\n' +
+        'trailer<</Size 4 /Root 1 0 R>>\nstartxref\n190\n%%EOF';
+      return new Blob([content], { type: 'application/pdf' });
+    }
+
+    async function uploadPdf(lang, blob, filename = 'test.pdf') {
+      const fd = new FormData();
+      fd.append('cv', blob, filename);
+      const r = await fetch(`${BASE}?lang=${lang}`, { method: 'POST', body: fd });
+      return { status: r.status, body: await r.json() };
+    }
+
+    async function deleteCv(lang) {
+      const r = await fetch(`${BASE}?lang=${lang}`, { method: 'DELETE' });
+      return { status: r.status, body: await r.json() };
+    }
+
+    /* ─── Tests ─────────────────────────────────────────────── */
+    async function runAll() {
+      const t0 = performance.now();
+
+      // ── 1. Validation du paramètre lang ──────────────────
+      group('Validation du paramètre lang');
+
+      {
+        const { status, body } = await getMeta('fr');
+        record('GET ?lang=fr → HTTP 200', status === 200, status !== 200 ? `HTTP ${status}` : '');
+      }
+      {
+        const { status, body } = await getMeta('en');
+        record('GET ?lang=en → HTTP 200', status === 200, status !== 200 ? `HTTP ${status}` : '');
+      }
+      {
+        const r = await fetch(`${BASE}?lang=de`);
+        record('GET ?lang=de → HTTP 400', r.status === 400, `HTTP ${r.status}`);
+      }
+      {
+        const r = await fetch(`${BASE}?lang=../../etc/passwd`);
+        record('GET ?lang=../../etc/passwd → HTTP 400 (pas de path traversal)', r.status === 400, `HTTP ${r.status}`);
+      }
+
+      // ── 2. État initial (avant upload) ───────────────────
+      group('État initial (avant tout upload)');
+
+      for (const lang of ['fr', 'en']) {
+        // Nettoyage préventif (ignorer les erreurs si déjà absent)
+        await deleteCv(lang).catch(() => {});
+
+        const { status, body } = await getMeta(lang);
+        const ok = status === 200 && body.exists === false && !body.url;
+        record(
+          `GET ?lang=${lang} sans fichier → { exists: false }`,
+          ok,
+          ok ? '' : JSON.stringify(body),
+        );
+      }
+
+      // ── 3. Upload (nécessite session admin) ──────────────
+      group('Upload POST (session admin requise)');
+
+      for (const lang of ['fr', 'en']) {
+        const blob = makePdfBlob();
+        const { status, body } = await uploadPdf(lang, blob);
+
+        if (status === 401) {
+          record(`POST ?lang=${lang} → session admin absente (401) — connectez-vous à /admin`, false,
+            'Ouvrez /admin/login.html, connectez-vous, puis relancez les tests.');
+          continue;
+        }
+
+        record(
+          `POST ?lang=${lang} avec PDF valide → { success: true }`,
+          status === 200 && body.success === true && body.url && body.updated_at,
+          status !== 200 ? `HTTP ${status} — ${JSON.stringify(body)}` : '',
+        );
+      }
+
+      // ── 4. Métadonnées après upload ───────────────────────
+      group('Métadonnées après upload');
+
+      for (const lang of ['fr', 'en']) {
+        const { status, body } = await getMeta(lang);
+        const ok = status === 200 && body.exists === true
+          && typeof body.url === 'string' && body.url.includes(`cv-${lang}.pdf`)
+          && typeof body.updated_at === 'string';
+        record(
+          `GET ?lang=${lang} après upload → { exists: true, url: "…cv-${lang}.pdf", updated_at }`,
+          ok,
+          ok ? '' : JSON.stringify(body),
+        );
+      }
+
+      // ── 5. Rejet MIME invalide ────────────────────────────
+      group('Rejet de fichier non-PDF (MIME invalide)');
+
+      {
+        const txtBlob = new Blob(['not a pdf'], { type: 'text/plain' });
+        const { status, body } = await uploadPdf('fr', txtBlob, 'fake.pdf');
+        if (status === 401) {
+          record('POST avec .txt renommé .pdf → 400 (MIME check)', false, 'Session admin absente');
+        } else {
+          record('POST avec .txt renommé .pdf → HTTP 400 (MIME check côté serveur)',
+            status === 400,
+            `HTTP ${status} — ${JSON.stringify(body)}`,
+          );
+        }
+      }
+
+      // ── 6. Suppression ────────────────────────────────────
+      group('Suppression DELETE (session admin requise)');
+
+      for (const lang of ['fr', 'en']) {
+        const { status, body } = await deleteCv(lang);
+        if (status === 401) {
+          record(`DELETE ?lang=${lang} → session admin absente (401)`, false, 'Connectez-vous à /admin');
+          continue;
+        }
+        record(
+          `DELETE ?lang=${lang} → { success: true }`,
+          status === 200 && body.success === true,
+          status !== 200 ? `HTTP ${status} — ${JSON.stringify(body)}` : '',
+        );
+      }
+
+      // ── 7. État après suppression ─────────────────────────
+      group('État après suppression');
+
+      for (const lang of ['fr', 'en']) {
+        const { status, body } = await getMeta(lang);
+        const ok = status === 200 && body.exists === false;
+        record(
+          `GET ?lang=${lang} après suppression → { exists: false }`,
+          ok,
+          ok ? '' : JSON.stringify(body),
+        );
+      }
+
+      // ── 8. DELETE sur fichier absent ──────────────────────
+      group('Suppression d\'un fichier déjà absent');
+
+      {
+        const { status } = await deleteCv('fr');
+        // 404 si admin connecté, 401 si non connecté
+        const ok = status === 404 || status === 401;
+        record(
+          'DELETE ?lang=fr quand aucun fichier → HTTP 404 (ou 401 si non connecté)',
+          ok,
+          `HTTP ${status}`,
+        );
+      }
+
+      /* ─── Rendu final ───────────────────────────────────── */
+      const ms = Math.round(performance.now() - t0);
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('app').style.display     = 'block';
+      renderSummary(ms);
+    }
+
+    runAll().catch(e => {
+      const el = document.getElementById('loading');
+      el.className = 'error';
+      el.textContent = `Erreur fatale : ${e.message}`;
+    });
+  </script>
+</body>
+</html>

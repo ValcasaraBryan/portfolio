@@ -21,3 +21,6 @@ bdd/*
 
 
 .vscode/
+
+# CV uploads (fichiers binaires, hors git)
+site/uploads/cv/*.pdf

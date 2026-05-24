@@ -6,10 +6,11 @@
     "contact":     "Contact"
   },
   "common": {
-    "download_cv":  "Download CV",
-    "present":      "Present",
-    "location":     "Paris · open",
-    "open_status":  "Open"
+    "download_cv":      "Download CV",
+    "cv_unavailable":   "CV unavailable",
+    "present":          "Present",
+    "location":         "Paris · open",
+    "open_status":      "Open"
   },
   "experiences": {
     "title":              "Experience",

@@ -36,7 +36,9 @@
           </div>
           <button class="theme-toggle" id="theme-toggle-mobile" title="Mode sombre" aria-label="Basculer le thème">☾</button>
         </div>
-        <a href="./cv.pdf" download class="btn btn--outline btn--sm" data-i18n="common.download_cv"></a>
+        <a href="#" download data-cv-link id="cv-link-mobile"
+           class="btn btn--outline btn--sm" data-i18n="common.download_cv"
+           aria-disabled="true"></a>
       </div>
     </header>
 
@@ -84,7 +86,8 @@
       </nav>
 
       <!-- 5. Download CV -->
-      <a href="./cv.pdf" download class="drawer__cv-btn">
+      <a href="#" download data-cv-link id="cv-link-desktop"
+         class="drawer__cv-btn" aria-disabled="true">
         ↓ <span data-i18n="common.download_cv">Télécharger CV</span>&nbsp;<em>.pdf</em>
       </a>
 

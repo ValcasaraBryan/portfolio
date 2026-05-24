@@ -35,6 +35,9 @@ async function loadLang(newLang) {
       loadTab(tab); // silencieux — l'onglet est caché (display:none)
     }
   }
+
+  // Mise à jour du lien CV pour la nouvelle langue
+  updateCvLink(lang);
 }
 
 /* ── TAB NAVIGATION ────────────────────────────────────────── */
@@ -682,6 +685,34 @@ function _syncThemeButtons() {
   });
 }
 
+/* ── CV LINK ───────────────────────────────────────────────── */
+/**
+ * Met à jour les liens de téléchargement du CV selon la langue active.
+ * Désactive le bouton (aria-disabled + classe) si aucun CV n'est disponible.
+ */
+async function updateCvLink(currentLang) {
+  try {
+    const res  = await fetch(`${API}/cv.php?lang=${currentLang}`);
+    if (!res.ok) throw new Error(res.statusText);
+    const data = await res.json();
+    document.querySelectorAll('[data-cv-link]').forEach(a => {
+      if (data.exists) {
+        a.href = data.url;
+        a.removeAttribute('aria-disabled');
+        a.classList.remove('btn--disabled');
+        a.title = '';
+      } else {
+        a.href = '#';
+        a.setAttribute('aria-disabled', 'true');
+        a.classList.add('btn--disabled');
+        a.title = t('common.cv_unavailable');
+      }
+    });
+  } catch {
+    /* En cas d'erreur réseau, on laisse les liens désactivés */
+  }
+}
+
 /* ── INIT ──────────────────────────────────────────────────── */
 async function init() {
   initTheme();   /* ← en premier pour éviter le flash */
@@ -698,6 +729,9 @@ async function init() {
       if (profile.photo_url) img.src = profile.photo_url;
     });
   }
+
+  // Chargement initial du lien CV
+  updateCvLink(lang);
 
   document.querySelectorAll('.lang-toggle__btn')
     .forEach(b => b.addEventListener('click', () => loadLang(b.dataset.lang)));
