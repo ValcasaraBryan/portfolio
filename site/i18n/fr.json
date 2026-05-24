@@ -42,7 +42,7 @@
     "display_title":      "Mes projets",
     "breadcrumb":         "CRÉATIONS",
     "projects_label":     "PROJETS",
-    "subtitle":           "Cliquez sur une carte pour voir les détails du projet.",
+    "subtitle":           "Cliquer une carte pour lire le case study (problème → process → stack → résultat).",
     "website":            "Site web →",
     "github":             "GitHub →",
     "close":              "Fermer",
@@ -56,24 +56,34 @@
     "checking":           "Vérification..."
   },
   "formations": {
-    "title":        "Formations",
-    "skills_title": "Compétences"
+    "title":                "Formations",
+    "breadcrumb":           "FORMATION",
+    "display_title":        "Comment j'ai appris",
+    "subtitle":             "Diplômes + les certifications & cours accumulés en chemin.",
+    "diplomas_label":       "diplômes",
+    "skills_title":         "Compétences",
+    "certifications_title": "Certifications"
   },
   "contact": {
-    "title":        "Contact",
-    "tagline":      "Intéressé par mon profil ? N'hésitez pas à me contacter, je serai ravi d'échanger avec vous.",
-    "open_to_work": "Disponible",
+    "title":             "Contact",
+    "tagline":           "Intéressé par mon profil ? N'hésitez pas à me contacter, je serai ravi d'échanger avec vous.",
+    "tagline_available": "Je suis disponible pour des missions CDI & freelance.",
+    "tagline_suffix":    " La meilleure façon de me joindre est l'email — LinkedIn fonctionne aussi.",
+    "open_to_work":      "Disponible",
     "form": {
-      "name_label":          "Nom",
-      "name_placeholder":    "Votre nom",
-      "email_label":         "Email",
-      "email_placeholder":   "votre@email.com",
-      "message_label":       "Message",
-      "message_placeholder": "Votre message...",
-      "submit":              "Envoyer",
-      "success":             "Message envoyé !",
-      "error":               "Une erreur est survenue.",
-      "captcha_wait":        "Vérification en cours, veuillez patienter..."
+      "name_label":           "Nom",
+      "name_placeholder":     "Votre nom",
+      "email_label":          "Email",
+      "email_placeholder":    "votre@email.com",
+      "subject_label":        "Sujet",
+      "subject_placeholder":  "Un sujet court…",
+      "message_label":        "Message",
+      "message_placeholder":  "Votre message...",
+      "quick_note_title":     "ou envoyer une note rapide",
+      "submit":               "Envoyer",
+      "success":              "Message envoyé !",
+      "error":                "Une erreur est survenue.",
+      "captcha_wait":         "Vérification en cours, veuillez patienter..."
     }
   }
 }

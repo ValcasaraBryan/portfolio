@@ -831,51 +831,133 @@ a { color: inherit; text-decoration: none; }
 /* ════════════════════════════════════════════════════════════
    FORMATIONS TAB
    ════════════════════════════════════════════════════════════ */
-.formations-layout { display: flex; flex-direction: column; gap: 24px; }
 
+/* Top header : breadcrumb + plage de dates */
+.formations-top-header {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+  margin-bottom:   16px;
+}
+.formations-breadcrumb {
+  font-size:      0.7rem;
+  font-weight:    500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color:          var(--text-muted);
+}
+.formations-date-range {
+  font-size:  0.78rem;
+  color:      var(--text-muted);
+  font-style: italic;
+}
+
+/* Grille principale — 1 col mobile, 2 col desktop */
+.formations-grid {
+  display:        flex;
+  flex-direction: column;
+  gap:            15px;
+}
+
+/* En-tête (titre + sous-titre) — pleine largeur */
+.formations-header        { display: flex; flex-direction: column; gap: 8px; }
+.formations-display-title {
+  font-family: var(--font-display);
+  font-size:   clamp(1.8rem, 4vw, 2.4rem);
+  font-weight: 700;
+  line-height: 1.1;
+  color:       var(--text);
+}
+.formations-subtitle {
+  font-size:   0.83rem;
+  color:       var(--text-muted);
+  font-style:  italic;
+  line-height: 1.55;
+}
+
+/* Liste des formations (colonne gauche) */
+.formations-list {
+  display:        flex;
+  flex-direction: column;
+  gap:            10px;
+}
+
+/* Carte formation — layout horizontal : date | contenu */
 .formation-card {
-  background:    var(--bg-surface);
-  border:        1px solid var(--border);
-  border-radius: var(--radius);
-  padding:       16px;
-  margin-bottom: 14px;
+  display:    flex;
+  background: var(--bg-surface);
+  border:     1px solid var(--border);
+  min-height: 120px;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+}
+
+/* Première formation en avant */
+.formation-card--featured {
+  background:   color-mix(in srgb, var(--green) 15%, var(--bg-surface));
+  border-color: var(--green);
+}
+
+.formation-card__date {
+  width:           110px;
+  min-width:       110px;
+  padding:         16px 8px;
+  font-size:       0.75rem;
+  color:           var(--text-muted);
+  display:         flex;
+  align-items:     flex-start;
+  justify-content: center;
+  text-align:      center;
+  border-right:    1px solid var(--border);
+  flex-shrink:     0;
+  line-height:     1.5;
+}
+.formation-card__content {
+  flex:           1;
+  padding:        14px 16px;
+  display:        flex;
+  flex-direction: column;
+  gap:            4px;
+  min-width:      0;
+}
+.formation-card__title {
+  font-family: var(--font-display);
+  font-size:   1.2rem;
+  font-weight: 700;
+  color:       var(--text);
+  line-height: 1.2;
 }
 .formation-card__school {
-  font-size:      0.7rem;
-  color:          var(--text-muted);
-  font-weight:    700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
+  font-size: 0.75rem;
+  color:     var(--text-muted);
 }
-.formation-card__title  { font-size: 0.98rem; font-weight: 700; margin: 4px 0; color: var(--text); }
-.formation-card__level  { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 8px; }
-
-.formation__certs {
-  list-style:  none;
-  margin-top:  12px;
-  padding:     0;
-  border-top:  1px solid var(--border-dim);
-  padding-top: 10px;
-}
-.formation__cert {
-  font-size:    0.78rem;
-  color:        var(--text-muted);
-  padding:      3px 0;
-  line-height:  1.5;
-}
-.formation__cert-year {
-  font-weight: 600;
-  color:        var(--green);
+.formation-card__sep {
+  height:     1px;
+  background: var(--border);
+  margin:     6px 0 2px;
 }
 
+/* Colonne droite : skills + certifications */
+.formations-right {
+  display:        flex;
+  flex-direction: column;
+  gap:            16px;
+}
+
+/* Skills sidebar */
 .skills-sidebar {
   background:    var(--bg-surface);
   border:        1px solid var(--border);
   border-radius: var(--radius);
   padding:       16px;
 }
-.skills-sidebar__title    { font-size: 0.83rem; font-weight: 700; margin-bottom: 16px; color: var(--text); }
-.skills-sidebar__category { margin-bottom: 18px; }
+.skills-sidebar__title {
+  font-family:   var(--font-display);
+  font-size:     1.2rem;
+  font-weight:   700;
+  margin-bottom: 16px;
+  color:         var(--text);
+}
+.skills-sidebar__category      { margin-bottom: 14px; }
 .skills-sidebar__category-name {
   font-size:      0.68rem;
   font-weight:    700;
@@ -883,6 +965,43 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: 0.08em;
   color:          var(--text-muted);
   margin-bottom:  6px;
+}
+
+/* Bloc certifications — bordure pointillée */
+.certs-block {
+  border:         1px dashed var(--border);
+  border-radius:  var(--radius);
+  padding:        16px;
+  display:        flex;
+  flex-direction: column;
+}
+.certs-block__title {
+  font-family:   var(--font-display);
+  font-size:     1.2rem;
+  font-weight:   700;
+  color:         var(--text);
+  margin-bottom: 4px;
+}
+.cert-item {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+  padding:         10px 0;
+  border-bottom:   1px solid var(--border);
+  gap:             12px;
+}
+.cert-item:last-child { border-bottom: none; }
+.cert-item__name {
+  font-size: 0.88rem;
+  color:     var(--text);
+  flex:      1;
+  min-width: 0;
+}
+.cert-item__year {
+  font-size:   0.78rem;
+  color:       var(--text-muted);
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -915,6 +1034,88 @@ a { color: inherit; text-decoration: none; }
   animation:     pulse 1.5s ease-in-out infinite;
 }
 @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
+
+/* ── Contact link rows ─────────────────────────────────────── */
+.contact-link-row {
+  display:         flex;
+  align-items:     center;
+  gap:             14px;
+  padding:         14px 16px;
+  border:          1px solid var(--border);
+  border-radius:   var(--radius);
+  text-decoration: none;
+  color:           var(--text);
+  transition:      background var(--transition);
+}
+.contact-link-row:hover { background: var(--bg-hover); }
+
+.contact-link-row__icon {
+  width:           36px;
+  height:          36px;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  border:          1px solid var(--border);
+  border-radius:   var(--radius);
+  font-size:       0.8rem;
+  font-weight:     700;
+  flex-shrink:     0;
+}
+.contact-link-row__body  { display: flex; flex-direction: column; flex: 1; }
+.contact-link-row__label {
+  font-size:      0.62rem;
+  text-transform: uppercase;
+  color:          var(--text-muted);
+  letter-spacing: 0.06em;
+}
+.contact-link-row__value { font-size: 0.9rem; font-weight: 600; }
+.contact-link-row__arrow { color: var(--text-muted); font-size: 0.85rem; }
+
+/* ── Contact tagline ────────────────────────────────────────── */
+.contact-tagline__available {
+  color:                  var(--green);
+  text-decoration:        underline;
+  text-underline-offset:  3px;
+  font-style:             italic;
+}
+
+/* Open to work → bordure pointillée */
+.open-to-work { border-style: dashed; }
+
+/* ── Contact form title ─────────────────────────────────────── */
+.contact-form-title {
+  font-size:     0.95rem;
+  font-weight:   600;
+  margin-bottom: 4px;
+}
+
+/* ── Form row (NAME + EMAIL côte à côte sur desktop) ──────── */
+.form-row {
+  display:               grid;
+  grid-template-columns: 1fr 1fr;
+  gap:                   16px;
+}
+@media (max-width: 768px) {
+  .form-row { grid-template-columns: 1fr; }
+}
+
+/* Bouton CV mobile → cercle vert ↓ */
+.cv-btn-circle {
+  width:           34px;
+  height:          34px;
+  border-radius:   50%;
+  background:      var(--green);
+  color:           #000;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  font-weight:     700;
+  font-size:       1rem;
+  border:          none;
+  text-decoration: none;
+  flex-shrink:     0;
+}
+.cv-btn-circle:hover { opacity: 0.8; }
 
 .contact-form        { display: flex; flex-direction: column; gap: 16px; }
 .form-group          { display: flex; flex-direction: column; gap: 5px; }
@@ -1221,10 +1422,16 @@ a { color: inherit; text-decoration: none; }
     position:      relative;
   }
 
-  /* ── Formations layout ───────────────────────────────────── */
-  .formations-layout { flex-direction: row; align-items: flex-start; gap: 28px; }
-  .formations-list   { flex: 1; overflow-y: auto; max-height: calc(100vh - 140px); }
-  .skills-sidebar    { width: 240px; min-width: 240px; position: sticky; top: 0; }
+  /* ── Formations layout (desktop) ────────────────────────── */
+  .formations-grid {
+    display:               grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows:    auto 1fr;
+    gap:                   15px;
+  }
+  .formations-header { grid-column: 1 / span 2; }
+  .formations-list   { overflow-y: auto; max-height: calc(100vh - 200px); }
+  .formations-right  { position: sticky; top: 0; overflow-y: auto; max-height: calc(100vh - 200px); }
 
   /* ── Contact layout ──────────────────────────────────────── */
   .contact-layout       { flex-direction: row; gap: 44px; align-items: flex-start; }

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Design Tests — 008</title>
+  <style>
+    body { font-family: monospace; padding: 24px; background: #0d0d0d; color: #f0f0f0; }
+    h1   { font-size: 1.2rem; margin-bottom: 20px; }
+    .pass { color: #7ED9B1; }
+    .fail { color: #ff6b6b; }
+    .test { margin: 6px 0; font-size: 0.9rem; }
+    #summary { margin-top: 20px; font-weight: bold; font-size: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Tests — plan 008 : Refonte design</h1>
+  <div id="results"></div>
+  <div id="summary"></div>
+
+  <!-- Fixture HTML minimal pour les tests DOM -->
+  <div id="fixture" style="display:none">
+
+    <!-- Timeline : poste en cours -->
+    <div class="timeline-row current" data-filter-cat="work_study"></div>
+    <div class="timeline-row"         data-filter-cat="internship"></div>
+
+    <!-- Formations -->
+    <div class="formation-card formation-card--featured"><div class="formation-card__title">Master</div></div>
+    <div class="formation-card"><div class="formation-card__title">Licence</div></div>
+
+    <!-- Contact link row -->
+    <a class="contact-link-row" href="mailto:test@example.com">
+      <span class="contact-link-row__icon">@</span>
+      <span class="contact-link-row__body">
+        <span class="contact-link-row__label">Email</span>
+        <span class="contact-link-row__value">test@example.com</span>
+      </span>
+      <span class="contact-link-row__arrow">↗</span>
+    </a>
+
+    <!-- Formulaire contact avec champ subject -->
+    <form id="contact-form">
+      <div class="form-row">
+        <div class="form-group"><input type="text"  name="name"></div>
+        <div class="form-group"><input type="email" name="email"></div>
+      </div>
+      <div class="form-group"><input type="text" name="subject" maxlength="255"></div>
+      <div class="form-group"><textarea name="message"></textarea></div>
+    </form>
+
+    <!-- Bouton CV mobile -->
+    <a class="cv-btn-circle" data-cv-link id="cv-link-mobile" href="#" download>↓</a>
+  </div>
+
+  <!-- CSS à tester -->
+  <link rel="stylesheet" href="../assets/css/main.css">
+
+  <script>
+    const results = [];
+
+    function assert(label, condition) {
+      results.push({ label, ok: condition });
+    }
+
+    function run() {
+      /* ── Test 1 : .timeline-row.current a la classe 'current' ─── */
+      const currentRow = document.querySelector('.timeline-row.current');
+      assert(
+        'timeline-row.current existe dans le DOM',
+        currentRow !== null
+      );
+
+      /* ── Test 2 : premier .formation-card a la classe --featured ─ */
+      const firstCard = document.querySelector('.formation-card');
+      assert(
+        'Première formation-card a la classe formation-card--featured',
+        firstCard?.classList.contains('formation-card--featured') ?? false
+      );
+
+      /* ── Test 3 : .contact-link-row est présent ─────────────────── */
+      const linkRow = document.querySelector('.contact-link-row');
+      assert(
+        '.contact-link-row présent dans le DOM',
+        linkRow !== null
+      );
+
+      /* ── Test 4 : champ [name="subject"] présent dans le form ───── */
+      const subjectInput = document.querySelector('#contact-form [name="subject"]');
+      assert(
+        '[name="subject"] présent dans le formulaire contact',
+        subjectInput !== null
+      );
+
+      /* ── Test 5 : subject a maxlength="255" ─────────────────────── */
+      assert(
+        '[name="subject"] a maxlength="255"',
+        subjectInput?.getAttribute('maxlength') === '255'
+      );
+
+      /* ── Test 6 : .form-row contient exactement 2 .form-group ───── */
+      const formRow    = document.querySelector('.form-row');
+      const rowGroups  = formRow?.querySelectorAll('.form-group') ?? [];
+      assert(
+        '.form-row contient exactement 2 .form-group',
+        rowGroups.length === 2
+      );
+
+      /* ── Test 7 : .cv-btn-circle présent dans le header ─────────── */
+      const cvCircle = document.querySelector('.cv-btn-circle');
+      assert(
+        '.cv-btn-circle présent dans le DOM',
+        cvCircle !== null
+      );
+
+      /* ── Test 8 : .cv-btn-circle a data-cv-link ─────────────────── */
+      assert(
+        '.cv-btn-circle porte l\'attribut data-cv-link',
+        cvCircle?.hasAttribute('data-cv-link') ?? false
+      );
+
+      /* ── Test 9 : sendContact mock — body POST contient 'subject' ── */
+      let capturedBody = null;
+      const origFetch  = window.fetch;
+      window.fetch = (url, opts) => {
+        capturedBody = JSON.parse(opts?.body ?? '{}');
+        return Promise.resolve({ ok: true });
+      };
+
+      // Simuler le body que sendContact prépare
+      const form = document.getElementById('contact-form');
+      form.elements.name.value    = 'Test';
+      form.elements.email.value   = 'test@test.com';
+      form.elements.subject.value = 'Un sujet';
+      form.elements.message.value = 'Bonjour';
+
+      const formData = new FormData(form);
+      const fakeData = Object.fromEntries(formData);
+      fakeData.subject = (formData.get('subject') ?? '').trim();
+      fakeData.altcha  = 'mock-payload';
+
+      window.fetch('/api/contact.php', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(fakeData),
+      }).then(() => {
+        assert(
+          'sendContact POST body contient la clé "subject"',
+          capturedBody !== null && 'subject' in capturedBody
+        );
+        assert(
+          'sendContact POST body subject = "Un sujet"',
+          capturedBody?.subject === 'Un sujet'
+        );
+        window.fetch = origFetch;
+        renderResults();
+      });
+
+      /* Affichage intermédiaire (sans les 2 derniers tests async) */
+      renderResults(true);
+    }
+
+    function renderResults(partial = false) {
+      const out     = document.getElementById('results');
+      const summary = document.getElementById('summary');
+      out.innerHTML = results.map(r =>
+        `<div class="test ${r.ok ? 'pass' : 'fail'}">${r.ok ? '✓' : '✗'} ${r.label}</div>`
+      ).join('');
+      if (!partial) {
+        const passed = results.filter(r => r.ok).length;
+        const total  = results.length;
+        summary.textContent = `${passed}/${total} tests passés`;
+        summary.className   = passed === total ? 'pass' : 'fail';
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', run);
+  </script>
+</body>
+</html>

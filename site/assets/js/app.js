@@ -514,50 +514,107 @@ async function renderFormations() {
     get('skills.php'),
   ]);
   const panel = document.getElementById('tab-formations');
+  const data  = formations ?? [];
 
   const byCategory = AppUtils.groupSkillsByCategory(skills ?? []);
 
+  /* Plage de dates globale (min start → max end) */
+  const years = data.flatMap(f => {
+    const ys = [];
+    if (f.start_date) ys.push(new Date(f.start_date).getFullYear());
+    if (f.end_date)   ys.push(new Date(f.end_date).getFullYear());
+    return ys;
+  }).filter(y => !isNaN(y));
+  const minYear  = years.length ? Math.min(...years) : null;
+  const maxYear  = years.length ? Math.max(...years) : null;
+  const dateRange = (minYear && maxYear && minYear !== maxYear)
+    ? `${minYear} → ${maxYear}`
+    : (minYear ? String(minYear) : '');
+
+  /* Toutes les certifications aplaties (pour le bloc droit) */
+  const allCerts = data.flatMap(f => f.certifications ?? []);
+
   panel.innerHTML = `
-    <h2 class="section-title" data-i18n="formations.title"></h2>
-    <div class="formations-layout">
-      <div class="formations-list">
-        ${(formations ?? []).map(f => `
-          <div class="formation-card">
-            <div class="formation-card__school">${escapeHtml(f.school)}</div>
-            <div class="formation-card__title">${escapeHtml(f.title)}</div>
-            ${f.level ? `<div class="formation-card__level">${escapeHtml(f.level)}</div>` : ''}
-            <span class="period">${period(f.start_date, f.end_date)}</span>
-            ${f.description
-              ? `<p style="font-size:0.83rem;color:#ccc;margin-top:10px;line-height:1.65">${escapeHtml(f.description)}</p>`
-              : ''}
-            ${chips(f.skills)}
-            ${(() => {
-              const certs = f.certifications ?? [];
-              if (!certs.length) return '';
-              return `<ul class="formation__certs">
-                ${certs.map(c =>
-                  `<li class="formation__cert">
-                    ${c.year ? `<span class="formation__cert-year">${escapeHtml(String(c.year))}</span> — ` : ''}
-                    <span class="formation__cert-name">${escapeHtml(c.name)}</span>
-                  </li>`
-                ).join('')}
-              </ul>`;
-            })()}
-          </div>
-        `).join('')}
+    <!-- Breadcrumb + plage dates -->
+    <div class="formations-top-header">
+      <span class="formations-breadcrumb">/03 · ${t('formations.breadcrumb')} · ${data.length} ${t('formations.diplomas_label')}</span>
+      ${dateRange ? `<span class="formations-date-range">${dateRange}</span>` : ''}
+    </div>
+
+    <div class="formations-grid">
+
+      <!-- En-tête (pleine largeur) -->
+      <div class="formations-header">
+        <h2 class="formations-display-title">${t('formations.display_title')}</h2>
+        <p class="formations-subtitle">${t('formations.subtitle')}</p>
       </div>
-      <div class="skills-sidebar">
-        <h3 class="skills-sidebar__title" data-i18n="formations.skills_title"></h3>
-        ${Object.entries(byCategory).map(([cat, items]) => `
-          <div class="skills-sidebar__category">
-            <div class="skills-sidebar__category-name">${cat}</div>
-            <div class="chips-list">${items.map(s => `<span class="chip">${s.name}</span>`).join('')}</div>
-          </div>
-        `).join('')}
+
+      <!-- Colonne gauche : cartes de formation -->
+      <div class="formations-list">
+        ${data.map((f, i) => {
+          const sy      = f.start_date ? new Date(f.start_date).getFullYear() : '';
+          const ey      = f.end_date   ? new Date(f.end_date).getFullYear()   : t('common.present');
+          const dateStr = sy ? `${sy}<br>${ey}` : '';
+          return `
+          <div class="formation-card${i === 0 ? ' formation-card--featured' : ''}">
+            <div class="formation-card__date">${dateStr}</div>
+            <div class="formation-card__content">
+              <div class="formation-card__title">${escapeHtml(f.title)}</div>
+              <div class="formation-card__school">${escapeHtml(f.school)}${f.level ? ` · ${escapeHtml(f.level)}` : ''}</div>
+              ${f.skills?.length ? `<div class="formation-card__sep"></div>${chips(f.skills)}` : ''}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+
+      <!-- Colonne droite : compétences + certifications -->
+      <div class="formations-right">
+
+        <!-- Skills -->
+        <div class="skills-sidebar">
+          <h3 class="skills-sidebar__title">${t('formations.skills_title')}</h3>
+          ${Object.entries(byCategory).map(([cat, items]) => `
+            <div class="skills-sidebar__category">
+              <div class="skills-sidebar__category-name">${cat}</div>
+              <div class="chips-list">${items.map(s => `<span class="chip">${escapeHtml(s.name)}</span>`).join('')}</div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Certifications -->
+        ${allCerts.length ? `
+        <div class="certs-block">
+          <h3 class="certs-block__title">${t('formations.certifications_title')}</h3>
+          ${allCerts.map(c => `
+            <div class="cert-item">
+              <span class="cert-item__name">${escapeHtml(c.name)}</span>
+              ${c.year ? `<span class="cert-item__year">${escapeHtml(String(c.year))}</span>` : ''}
+            </div>`).join('')}
+        </div>` : ''}
+
       </div>
     </div>
   `;
   applyI18n();
+}
+
+/* ── CONTACT — rendu d'un lien en rangée ────────────────────── */
+function renderContactLink(link) {
+  // Sécurité : n'autoriser que https:// et mailto: en href
+  const safeUrl = link.url.startsWith('https://') || link.url.startsWith('mailto:')
+    ? link.url : '#';
+  const isEmail = safeUrl.startsWith('mailto:');
+  const display = escapeHtml(safeUrl.replace('mailto:', ''));
+  return `
+    <a class="contact-link-row" href="${escapeHtml(safeUrl)}"
+       ${!isEmail ? 'target="_blank" rel="noopener noreferrer"' : ''}>
+      <span class="contact-link-row__icon">${escapeHtml(link.icon ?? '')}</span>
+      <span class="contact-link-row__body">
+        <span class="contact-link-row__label">${escapeHtml(link.platform ?? '')}</span>
+        <span class="contact-link-row__value">${display}</span>
+      </span>
+      <span class="contact-link-row__arrow">↗</span>
+    </a>`;
 }
 
 /* ── CONTACT ───────────────────────────────────────────────── */
@@ -565,26 +622,47 @@ async function renderContact() {
   const profile = await get('profile.php');
   const panel   = document.getElementById('tab-contact');
 
+  /* Liens sociaux : depuis profile.links ou fallback email/phone */
+  let linksHtml = '';
+  const links = profile?.links ?? [];
+  if (links.length) {
+    linksHtml = links.map(renderContactLink).join('');
+  } else {
+    const fallback = [];
+    if (profile?.email) fallback.push({ url: `mailto:${profile.email}`, icon: '@', platform: 'Email' });
+    if (profile?.phone) fallback.push({ url: `tel:${profile.phone}`,   icon: '☎', platform: 'Téléphone' });
+    linksHtml = fallback.map(renderContactLink).join('');
+  }
+
   panel.innerHTML = `
     <h2 class="section-title" data-i18n="contact.title"></h2>
     <div class="contact-layout">
       <div class="contact-info">
-        <p class="contact-info__tagline" data-i18n="contact.tagline"></p>
-        <ul class="contact-info__links">
-          ${profile?.email ? `<li><a href="mailto:${profile.email}" class="contact-info__link">✉ ${profile.email}</a></li>` : ''}
-          ${profile?.phone ? `<li><a href="tel:${profile.phone}"   class="contact-info__link">☎ ${profile.phone}</a></li>` : ''}
-        </ul>
+        <p class="contact-info__tagline">
+          <em class="contact-tagline__available">${t('contact.tagline_available')}</em>
+          ${t('contact.tagline_suffix')}
+        </p>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+          ${linksHtml}
+        </div>
         <div class="open-to-work" data-i18n="contact.open_to_work"></div>
       </div>
       <div class="contact-form-wrapper">
+        <h3 class="contact-form-title">${t('contact.form.quick_note_title')}</h3>
         <form class="contact-form" id="contact-form" onsubmit="sendContact(event)">
-          <div class="form-group">
-            <label data-i18n="contact.form.name_label"></label>
-            <input type="text"  name="name"    required data-i18n-placeholder="contact.form.name_placeholder">
+          <div class="form-row">
+            <div class="form-group">
+              <label data-i18n="contact.form.name_label"></label>
+              <input type="text"  name="name"  required data-i18n-placeholder="contact.form.name_placeholder">
+            </div>
+            <div class="form-group">
+              <label data-i18n="contact.form.email_label"></label>
+              <input type="email" name="email" required data-i18n-placeholder="contact.form.email_placeholder">
+            </div>
           </div>
           <div class="form-group">
-            <label data-i18n="contact.form.email_label"></label>
-            <input type="email" name="email"   required data-i18n-placeholder="contact.form.email_placeholder">
+            <label data-i18n="contact.form.subject_label"></label>
+            <input type="text" name="subject" maxlength="255" data-i18n-placeholder="contact.form.subject_placeholder">
           </div>
           <div class="form-group">
             <label data-i18n="contact.form.message_label"></label>
@@ -615,8 +693,10 @@ async function sendContact(e) {
     notify(t('contact.form.captcha_wait'));
     return;
   }
-  const data = Object.fromEntries(new FormData(e.target));
-  data.altcha = _altchaPayload;
+  const formData = new FormData(e.target);
+  const data = Object.fromEntries(formData);
+  data.subject = (formData.get('subject') ?? '').trim();
+  data.altcha  = _altchaPayload;
   try {
     const res = await fetch(`${API}/contact.php`, {
       method:  'POST',

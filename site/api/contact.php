@@ -3,6 +3,8 @@ header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, DELETE');
 header('Access-Control-Allow-Headers: Content-Type');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
 
 require_once __DIR__ . '/auth_guard.php';
 require_once __DIR__ . '/db.php';
@@ -22,7 +24,7 @@ switch (method()) {
     case 'GET':
         require_auth();
         $messages = $pdo->query(
-            'SELECT * FROM `contact_messages` ORDER BY `sent_at` DESC'
+            'SELECT `id`,`name`,`email`,`subject`,`message`,`sent_at` FROM `contact_messages` ORDER BY `sent_at` DESC'
         )->fetchAll();
         json_response($messages);
 
@@ -36,6 +38,7 @@ switch (method()) {
 
         $name    = trim($d['name']    ?? '');
         $email   = trim($d['email']   ?? '');
+        $subject = mb_substr(trim($d['subject'] ?? ''), 0, 255);
         $message = trim($d['message'] ?? '');
 
         if (!$name || !$email || !$message) {
@@ -46,9 +49,9 @@ switch (method()) {
         }
 
         $stmt = $pdo->prepare(
-            'INSERT INTO `contact_messages` (`name`,`email`,`message`) VALUES (:name,:email,:message)'
+            'INSERT INTO `contact_messages` (`name`,`email`,`subject`,`message`) VALUES (:name,:email,:subject,:message)'
         );
-        $stmt->execute([':name' => $name, ':email' => $email, ':message' => $message]);
+        $stmt->execute([':name' => $name, ':email' => $email, ':subject' => $subject, ':message' => $message]);
 
         $smtp_from = $_ENV['SMTP_FROM'] ?? '';
         if ($smtp_from) {
@@ -67,7 +70,8 @@ switch (method()) {
             $mail->addAddress($smtp_from);
             $mail->addReplyTo($email, $name);
             $mail->Subject = "Nouveau message de contact de $name";
-            $mail->Body    = "Nom : $name\nEmail : $email\n\n$message";
+            $subjectLine   = $subject ? "Sujet : $subject\n" : '';
+            $mail->Body    = "Nom : $name\nEmail : $email\n{$subjectLine}\n$message";
             try {
                 $mail->send();
             } catch (Exception $e) {
