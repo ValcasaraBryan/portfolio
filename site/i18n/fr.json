@@ -1,9 +1,17 @@
 {
   "nav": {
+    "about":       "À propos",
     "experiences": "Expériences",
     "creations":   "Créations",
     "formations":  "Formations",
     "contact":     "Contact"
+  },
+  "about": {
+    "title":             "À propos",
+    "location_label":    "Localisation",
+    "availability_label":"Disponibilité",
+    "skills_label":      "Compétences phares",
+    "no_bio":            "Aucune biographie renseignée."
   },
   "common": {
     "download_cv":      "Télécharger CV",

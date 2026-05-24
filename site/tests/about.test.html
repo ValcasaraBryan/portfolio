@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests About — Portfolio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0d0d0d;
+      color: #e2e2e2;
+      padding: 32px;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: .15em; color: #fff; margin-bottom: 6px; }
+    .hint { color: #555; font-size: 0.78rem; margin-bottom: 32px; }
+    .hint code { color: #888; }
+
+    /* Barre de résumé */
+    .summary {
+      display: flex; gap: 20px; align-items: center;
+      padding: 12px 18px; border: 1px solid #2a2a2a;
+      border-radius: 4px; margin-bottom: 32px; font-size: 0.85rem;
+    }
+    .summary__pass  { color: #4ade80; font-weight: 700; }
+    .summary__fail  { color: #f87171; font-weight: 700; }
+    .summary__total { color: #888; }
+    .summary__time  { color: #444; margin-left: auto; font-size: 0.75rem; }
+    .summary--all-pass { border-color: #14532d; background: #052e16; }
+    .summary--has-fail { border-color: #7f1d1d; background: #2d0e0e; }
+
+    /* Groupes */
+    .group { margin-bottom: 26px; }
+    .group__title {
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: .2em;
+      color: #444; border-bottom: 1px solid #1c1c1c;
+      padding-bottom: 5px; margin-bottom: 8px;
+    }
+
+    /* Lignes de test */
+    .test { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 0.81rem; }
+    .test__icon  { flex-shrink: 0; width: 14px; }
+    .test--pass .test__label { color: #c8c8c8; }
+    .test--fail .test__label { color: #fca5a5; }
+    .test__detail { color: #f87171; font-size: 0.73rem; }
+
+    #loading { color: #555; font-size: 0.85rem; padding: 12px 0; }
+    #loading.error { color: #f87171; }
+  </style>
+</head>
+<body>
+
+  <h1>Tests — Section "À propos" (plan 007)</h1>
+  <p class="hint">Ouvrir directement dans le navigateur depuis le serveur local.<br>
+    Tous les tests doivent afficher <code>✓</code>.</p>
+
+  <div id="loading">Chargement des tests…</div>
+  <div id="summary" style="display:none" class="summary"></div>
+  <div id="results"></div>
+
+  <script>
+    /* ── Framework minimal ─────────────────────────────────── */
+    const tests = [];
+    let passCount = 0, failCount = 0;
+
+    function group(name, fn) {
+      const grp = { name, cases: [] };
+      tests.push(grp);
+      fn(grp);
+    }
+
+    function it(grp, label, fn) {
+      grp.cases.push({ label, fn });
+    }
+
+    function renderResults() {
+      const container = document.getElementById('results');
+      container.innerHTML = '';
+
+      for (const grp of tests) {
+        const div = document.createElement('div');
+        div.className = 'group';
+        div.innerHTML = `<div class="group__title">${grp.name}</div>`;
+        for (const { label, result, detail } of grp.cases) {
+          const row = document.createElement('div');
+          row.className = `test test--${result ? 'pass' : 'fail'}`;
+          row.innerHTML = `
+            <span class="test__icon">${result ? '✓' : '✗'}</span>
+            <span class="test__label">${label}</span>
+            ${detail ? `<span class="test__detail">— ${detail}</span>` : ''}
+          `;
+          div.appendChild(row);
+        }
+        container.appendChild(div);
+      }
+
+      const total = passCount + failCount;
+      const summary = document.getElementById('summary');
+      summary.className = 'summary ' + (failCount === 0 ? 'summary--all-pass' : 'summary--has-fail');
+      summary.innerHTML = `
+        <span class="summary__pass">✓ ${passCount} passed</span>
+        <span class="summary__fail">${failCount > 0 ? '✗ ' + failCount + ' failed' : ''}</span>
+        <span class="summary__total">(${total} total)</span>
+      `;
+      summary.style.display = 'flex';
+      document.getElementById('loading').style.display = 'none';
+    }
+
+    function assert(condition, detail = '') {
+      return { ok: !!condition, detail };
+    }
+
+    /* ── Helpers ───────────────────────────────────────────── */
+    const API = '../api';
+
+    async function apiGet(path) {
+      const res = await fetch(`${API}/${path}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+
+    /* PUT profile — nécessite une session admin active */
+    async function apiPut(path, body) {
+      const res = await fetch(`${API}/${path}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(`HTTP ${res.status}: ${err.error ?? ''}`);
+      }
+      return res.json();
+    }
+
+    /* escapeHtml — réplique de app-utils.js (testée indépendamment) */
+    function escapeHtml(str) {
+      if (typeof str !== 'string') return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    /* ── Définition des tests ──────────────────────────────── */
+
+    // Groupe 1 : GET profile — champ bio présent
+    const g1 = { name: 'GET profile — champ bio', cases: [] };
+    tests.push(g1);
+
+    // Groupe 2 : PUT profile — mise à jour bio_fr / bio_en
+    const g2 = { name: 'PUT profile — bio bilingue', cases: [] };
+    tests.push(g2);
+
+    // Groupe 3 : Sécurité — escapeHtml
+    const g3 = { name: 'Sécurité — escapeHtml (XSS bio)', cases: [] };
+    tests.push(g3);
+
+    /* ── Exécution async ───────────────────────────────────── */
+    (async () => {
+      /* ── Groupe 1 : GET /api/profile.php?lang=fr ─── */
+      try {
+        const profileFr = await apiGet('profile.php?lang=fr');
+
+        // Test 1 : réponse non nulle
+        {
+          const ok = profileFr !== null && typeof profileFr === 'object';
+          g1.cases.push({ label: 'GET ?lang=fr retourne un objet', result: ok,
+            detail: ok ? '' : 'null ou non-objet' });
+          ok ? passCount++ : failCount++;
+        }
+
+        // Test 2 : champ bio présent (null ou string)
+        {
+          const ok = 'bio' in profileFr;
+          g1.cases.push({ label: 'Champ bio présent dans la réponse FR', result: ok,
+            detail: ok ? '' : 'clé "bio" absente' });
+          ok ? passCount++ : failCount++;
+        }
+
+        // Test 3 : bio est null ou string
+        {
+          const ok = profileFr.bio === null || typeof profileFr.bio === 'string';
+          g1.cases.push({ label: 'bio est null ou string', result: ok,
+            detail: ok ? '' : `type: ${typeof profileFr.bio}` });
+          ok ? passCount++ : failCount++;
+        }
+      } catch (e) {
+        g1.cases.push({ label: 'GET profile FR', result: false, detail: e.message });
+        failCount++;
+      }
+
+      /* ── Groupe 2 : PUT puis GET pour vérifier les bio ─── */
+      let putSuccess = false;
+      try {
+        // Récupérer les valeurs actuelles pour ne pas les écraser
+        const [fr, en] = await Promise.all([
+          apiGet('profile.php?lang=fr'),
+          apiGet('profile.php?lang=en'),
+        ]);
+
+        const putBody = {
+          name:      fr.name      ?? '',
+          photo_url: fr.photo_url ?? null,
+          location:  fr.location  ?? '',
+          email:     fr.email     ?? '',
+          phone:     fr.phone     ?? '',
+          title_fr:  fr.title     ?? '',
+          status_fr: fr.status    ?? '',
+          bio_fr:    'Test bio FR — plan 007',
+          title_en:  en.title     ?? '',
+          status_en: en.status    ?? '',
+          bio_en:    'Test bio EN — plan 007',
+        };
+
+        const putResult = await apiPut('profile.php', putBody);
+
+        // Test 4 : PUT retourne { success: true }
+        {
+          const ok = putResult?.success === true;
+          g2.cases.push({ label: 'PUT retourne { success: true }', result: ok,
+            detail: ok ? '' : JSON.stringify(putResult) });
+          ok ? passCount++ : failCount++;
+          putSuccess = ok;
+        }
+      } catch (e) {
+        g2.cases.push({ label: 'PUT profile (bio_fr / bio_en)', result: false,
+          detail: e.message + ' — vérifier: session admin active ?' });
+        failCount++;
+      }
+
+      if (putSuccess) {
+        // Test 5 : GET lang=fr → bio FR
+        try {
+          const profileFr2 = await apiGet('profile.php?lang=fr');
+          const ok = profileFr2?.bio === 'Test bio FR — plan 007';
+          g2.cases.push({ label: 'GET ?lang=fr retourne bio_fr après PUT', result: ok,
+            detail: ok ? '' : `obtenu: ${JSON.stringify(profileFr2?.bio)}` });
+          ok ? passCount++ : failCount++;
+        } catch (e) {
+          g2.cases.push({ label: 'GET ?lang=fr retourne bio_fr après PUT', result: false, detail: e.message });
+          failCount++;
+        }
+
+        // Test 6 : GET lang=en → bio EN
+        try {
+          const profileEn = await apiGet('profile.php?lang=en');
+          const ok = profileEn?.bio === 'Test bio EN — plan 007';
+          g2.cases.push({ label: 'GET ?lang=en retourne bio_en après PUT', result: ok,
+            detail: ok ? '' : `obtenu: ${JSON.stringify(profileEn?.bio)}` });
+          ok ? passCount++ : failCount++;
+        } catch (e) {
+          g2.cases.push({ label: 'GET ?lang=en retourne bio_en après PUT', result: false, detail: e.message });
+          failCount++;
+        }
+      } else {
+        g2.cases.push({ label: 'GET lang=fr/en après PUT (skipped)', result: false,
+          detail: 'skipped — PUT échoué (session admin requise)' });
+        failCount++;
+      }
+
+      // Test 7 : PUT avec bio > 2000 chars → 400
+      try {
+        const longBio = 'A'.repeat(2001);
+        const res = await fetch(`${API}/profile.php`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bio_fr: longBio }),
+        });
+        const ok = res.status === 400;
+        g2.cases.push({ label: 'PUT avec bio_fr > 2000 chars → 400', result: ok,
+          detail: ok ? '' : `status: ${res.status}` });
+        ok ? passCount++ : failCount++;
+      } catch (e) {
+        g2.cases.push({ label: 'PUT avec bio_fr > 2000 chars → 400', result: false, detail: e.message });
+        failCount++;
+      }
+
+      /* ── Groupe 3 : escapeHtml ─────────────────────────── */
+
+      // Test 8 : balise script encodée
+      {
+        const input  = '<script>alert(1)</script>';
+        const result = escapeHtml(input);
+        const ok     = !result.includes('<script>') && result.includes('&lt;');
+        g3.cases.push({ label: 'escapeHtml("<script>…") encode les chevrons', result: ok,
+          detail: ok ? '' : `obtenu: ${result}` });
+        ok ? passCount++ : failCount++;
+      }
+
+      // Test 9 : guillemets encodés
+      {
+        const input  = '" onmouseover="alert(1)"';
+        const result = escapeHtml(input);
+        const ok     = result.includes('&quot;');
+        g3.cases.push({ label: 'escapeHtml encode les guillemets doubles', result: ok,
+          detail: ok ? '' : `obtenu: ${result}` });
+        ok ? passCount++ : failCount++;
+      }
+
+      // Test 10 : string vide / null passés sans erreur
+      {
+        const ok = escapeHtml('') === '' && escapeHtml(null) === '';
+        g3.cases.push({ label: 'escapeHtml("") et escapeHtml(null) retournent ""', result: ok,
+          detail: ok ? '' : 'valeur inattendue' });
+        ok ? passCount++ : failCount++;
+      }
+
+      renderResults();
+    })();
+  </script>
+</body>
+</html>

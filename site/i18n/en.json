@@ -1,9 +1,17 @@
 {
   "nav": {
+    "about":       "About",
     "experiences": "Experience",
     "creations":   "Projects",
     "formations":  "Education",
     "contact":     "Contact"
+  },
+  "about": {
+    "title":             "About",
+    "location_label":    "Location",
+    "availability_label":"Availability",
+    "skills_label":      "Core Skills",
+    "no_bio":            "No biography provided."
   },
   "common": {
     "download_cv":      "Download CV",

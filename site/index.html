@@ -67,6 +67,10 @@
 
       <!-- 4. Nav -->
       <nav class="drawer__nav">
+        <button class="drawer__nav-item" data-tab="about">
+          <span data-i18n="nav.about">À propos</span>
+          <span class="drawer__nav-num">/00</span>
+        </button>
         <button class="drawer__nav-item" data-tab="experiences">
           <span data-i18n="nav.experiences">Expériences</span>
           <span class="drawer__nav-num">/01</span>
@@ -106,6 +110,7 @@
 
     <!-- Main content -->
     <main class="main-content">
+      <section id="tab-about"       class="tab-panel"></section>
       <section id="tab-experiences" class="tab-panel"></section>
       <section id="tab-creations"   class="tab-panel"></section>
       <section id="tab-formations"  class="tab-panel"></section>
@@ -114,6 +119,10 @@
 
     <!-- Mobile: bottom tab bar -->
     <nav class="bottom-tab-bar">
+      <button class="bottom-tab-bar__item" data-tab="about">
+        <span class="bottom-tab-bar__icon">👤</span>
+        <span data-i18n="nav.about"></span>
+      </button>
       <button class="bottom-tab-bar__item" data-tab="experiences">
         <span class="bottom-tab-bar__icon">💼</span>
         <span data-i18n="nav.experiences"></span>

@@ -304,8 +304,10 @@
             phone:     fr.phone     ?? '',
             title_fr:  fr.title     ?? '',
             status_fr: fr.status    ?? '',
+            bio_fr:    fr.bio       ?? '',
             title_en:  en.title     ?? '',
             status_en: en.status    ?? '',
+            bio_en:    en.bio       ?? '',
           });
           setLoading(false);
         }).catch(() => {
@@ -314,12 +316,12 @@
         });
       }, []);
 
-      const field = (key, label, multiline = false) =>
+      const field = (key, label, multiline = false, rows = null) =>
         React.createElement(TextField, {
           key, label, size: 'small',
           value:    form[key] ?? '',
           onChange: e => setForm(prev => ({ ...prev, [key]: e.target.value })),
-          multiline, rows: multiline ? 3 : 1,
+          multiline, rows: rows ?? (multiline ? 4 : 1),
         });
 
       const separator = label =>
@@ -360,9 +362,11 @@
           separator('🇫🇷 Français'),
           field('title_fr',  'Titre (FR)'),
           field('status_fr', 'Statut (FR)'),
+          field('bio_fr',    'Bio (FR)', true),
           separator('🇬🇧 English'),
           field('title_en',  'Title (EN)'),
           field('status_en', 'Status (EN)'),
+          field('bio_en',    'Bio (EN)', true),
         ),
 
         React.createElement(Box, { sx: { mt: 3 } },

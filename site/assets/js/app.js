@@ -21,7 +21,7 @@ async function loadLang(newLang) {
   // — l'onglet actif avec fondu (visible)
   // — les autres en arrière-plan (cachés) → prêts sans flash au prochain switch
   const activeTab = document.querySelector('[data-tab].active')?.dataset.tab;
-  const allTabs   = ['experiences', 'creations', 'formations', 'contact'];
+  const allTabs   = ['about', 'experiences', 'creations', 'formations', 'contact'];
 
   for (const tab of allTabs) {
     tabLoaded[tab] = true;
@@ -91,6 +91,7 @@ function getSkeletonHtml(tab) { return AppUtils.getSkeletonHtml(tab); }
 
 async function loadTab(name) {
   switch (name) {
+    case 'about':       return renderAbout();
     case 'experiences': return renderExperiences();
     case 'creations':   return renderProjects();
     case 'formations':  return renderFormations();
@@ -625,6 +626,51 @@ async function sendContact(e) {
     if (res.ok) { e.target.reset(); _altchaPayload = ''; notify(t('contact.form.success')); }
     else notify(t('contact.form.error'));
   } catch { notify(t('contact.form.error')); }
+}
+
+/* ── ABOUT ─────────────────────────────────────────────────── */
+async function renderAbout() {
+  const [profile, skillsData] = await Promise.all([
+    get('profile.php'),
+    get('skills.php'),
+  ]);
+  const panel = document.getElementById('tab-about');
+
+  const bio      = escapeHtml(profile?.bio      ?? '');
+  const location = escapeHtml(profile?.location ?? '');
+  const status   = escapeHtml(profile?.status   ?? '');
+  const topSkills = (skillsData ?? []).slice(0, 6);
+
+  panel.innerHTML = `
+    <div class="about">
+
+      <div class="about__hero">
+        ${profile?.photo_url
+          ? `<img src="${escapeHtml(profile.photo_url)}" alt="${escapeHtml(profile.name ?? '')}" class="about__photo">`
+          : ''}
+        <div class="about__identity">
+          <h1 class="about__name">${escapeHtml(profile?.name ?? '')}</h1>
+          <p class="about__title">${escapeHtml(profile?.title ?? '')}</p>
+          ${location ? `<p class="about__location">📍 ${location}</p>` : ''}
+          ${status   ? `<p class="about__status">${status}</p>` : ''}
+        </div>
+      </div>
+
+      <div class="about__bio">
+        ${bio
+          ? `<p>${bio}</p>`
+          : `<p class="about__bio--empty">${t('about.no_bio')}</p>`}
+      </div>
+
+      ${topSkills.length > 0 ? `
+        <div class="about__skills">
+          <h2 class="about__section-title">${t('about.skills_label')}</h2>
+          <div class="chips-list">${topSkills.map(s => `<span class="chip">${escapeHtml(s.name ?? s)}</span>`).join('')}</div>
+        </div>` : ''}
+
+    </div>
+  `;
+  applyI18n();
 }
 
 /* ── HELPERS ───────────────────────────────────────────────── */
