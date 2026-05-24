@@ -622,58 +622,79 @@ async function renderContact() {
   const profile = await get('profile.php');
   const panel   = document.getElementById('tab-contact');
 
-  /* Liens sociaux : depuis profile.links ou fallback email/phone */
-  let linksHtml = '';
+  /* Liens : depuis profile.links ou fallback email/phone */
   const links = profile?.links ?? [];
-  if (links.length) {
-    linksHtml = links.map(renderContactLink).join('');
-  } else {
-    const fallback = [];
-    if (profile?.email) fallback.push({ url: `mailto:${profile.email}`, icon: '@', platform: 'Email' });
-    if (profile?.phone) fallback.push({ url: `tel:${profile.phone}`,   icon: '☎', platform: 'Téléphone' });
-    linksHtml = fallback.map(renderContactLink).join('');
-  }
+  const linksHtml = (links.length
+    ? links
+    : [
+        profile?.email ? { url: `mailto:${profile.email}`, icon: '@',  platform: 'Email' }     : null,
+        profile?.phone ? { url: `tel:${profile.phone}`,    icon: '☎', platform: 'Téléphone' } : null,
+      ].filter(Boolean)
+  ).map(renderContactLink).join('');
 
   panel.innerHTML = `
-    <h2 class="section-title" data-i18n="contact.title"></h2>
+    <!-- Breadcrumb header -->
+    <div class="contact-top-header">
+      <span class="contact-breadcrumb">/04 · ${t('contact.breadcrumb')}</span>
+      <span class="contact-reply-time">${t('contact.avg_reply')}</span>
+    </div>
+
     <div class="contact-layout">
-      <div class="contact-info">
-        <p class="contact-info__tagline">
-          <em class="contact-tagline__available">${t('contact.tagline_available')}</em>
-          ${t('contact.tagline_suffix')}
-        </p>
-        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
-          ${linksHtml}
+
+      <!-- Gauche row 1 : titre + tagline -->
+      <div class="contact-title-area">
+        <h2 class="contact-display-title">${t('contact.display_title_1')}<br>${t('contact.display_title_2')}</h2>
+        <p class="contact-tagline">${t('contact.tagline_available')}${t('contact.tagline_suffix')}</p>
+      </div>
+
+      <!-- Gauche row 2 : liens + open to work -->
+      <div class="contact-links-area">
+        ${linksHtml}
+        <div class="open-to-work">
+          <div class="open-to-work__status">
+            <span class="open-to-work__dot"></span>
+            ${t('contact.open_to_work')}
+          </div>
+          <span class="open-to-work__info">${t('contact.availability_info')}</span>
         </div>
-        <div class="open-to-work" data-i18n="contact.open_to_work"></div>
       </div>
+
+      <!-- Droite (span 2 rows) : formulaire encadré -->
       <div class="contact-form-wrapper">
-        <h3 class="contact-form-title">${t('contact.form.quick_note_title')}</h3>
-        <form class="contact-form" id="contact-form" onsubmit="sendContact(event)">
-          <div class="form-row">
-            <div class="form-group">
-              <label data-i18n="contact.form.name_label"></label>
-              <input type="text"  name="name"  required data-i18n-placeholder="contact.form.name_placeholder">
+        <div class="contact-form-box">
+          <div class="contact-form-header">
+            <h3 class="contact-form-title">${t('contact.form.quick_note_title')}</h3>
+            <p class="contact-form-subtitle">${t('contact.form_subtitle')}</p>
+          </div>
+          <form class="contact-form" id="contact-form" onsubmit="sendContact(event)">
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="contact.form.name_label"></label>
+                <input type="text"  name="name"  required data-i18n-placeholder="contact.form.name_placeholder">
+              </div>
+              <div class="form-group">
+                <label data-i18n="contact.form.email_label"></label>
+                <input type="email" name="email" required data-i18n-placeholder="contact.form.email_placeholder">
+              </div>
             </div>
             <div class="form-group">
-              <label data-i18n="contact.form.email_label"></label>
-              <input type="email" name="email" required data-i18n-placeholder="contact.form.email_placeholder">
+              <label data-i18n="contact.form.subject_label"></label>
+              <input type="text" name="subject" maxlength="255" data-i18n-placeholder="contact.form.subject_placeholder">
             </div>
-          </div>
-          <div class="form-group">
-            <label data-i18n="contact.form.subject_label"></label>
-            <input type="text" name="subject" maxlength="255" data-i18n-placeholder="contact.form.subject_placeholder">
-          </div>
-          <div class="form-group">
-            <label data-i18n="contact.form.message_label"></label>
-            <textarea name="message" required data-i18n-placeholder="contact.form.message_placeholder"></textarea>
-          </div>
-          <div class="form-group">
-            <altcha-widget challengeurl="${new URL('./api/altcha.php', location.href).href}" auto="onload" hidefooter></altcha-widget>
-          </div>
-          <button type="submit" class="btn btn--primary" data-i18n="contact.form.submit"></button>
-        </form>
+            <div class="form-group">
+              <label data-i18n="contact.form.message_label"></label>
+              <textarea name="message" required data-i18n-placeholder="contact.form.message_placeholder"></textarea>
+            </div>
+            <div class="form-group">
+              <altcha-widget challengeurl="${new URL('./api/altcha.php', location.href).href}" auto="onload" hidefooter></altcha-widget>
+            </div>
+            <div class="contact-form-actions">
+              <button type="submit" class="btn btn--primary btn--sm" data-i18n="contact.form.submit"></button>
+            </div>
+          </form>
+        </div>
       </div>
+
     </div>
   `;
   applyI18n();
