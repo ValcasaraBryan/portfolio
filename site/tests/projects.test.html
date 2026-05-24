@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests Créations — Portfolio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0d0d0d;
+      color: #e2e2e2;
+      padding: 32px;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: .15em; color: #fff; margin-bottom: 6px; }
+    .hint { color: #555; font-size: 0.78rem; margin-bottom: 32px; }
+    .hint code { color: #888; }
+
+    .summary {
+      display: flex; gap: 20px; align-items: center;
+      padding: 12px 18px; border: 1px solid #2a2a2a;
+      border-radius: 4px; margin-bottom: 32px; font-size: 0.85rem;
+    }
+    .summary__pass  { color: #4ade80; font-weight: 700; }
+    .summary__fail  { color: #f87171; font-weight: 700; }
+    .summary__total { color: #888; }
+    .summary__time  { color: #444; margin-left: auto; font-size: 0.75rem; }
+    .summary--all-pass { border-color: #14532d; background: #052e16; }
+    .summary--has-fail { border-color: #7f1d1d; background: #2d0e0e; }
+
+    .group { margin-bottom: 26px; }
+    .group__title {
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: .2em;
+      color: #444; border-bottom: 1px solid #1c1c1c;
+      padding-bottom: 5px; margin-bottom: 8px;
+    }
+    .test { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 0.81rem; }
+    .test__icon  { flex-shrink: 0; width: 14px; }
+    .test--pass .test__label { color: #c8c8c8; }
+    .test--fail .test__label { color: #fca5a5; }
+    .test__detail { color: #f87171; font-size: 0.73rem; }
+
+    #loading { color: #555; font-size: 0.85rem; padding: 12px 0; }
+    #loading.error { color: #f87171; }
+  </style>
+</head>
+<body>
+
+  <h1>Tests unitaires · Créations (Projets)</h1>
+  <p class="hint">
+    Servir depuis le serveur PHP : <code>http://localhost/tests/projects.test.html</code><br>
+    ⚠ Les tests du Groupe 1 (API) nécessitent le serveur PHP actif et la BDD peuplée.
+  </p>
+
+  <div id="loading">⏳ Exécution des tests…</div>
+  <div id="app" style="display:none">
+    <div class="summary" id="summary"></div>
+    <div id="groups"></div>
+  </div>
+
+  <!-- AppUtils : fonctions pures testables -->
+  <script src="../assets/js/app-utils.js"></script>
+
+  <script>
+  (async () => {
+    /* ══════════════════════════════════════════════════════════
+       Mini test runner
+    ══════════════════════════════════════════════════════════ */
+    const _groups  = [];
+    const _results = [];
+    let   _current = null;
+
+    function group(name) {
+      _current = { name, tests: [] };
+      _groups.push(_current);
+    }
+
+    function _record(label, pass, detail = '') {
+      _current.tests.push({ label, pass, detail });
+      _results.push(pass);
+    }
+
+    function test(label, fn) {
+      try   { fn(); _record(label, true); }
+      catch (e) { _record(label, false, e.message); }
+    }
+
+    async function testAsync(label, fn) {
+      try   { await fn(); _record(label, true); }
+      catch (e) { _record(label, false, e.message); }
+    }
+
+    function expect(received) {
+      return {
+        toBe(exp) {
+          if (received !== exp)
+            throw new Error(`reçu "${JSON.stringify(received)}" · attendu "${JSON.stringify(exp)}"`);
+        },
+        toBeTruthy() {
+          if (!received)
+            throw new Error(`valeur falsy : "${received}"`);
+        },
+        toBeFalsy() {
+          if (received)
+            throw new Error(`valeur truthy inattendue : "${received}"`);
+        },
+        toBeGreaterThan(n) {
+          if (received <= n)
+            throw new Error(`reçu ${received} <= attendu > ${n}`);
+        },
+        toContain(item) {
+          if (!received.includes(item))
+            throw new Error(`tableau ne contient pas "${item}"`);
+        },
+        toHaveLength(n) {
+          if (received.length !== n)
+            throw new Error(`longueur ${received.length} · attendu ${n}`);
+        },
+      };
+    }
+
+    const t0 = performance.now();
+
+    /* ══════════════════════════════════════════════════════════
+       Données mock pour les tests synchrones
+    ══════════════════════════════════════════════════════════ */
+
+    // 10 projets fictifs — id=5 est favori
+    const MOCK_PROJECTS = Array.from({ length: 10 }, (_, i) => ({
+      id:          i + 1,
+      name:        `Projet ${i + 1}`,
+      category:    i % 2 === 0 ? 'web' : 'side',
+      is_favorite: i === 4 ? 1 : 0,   // id=5 est favori
+      date:        `202${Math.floor(i / 3)}-01-01`,
+      skills:      [{ name: 'PHP' }, { name: 'JS' }],
+      description: `Description du projet ${i + 1}`,
+    }));
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 1 — API (nécessite serveur PHP + BDD peuplée)
+    ══════════════════════════════════════════════════════════ */
+    group('1 · API — GET /api/projects.php');
+
+    let apiData = null;
+
+    await testAsync('lang=fr → réponse HTTP 200', async () => {
+      const res = await fetch('../api/projects.php?lang=fr');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      apiData = await res.json();
+    });
+
+    await testAsync('lang=fr → tableau (peut être vide)', async () => {
+      if (!Array.isArray(apiData))
+        throw new Error('La réponse n\'est pas un tableau');
+    });
+
+    await testAsync('lang=fr → chaque item a id, name, category, is_favorite, skills[]', async () => {
+      if (!apiData) throw new Error('Données non chargées');
+      const required = ['id', 'name', 'category', 'is_favorite'];
+      for (const p of apiData) {
+        for (const field of required) {
+          if (p[field] === undefined)
+            throw new Error(`Champ "${field}" manquant dans le projet id=${p.id}`);
+        }
+        if (!Array.isArray(p.skills))
+          throw new Error(`skills non-tableau dans le projet id=${p.id}`);
+      }
+    });
+
+    await testAsync('lang=fr → au moins un item is_favorite=1 (si BDD peuplée)', async () => {
+      if (!apiData || apiData.length === 0) throw new Error('BDD vide ou données non chargées');
+      const fav = apiData.find(p => p.is_favorite == 1);
+      if (!fav)
+        throw new Error('Aucun projet avec is_favorite=1 — en ajouter un depuis l\'admin');
+    });
+
+    await testAsync('lang=fr → aucun champ sensible', async () => {
+      if (!apiData) throw new Error('Données non chargées');
+      const forbidden = ['password', 'session_token', 'secret'];
+      for (const p of apiData) {
+        for (const f of forbidden) {
+          if (f in p) throw new Error(`Champ sensible "${f}" présent dans la réponse`);
+        }
+      }
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 2 — paginateItems
+    ══════════════════════════════════════════════════════════ */
+    group('2 · AppUtils.paginateItems');
+
+    test('10 items, page 1, perPage 6 → items.length === 6, totalPages === 2', () => {
+      const { items, totalPages } = AppUtils.paginateItems(MOCK_PROJECTS, 1, 6);
+      if (items.length !== 6)   throw new Error(`items.length = ${items.length}, attendu 6`);
+      if (totalPages !== 2)     throw new Error(`totalPages = ${totalPages}, attendu 2`);
+    });
+
+    test('10 items, page 2, perPage 6 → items.length === 4', () => {
+      const { items } = AppUtils.paginateItems(MOCK_PROJECTS, 2, 6);
+      if (items.length !== 4)   throw new Error(`items.length = ${items.length}, attendu 4`);
+    });
+
+    test('10 items, page 2, perPage 6 → totalPages === 2', () => {
+      const { totalPages } = AppUtils.paginateItems(MOCK_PROJECTS, 2, 6);
+      if (totalPages !== 2)     throw new Error(`totalPages = ${totalPages}, attendu 2`);
+    });
+
+    test('0 items → items === [], totalPages === 0', () => {
+      const { items, totalPages } = AppUtils.paginateItems([], 1, 6);
+      if (items.length !== 0)   throw new Error(`items non vide`);
+      if (totalPages !== 0)     throw new Error(`totalPages = ${totalPages}, attendu 0`);
+    });
+
+    test('5 items, perPage 5, page 1 → totalPages === 1', () => {
+      const data = MOCK_PROJECTS.slice(0, 5);
+      const { totalPages } = AppUtils.paginateItems(data, 1, 5);
+      if (totalPages !== 1) throw new Error(`totalPages = ${totalPages}, attendu 1`);
+    });
+
+    test('page 1 → premier item correct (index 0)', () => {
+      const { items } = AppUtils.paginateItems(MOCK_PROJECTS, 1, 6);
+      if (items[0].id !== MOCK_PROJECTS[0].id)
+        throw new Error(`Premier item id=${items[0].id}, attendu ${MOCK_PROJECTS[0].id}`);
+    });
+
+    test('page 2 → premier item correct (index 6)', () => {
+      const { items } = AppUtils.paginateItems(MOCK_PROJECTS, 2, 6);
+      if (items[0].id !== MOCK_PROJECTS[6].id)
+        throw new Error(`Premier item page 2 id=${items[0].id}, attendu ${MOCK_PROJECTS[6].id}`);
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 3 — buildPaginationPages
+    ══════════════════════════════════════════════════════════ */
+    group('3 · AppUtils.buildPaginationPages');
+
+    test('buildPaginationPages(1, 3) → [1, 2, 3] (pas d\'ellipsis < 7 pages)', () => {
+      const pages = AppUtils.buildPaginationPages(1, 3);
+      const expected = [1, 2, 3];
+      if (JSON.stringify(pages) !== JSON.stringify(expected))
+        throw new Error(`reçu ${JSON.stringify(pages)}, attendu ${JSON.stringify(expected)}`);
+    });
+
+    test('buildPaginationPages(1, 7) → [1, 2, 3, 4, 5, 6, 7] (7 pages, pas d\'ellipsis)', () => {
+      const pages = AppUtils.buildPaginationPages(1, 7);
+      if (pages.length !== 7 || pages.includes('…'))
+        throw new Error(`reçu ${JSON.stringify(pages)}`);
+    });
+
+    test('buildPaginationPages(5, 10) → contient "…" avant et après 5', () => {
+      const pages = AppUtils.buildPaginationPages(5, 10);
+      const idx5   = pages.indexOf(5);
+      if (idx5 === -1) throw new Error('Page 5 absente');
+      if (pages[idx5 - 1] !== '…') throw new Error(`Pas d\'ellipsis avant 5, reçu: ${JSON.stringify(pages)}`);
+      if (pages[idx5 + 1] !== '…') throw new Error(`Pas d\'ellipsis après 5, reçu: ${JSON.stringify(pages)}`);
+    });
+
+    test('buildPaginationPages(5, 10) → commence par 1 et finit par 10', () => {
+      const pages = AppUtils.buildPaginationPages(5, 10);
+      if (pages[0] !== 1)   throw new Error(`Première page = ${pages[0]}, attendu 1`);
+      if (pages[pages.length - 1] !== 10) throw new Error(`Dernière page = ${pages[pages.length - 1]}, attendu 10`);
+    });
+
+    test('buildPaginationPages(1, 10) → commence par 1, finit par 10, contient "…"', () => {
+      const pages = AppUtils.buildPaginationPages(1, 10);
+      if (pages[0] !== 1)   throw new Error(`Première page = ${pages[0]}, attendu 1`);
+      if (pages[pages.length - 1] !== 10) throw new Error(`Dernière page = ${pages[pages.length - 1]}, attendu 10`);
+      if (!pages.includes('…')) throw new Error('Pas d\'ellipsis détecté');
+    });
+
+    test('buildPaginationPages(10, 10) → 10 toujours présent', () => {
+      const pages = AppUtils.buildPaginationPages(10, 10);
+      if (!pages.includes(10)) throw new Error('Page 10 absente');
+    });
+
+    test('buildPaginationPages(1, 1) → [1]', () => {
+      const pages = AppUtils.buildPaginationPages(1, 1);
+      if (JSON.stringify(pages) !== JSON.stringify([1]))
+        throw new Error(`reçu ${JSON.stringify(pages)}`);
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 4 — Logique featured grid
+    ══════════════════════════════════════════════════════════ */
+    group('4 · Logique featured grid');
+
+    test('is_favorite=1 est sélectionné comme featured', () => {
+      const featured = MOCK_PROJECTS.find(p => p.is_favorite) ?? MOCK_PROJECTS[0];
+      if (!featured.is_favorite)
+        throw new Error('Le featured sélectionné n\'a pas is_favorite=1');
+    });
+
+    test('sans aucun favori → le premier item devient featured', () => {
+      const noFav = MOCK_PROJECTS.map(p => ({ ...p, is_favorite: 0 }));
+      const featured = noFav.find(p => p.is_favorite) ?? noFav[0];
+      if (featured.id !== noFav[0].id)
+        throw new Error(`featured.id = ${featured.id}, attendu ${noFav[0].id}`);
+    });
+
+    test('page 1 + filtre "all" → afficher la grille featured', () => {
+      const filter = 'all', page = 1;
+      const showFeatured = (filter === 'all' && page === 1);
+      if (!showFeatured) throw new Error('La grille featured devrait être visible en page 1');
+    });
+
+    test('page 2 + filtre "all" → grille standard (pas de featured)', () => {
+      const filter = 'all', page = 2;
+      const showFeatured = (filter === 'all' && page === 1);
+      if (showFeatured) throw new Error('La grille featured ne devrait pas être visible en page 2');
+    });
+
+    test('filtre actif ≠ "all" → grille standard même en page 1', () => {
+      const filter = 'web', page = 1;
+      const showFeatured = (filter === 'all' && page === 1);
+      if (showFeatured) throw new Error('Grille featured ne doit pas s\'afficher avec un filtre actif');
+    });
+
+    test('rest exclut le featured (pas de doublon dans la grille)', () => {
+      const featured = MOCK_PROJECTS.find(p => p.is_favorite) ?? MOCK_PROJECTS[0];
+      const rest     = MOCK_PROJECTS.filter(p => p !== featured);
+      if (rest.includes(featured))
+        throw new Error('Le projet featured apparaît aussi dans rest → doublon');
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       Rendu final
+    ══════════════════════════════════════════════════════════ */
+    const elapsed = Math.round(performance.now() - t0);
+    const total   = _results.length;
+    const passed  = _results.filter(Boolean).length;
+    const failed  = total - passed;
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display     = 'block';
+
+    document.getElementById('summary').className =
+      'summary ' + (failed === 0 ? 'summary--all-pass' : 'summary--has-fail');
+    document.getElementById('summary').innerHTML = `
+      <span class="summary__total">Total : <strong>${total}</strong></span>
+      <span class="summary__pass">✅ ${passed} passés</span>
+      ${failed ? `<span class="summary__fail">❌ ${failed} échoués</span>` : ''}
+      <span class="summary__time">${elapsed} ms</span>
+    `;
+
+    const groupsEl = document.getElementById('groups');
+    for (const g of _groups) {
+      const gFail = g.tests.filter(t => !t.pass).length;
+      const div   = document.createElement('div');
+      div.className = 'group';
+      div.innerHTML = `
+        <div class="group__title">
+          ${gFail === 0 ? '✅' : '❌'} ${g.name}
+          &nbsp;·&nbsp; ${g.tests.filter(t => t.pass).length}/${g.tests.length}
+        </div>
+        ${g.tests.map(t => `
+          <div class="test ${t.pass ? 'test--pass' : 'test--fail'}">
+            <span class="test__icon">${t.pass ? '✓' : '✗'}</span>
+            <span class="test__label">${t.label}</span>
+            ${t.detail ? `<span class="test__detail">→ ${t.detail}</span>` : ''}
+          </div>
+        `).join('')}
+      `;
+      groupsEl.appendChild(div);
+    }
+
+    document.title = `${failed === 0 ? '✅' : '❌'} Tests Créations (${passed}/${total})`;
+  })();
+  </script>
+</body>
+</html>

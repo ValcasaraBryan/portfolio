@@ -85,30 +85,17 @@ async function renderExperiences() {
   const data  = await get('experiences.php');
   const panel = document.getElementById('tab-experiences');
 
-  const totalYears = data
-    ? Math.round(data.reduce((acc, e) => {
-        const s   = new Date(e.start_date);
-        const end = e.end_date ? new Date(e.end_date) : new Date();
-        return acc + (end - s) / 31536000000;
-      }, 0))
-    : 0;
-
-  const topSkills = data
-    ? [...new Set(data.flatMap(e => e.skills ?? []).map(s => s.name))].slice(0, 3).join(' / ')
-    : '—';
-
   /* Types uniques présents dans les données (dédupliqués)
    * Chaque entrée : { key: 'work_study', label: 'Alternance' }
    * - key   → clé enum stable (type_key) — identique quelle que soit la langue active
    * - label → libellé traduit retourné par l'API (type) pour l'affichage du bouton
    */
-  const uniqueTypes = [
-    ...new Map(
-      (data ?? [])
-        .filter(e => e.type_key?.trim())
-        .map(e => [e.type_key, e.type ?? e.type_key])   // key=enum stable, label=traduit
-    ).entries()
-  ].map(([key, label]) => ({ key, label }));
+  const highlights  = data
+    ? AppUtils.computeHighlights(data)
+    : { totalYears: 0, topSkills: [], uniqueTypes: [], hasOpenStatus: false };
+  const totalYears  = highlights.totalYears;
+  const topSkills   = highlights.topSkills.join(' / ') || '—';
+  const uniqueTypes = highlights.uniqueTypes;
 
   panel.innerHTML = `
     <div class="exp-section">
@@ -220,23 +207,9 @@ function _projCardSmall(p) {
     </div>`;
 }
 
-/* Numéros de page avec ellipsis */
+/* Numéros de page avec ellipsis — délègue à AppUtils */
 function _paginationPages(totalPages) {
-  const pages = [];
-  if (totalPages <= 7) {
-    for (let i = 1; i <= totalPages; i++) pages.push(i);
-    return pages;
-  }
-  const p   = _projPage;
-  const set = new Set([1, totalPages, p - 1, p, p + 1].filter(x => x >= 1 && x <= totalPages));
-  const sorted = [...set].sort((a, b) => a - b);
-  let prev = 0;
-  for (const n of sorted) {
-    if (n - prev > 1) pages.push('…');
-    pages.push(n);
-    prev = n;
-  }
-  return pages;
+  return AppUtils.buildPaginationPages(_projPage, totalPages);
 }
 
 /* Rendu du contenu paginé (grille + pagination + footer) */
@@ -318,8 +291,7 @@ function _renderProjPage() {
 
   } else {
     /* Grille standard : n colonnes */
-    const start = (page - 1) * PROJ_PER_PAGE;
-    const slice = pool.slice(start, start + PROJ_PER_PAGE);
+    const { items: slice } = AppUtils.paginateItems(pool, page, PROJ_PER_PAGE);
     gridHtml = `
       <div class="proj-grid">
         <div class="proj-grid__row">${slice.map(_projCardSmall).join('')}</div>
@@ -514,10 +486,7 @@ async function renderFormations() {
   ]);
   const panel = document.getElementById('tab-formations');
 
-  const byCategory = {};
-  (skills ?? []).forEach(s => {
-    (byCategory[s.category] ??= []).push(s);
-  });
+  const byCategory = AppUtils.groupSkillsByCategory(skills ?? []);
 
   panel.innerHTML = `
     <h2 class="section-title" data-i18n="formations.title"></h2>
@@ -631,23 +600,18 @@ async function sendContact(e) {
 }
 
 /* ── HELPERS ───────────────────────────────────────────────── */
-const _escapeMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-function escapeHtml(str) {
-  return String(str ?? '').replace(/[&<>"']/g, c => _escapeMap[c]);
-}
+
+/** Délègue à AppUtils pour garder la logique centralisée et testable. */
+function escapeHtml(str) { return AppUtils.escapeHtml(str); }
 
 function chips(items) {
   if (!items?.length) return '';
   return `<div class="chips-list">${items.map(s => `<span class="chip">${s.name ?? s}</span>`).join('')}</div>`;
 }
 
-/** Affiche "2024 — now", "2022 — 2024" ou "2020" */
+/** Affiche "2024 — now", "2022 — 2024" ou "2020" — délègue à AppUtils */
 function periodDisplay(start, end) {
-  if (!start) return '';
-  const sy = new Date(start).getFullYear();
-  if (!end)  return `${sy} — ${t('common.present')}`;
-  const ey = new Date(end).getFullYear();
-  return sy === ey ? String(sy) : `${sy} — ${ey}`;
+  return AppUtils.formatPeriod(start, end, t('common.present'));
 }
 
 function period(start, end) {

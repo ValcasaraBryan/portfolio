@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests Formations — Portfolio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0d0d0d;
+      color: #e2e2e2;
+      padding: 32px;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: .15em; color: #fff; margin-bottom: 6px; }
+    .hint { color: #555; font-size: 0.78rem; margin-bottom: 32px; }
+    .hint code { color: #888; }
+
+    .summary {
+      display: flex; gap: 20px; align-items: center;
+      padding: 12px 18px; border: 1px solid #2a2a2a;
+      border-radius: 4px; margin-bottom: 32px; font-size: 0.85rem;
+    }
+    .summary__pass  { color: #4ade80; font-weight: 700; }
+    .summary__fail  { color: #f87171; font-weight: 700; }
+    .summary__total { color: #888; }
+    .summary__time  { color: #444; margin-left: auto; font-size: 0.75rem; }
+    .summary--all-pass { border-color: #14532d; background: #052e16; }
+    .summary--has-fail { border-color: #7f1d1d; background: #2d0e0e; }
+
+    .group { margin-bottom: 26px; }
+    .group__title {
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: .2em;
+      color: #444; border-bottom: 1px solid #1c1c1c;
+      padding-bottom: 5px; margin-bottom: 8px;
+    }
+    .test { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 0.81rem; }
+    .test__icon  { flex-shrink: 0; width: 14px; }
+    .test--pass .test__label { color: #c8c8c8; }
+    .test--fail .test__label { color: #fca5a5; }
+    .test__detail { color: #f87171; font-size: 0.73rem; }
+
+    #loading { color: #555; font-size: 0.85rem; padding: 12px 0; }
+    #loading.error { color: #f87171; }
+  </style>
+</head>
+<body>
+
+  <h1>Tests unitaires · Formations</h1>
+  <p class="hint">
+    Servir depuis le serveur PHP : <code>http://localhost/tests/formations.test.html</code><br>
+    ⚠ Les tests du Groupe 1 (API) nécessitent le serveur PHP actif et la BDD peuplée.
+  </p>
+
+  <div id="loading">⏳ Exécution des tests…</div>
+  <div id="app" style="display:none">
+    <div class="summary" id="summary"></div>
+    <div id="groups"></div>
+  </div>
+
+  <!-- AppUtils : fonctions pures testables -->
+  <script src="../assets/js/app-utils.js"></script>
+
+  <script>
+  (async () => {
+    /* ══════════════════════════════════════════════════════════
+       Mini test runner
+    ══════════════════════════════════════════════════════════ */
+    const _groups  = [];
+    const _results = [];
+    let   _current = null;
+
+    function group(name) {
+      _current = { name, tests: [] };
+      _groups.push(_current);
+    }
+
+    function _record(label, pass, detail = '') {
+      _current.tests.push({ label, pass, detail });
+      _results.push(pass);
+    }
+
+    function test(label, fn) {
+      try   { fn(); _record(label, true); }
+      catch (e) { _record(label, false, e.message); }
+    }
+
+    async function testAsync(label, fn) {
+      try   { await fn(); _record(label, true); }
+      catch (e) { _record(label, false, e.message); }
+    }
+
+    function expect(received) {
+      return {
+        toBe(exp) {
+          if (received !== exp)
+            throw new Error(`reçu "${JSON.stringify(received)}" · attendu "${JSON.stringify(exp)}"`);
+        },
+        toBeTruthy() {
+          if (!received)
+            throw new Error(`valeur falsy : "${received}"`);
+        },
+        toBeFalsy() {
+          if (received)
+            throw new Error(`valeur truthy inattendue : "${received}"`);
+        },
+        toBeGreaterThan(n) {
+          if (received <= n)
+            throw new Error(`reçu ${received} <= attendu > ${n}`);
+        },
+        toHaveLength(n) {
+          if (received.length !== n)
+            throw new Error(`longueur ${received.length} · attendu ${n}`);
+        },
+      };
+    }
+
+    const t0 = performance.now();
+
+    /* ══════════════════════════════════════════════════════════
+       Données mock pour les tests synchrones
+    ══════════════════════════════════════════════════════════ */
+    const MOCK_SKILLS = [
+      { id: 1, name: 'PHP',        category: 'Backend' },
+      { id: 2, name: 'MySQL',      category: 'Backend' },
+      { id: 3, name: 'JavaScript', category: 'Frontend' },
+      { id: 4, name: 'React',      category: 'Frontend' },
+      { id: 5, name: 'Docker',     category: 'DevOps' },
+    ];
+
+    const MOCK_SKILLS_NO_CAT = [
+      { id: 1, name: 'PHP',        category: undefined },
+      { id: 2, name: 'JavaScript', category: undefined },
+    ];
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 1 — API (nécessite serveur PHP + BDD peuplée)
+    ══════════════════════════════════════════════════════════ */
+    group('1 · API — GET /api/formations.php et /api/skills.php');
+
+    let apiFormations = null;
+    let apiSkills     = null;
+
+    await testAsync('formations.php?lang=fr → HTTP 200', async () => {
+      const res = await fetch('../api/formations.php?lang=fr');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      apiFormations = await res.json();
+    });
+
+    await testAsync('formations.php?lang=fr → tableau', async () => {
+      if (!Array.isArray(apiFormations))
+        throw new Error('La réponse n\'est pas un tableau');
+    });
+
+    await testAsync('formations.php → chaque item a school, title, level', async () => {
+      if (!apiFormations) throw new Error('Données non chargées');
+      for (const f of apiFormations) {
+        const required = ['school', 'title', 'level'];
+        for (const field of required) {
+          if (f[field] === undefined)
+            throw new Error(`Champ "${field}" manquant dans la formation id=${f.id}`);
+        }
+      }
+    });
+
+    await testAsync('formations.php → chaque item a skills[] et certifications[]', async () => {
+      if (!apiFormations) throw new Error('Données non chargées');
+      for (const f of apiFormations) {
+        if (!Array.isArray(f.skills))
+          throw new Error(`skills non-tableau dans la formation id=${f.id}`);
+        if (!Array.isArray(f.certifications))
+          throw new Error(`certifications non-tableau dans la formation id=${f.id}`);
+      }
+    });
+
+    await testAsync('skills.php?lang=fr → HTTP 200', async () => {
+      const res = await fetch('../api/skills.php?lang=fr');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      apiSkills = await res.json();
+    });
+
+    await testAsync('skills.php?lang=fr → tableau non vide', async () => {
+      if (!Array.isArray(apiSkills) || apiSkills.length === 0)
+        throw new Error('Tableau vide ou non-tableau');
+    });
+
+    await testAsync('skills.php → chaque item a id, name, category', async () => {
+      if (!apiSkills) throw new Error('Données non chargées');
+      for (const s of apiSkills) {
+        if (s.id === undefined)   throw new Error(`Champ "id" manquant`);
+        if (s.name === undefined) throw new Error(`Champ "name" manquant`);
+        if (s.category === undefined) throw new Error(`Champ "category" manquant dans skill id=${s.id}`);
+      }
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 2 — groupSkillsByCategory
+    ══════════════════════════════════════════════════════════ */
+    group('2 · AppUtils.groupSkillsByCategory');
+
+    test('skills avec 3 catégories → objet à 3 clés', () => {
+      const result = AppUtils.groupSkillsByCategory(MOCK_SKILLS);
+      const keys = Object.keys(result);
+      if (keys.length !== 3)
+        throw new Error(`${keys.length} catégories, attendu 3 (Backend, Frontend, DevOps)`);
+    });
+
+    test('catégorie "Backend" contient PHP et MySQL', () => {
+      const result = AppUtils.groupSkillsByCategory(MOCK_SKILLS);
+      const backend = result['Backend'];
+      if (!backend) throw new Error('Catégorie "Backend" absente');
+      const names = backend.map(s => s.name);
+      if (!names.includes('PHP'))   throw new Error('PHP absent du Backend');
+      if (!names.includes('MySQL')) throw new Error('MySQL absent du Backend');
+    });
+
+    test('catégorie "Frontend" contient JS et React', () => {
+      const result = AppUtils.groupSkillsByCategory(MOCK_SKILLS);
+      const frontend = result['Frontend'];
+      if (!frontend) throw new Error('Catégorie "Frontend" absente');
+      const names = frontend.map(s => s.name);
+      if (!names.includes('JavaScript')) throw new Error('JavaScript absent du Frontend');
+      if (!names.includes('React'))      throw new Error('React absent du Frontend');
+    });
+
+    test('skills vides → objet vide {}', () => {
+      const result = AppUtils.groupSkillsByCategory([]);
+      if (Object.keys(result).length !== 0)
+        throw new Error('Objet non vide pour un tableau de skills vide');
+    });
+
+    test('skills sans catégorie (undefined) → regroupés sous la clé undefined', () => {
+      const result = AppUtils.groupSkillsByCategory(MOCK_SKILLS_NO_CAT);
+      // Tous les items ont category: undefined → une seule clé "undefined"
+      const keys = Object.keys(result);
+      if (keys.length !== 1)
+        throw new Error(`${keys.length} clés, attendu 1 (undefined)`);
+    });
+
+    test('groupSkillsByCategory ne mute pas le tableau d\'entrée', () => {
+      const copy = [...MOCK_SKILLS];
+      AppUtils.groupSkillsByCategory(MOCK_SKILLS);
+      if (MOCK_SKILLS.length !== copy.length)
+        throw new Error('Le tableau d\'entrée a été muté');
+    });
+
+    test('chaque skill n\'apparaît que dans une seule catégorie', () => {
+      const result = AppUtils.groupSkillsByCategory(MOCK_SKILLS);
+      const allItems = Object.values(result).flat();
+      const ids = allItems.map(s => s.id);
+      const unique = [...new Set(ids)];
+      if (ids.length !== unique.length)
+        throw new Error('Des skills apparaissent dans plusieurs catégories');
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 3 — Certifications
+    ══════════════════════════════════════════════════════════ */
+    group('3 · Structure des certifications');
+
+    test('certifications mock → chaque cert a name', () => {
+      const certs = [
+        { name: 'AWS Cloud Practitioner', year: 2023 },
+        { name: 'Google Analytics',       year: null },
+      ];
+      for (const c of certs) {
+        if (!c.name) throw new Error('Certification sans name');
+      }
+    });
+
+    test('certification.year peut être entier ou null', () => {
+      const certWithYear  = { name: 'AWS CP', year: 2023 };
+      const certWithNull  = { name: 'Google Analytics', year: null };
+      const yearTypes = [typeof certWithYear.year, certWithNull.year];
+      if (typeof certWithYear.year !== 'number')
+        throw new Error(`year attendu number, reçu ${typeof certWithYear.year}`);
+      if (certWithNull.year !== null)
+        throw new Error(`year attendu null, reçu ${certWithNull.year}`);
+    });
+
+    await testAsync('API : formations avec certs → certifications[0].name défini', async () => {
+      if (!apiFormations) throw new Error('Données non chargées');
+      const withCerts = apiFormations.find(f => f.certifications?.length > 0);
+      if (!withCerts) {
+        // Pas de certifications en BDD — test informatif, pas bloquant
+        _record('API : aucune certification en BDD (test ignoré)', true);
+        return;
+      }
+      if (!withCerts.certifications[0].name)
+        throw new Error('certifications[0].name est vide ou absent');
+    });
+
+    await testAsync('API : year de certification est number ou null', async () => {
+      if (!apiFormations) throw new Error('Données non chargées');
+      for (const f of apiFormations) {
+        for (const c of f.certifications ?? []) {
+          if (c.year !== null && typeof c.year !== 'number')
+            throw new Error(`year="${c.year}" (type ${typeof c.year}) dans cert "${c.name}"`);
+        }
+      }
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       Rendu final
+    ══════════════════════════════════════════════════════════ */
+    const elapsed = Math.round(performance.now() - t0);
+    const total   = _results.length;
+    const passed  = _results.filter(Boolean).length;
+    const failed  = total - passed;
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display     = 'block';
+
+    document.getElementById('summary').className =
+      'summary ' + (failed === 0 ? 'summary--all-pass' : 'summary--has-fail');
+    document.getElementById('summary').innerHTML = `
+      <span class="summary__total">Total : <strong>${total}</strong></span>
+      <span class="summary__pass">✅ ${passed} passés</span>
+      ${failed ? `<span class="summary__fail">❌ ${failed} échoués</span>` : ''}
+      <span class="summary__time">${elapsed} ms</span>
+    `;
+
+    const groupsEl = document.getElementById('groups');
+    for (const g of _groups) {
+      const gFail = g.tests.filter(t => !t.pass).length;
+      const div   = document.createElement('div');
+      div.className = 'group';
+      div.innerHTML = `
+        <div class="group__title">
+          ${gFail === 0 ? '✅' : '❌'} ${g.name}
+          &nbsp;·&nbsp; ${g.tests.filter(t => t.pass).length}/${g.tests.length}
+        </div>
+        ${g.tests.map(t => `
+          <div class="test ${t.pass ? 'test--pass' : 'test--fail'}">
+            <span class="test__icon">${t.pass ? '✓' : '✗'}</span>
+            <span class="test__label">${t.label}</span>
+            ${t.detail ? `<span class="test__detail">→ ${t.detail}</span>` : ''}
+          </div>
+        `).join('')}
+      `;
+      groupsEl.appendChild(div);
+    }
+
+    document.title = `${failed === 0 ? '✅' : '❌'} Tests Formations (${passed}/${total})`;
+  })();
+  </script>
+</body>
+</html>

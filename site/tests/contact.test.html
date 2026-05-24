@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests Contact — Portfolio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0d0d0d;
+      color: #e2e2e2;
+      padding: 32px;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: .15em; color: #fff; margin-bottom: 6px; }
+    .hint { color: #555; font-size: 0.78rem; margin-bottom: 32px; }
+    .hint code { color: #888; }
+
+    .summary {
+      display: flex; gap: 20px; align-items: center;
+      padding: 12px 18px; border: 1px solid #2a2a2a;
+      border-radius: 4px; margin-bottom: 32px; font-size: 0.85rem;
+    }
+    .summary__pass  { color: #4ade80; font-weight: 700; }
+    .summary__fail  { color: #f87171; font-weight: 700; }
+    .summary__total { color: #888; }
+    .summary__time  { color: #444; margin-left: auto; font-size: 0.75rem; }
+    .summary--all-pass { border-color: #14532d; background: #052e16; }
+    .summary--has-fail { border-color: #7f1d1d; background: #2d0e0e; }
+
+    .group { margin-bottom: 26px; }
+    .group__title {
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: .2em;
+      color: #444; border-bottom: 1px solid #1c1c1c;
+      padding-bottom: 5px; margin-bottom: 8px;
+    }
+    .test { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 0.81rem; }
+    .test__icon  { flex-shrink: 0; width: 14px; }
+    .test--pass .test__label { color: #c8c8c8; }
+    .test--fail .test__label { color: #fca5a5; }
+    .test__detail { color: #f87171; font-size: 0.73rem; }
+
+    #loading { color: #555; font-size: 0.85rem; padding: 12px 0; }
+    #loading.error { color: #f87171; }
+  </style>
+</head>
+<body>
+
+  <h1>Tests unitaires · Contact</h1>
+  <p class="hint">
+    Servir depuis le serveur PHP : <code>http://localhost/tests/contact.test.html</code><br>
+    ⚠ Les tests du Groupe 1 (API) nécessitent le serveur PHP actif et la BDD peuplée.
+  </p>
+
+  <div id="loading">⏳ Exécution des tests…</div>
+  <div id="app" style="display:none">
+    <div class="summary" id="summary"></div>
+    <div id="groups"></div>
+  </div>
+
+  <!-- AppUtils : fonctions pures testables -->
+  <script src="../assets/js/app-utils.js"></script>
+
+  <script>
+  (async () => {
+    /* ══════════════════════════════════════════════════════════
+       Mini test runner
+    ══════════════════════════════════════════════════════════ */
+    const _groups  = [];
+    const _results = [];
+    let   _current = null;
+
+    function group(name) {
+      _current = { name, tests: [] };
+      _groups.push(_current);
+    }
+
+    function _record(label, pass, detail = '') {
+      _current.tests.push({ label, pass, detail });
+      _results.push(pass);
+    }
+
+    function test(label, fn) {
+      try   { fn(); _record(label, true); }
+      catch (e) { _record(label, false, e.message); }
+    }
+
+    async function testAsync(label, fn) {
+      try   { await fn(); _record(label, true); }
+      catch (e) { _record(label, false, e.message); }
+    }
+
+    function expect(received) {
+      return {
+        toBe(exp) {
+          if (received !== exp)
+            throw new Error(`reçu "${JSON.stringify(received)}" · attendu "${JSON.stringify(exp)}"`);
+        },
+        toBeTruthy() {
+          if (!received)
+            throw new Error(`valeur falsy : "${received}"`);
+        },
+        toBeFalsy() {
+          if (received)
+            throw new Error(`valeur truthy inattendue : "${received}"`);
+        },
+        toContain(item) {
+          if (!received.includes(item))
+            throw new Error(`tableau ne contient pas "${item}"`);
+        },
+        toHaveLength(n) {
+          if (received.length !== n)
+            throw new Error(`longueur ${received.length} · attendu ${n}`);
+        },
+      };
+    }
+
+    const t0 = performance.now();
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 1 — API (nécessite serveur PHP + BDD peuplée)
+    ══════════════════════════════════════════════════════════ */
+    group('1 · API — GET /api/profile.php et /api/altcha.php');
+
+    let apiProfile = null;
+
+    await testAsync('profile.php?lang=fr → HTTP 200', async () => {
+      const res = await fetch('../api/profile.php?lang=fr');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      apiProfile = await res.json();
+    });
+
+    await testAsync('profile.php → a un champ email non null', async () => {
+      if (!apiProfile) throw new Error('Données non chargées');
+      if (!apiProfile.email)
+        throw new Error('Champ email absent ou null — le configurer dans l\'admin');
+    });
+
+    await testAsync('profile.php → email est une adresse valide', async () => {
+      if (!apiProfile?.email) throw new Error('Email non disponible');
+      const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRe.test(apiProfile.email))
+        throw new Error(`Email invalide : "${apiProfile.email}"`);
+    });
+
+    await testAsync('profile.php → aucun champ sensible (password, session)', async () => {
+      if (!apiProfile) throw new Error('Données non chargées');
+      const forbidden = ['password', 'password_hash', 'session_token', 'secret'];
+      for (const f of forbidden) {
+        if (f in apiProfile)
+          throw new Error(`Champ sensible "${f}" présent dans la réponse profile`);
+      }
+    });
+
+    await testAsync('altcha.php → HTTP 200 et challenge présent', async () => {
+      const res = await fetch('../api/altcha.php');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      // Le challenge Altcha contient au minimum un champ (algorithm, challenge, salt, etc.)
+      if (!data || typeof data !== 'object' || Object.keys(data).length === 0)
+        throw new Error('Réponse altcha.php vide ou invalide');
+      // Le champ "challenge" doit être présent
+      if (!data.challenge)
+        throw new Error(`Champ "challenge" absent dans la réponse altcha.php : ${JSON.stringify(data)}`);
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 2 — validateContactForm
+    ══════════════════════════════════════════════════════════ */
+    group('2 · AppUtils.validateContactForm');
+
+    test('name vide → valid:false, erreur "name"', () => {
+      const { valid, errors } = AppUtils.validateContactForm({
+        name: '', email: 'a@b.com', message: 'Bonjour',
+      });
+      if (valid)            throw new Error('valid devrait être false');
+      if (!errors.includes('name')) throw new Error('Erreur "name" absente dans errors');
+    });
+
+    test('email invalide → valid:false, erreur "email"', () => {
+      const { valid, errors } = AppUtils.validateContactForm({
+        name: 'Alice', email: 'pas-un-email', message: 'Bonjour',
+      });
+      if (valid)             throw new Error('valid devrait être false');
+      if (!errors.includes('email')) throw new Error('Erreur "email" absente dans errors');
+    });
+
+    test('message vide → valid:false, erreur "message"', () => {
+      const { valid, errors } = AppUtils.validateContactForm({
+        name: 'Alice', email: 'a@b.com', message: '',
+      });
+      if (valid)               throw new Error('valid devrait être false');
+      if (!errors.includes('message')) throw new Error('Erreur "message" absente dans errors');
+    });
+
+    test('données valides → valid:true, errors:[]', () => {
+      const { valid, errors } = AppUtils.validateContactForm({
+        name: 'Alice', email: 'a@b.com', message: 'Bonjour',
+      });
+      if (!valid)        throw new Error('valid devrait être true');
+      if (errors.length) throw new Error(`errors non vide : ${JSON.stringify(errors)}`);
+    });
+
+    test('nom avec espaces uniquement → valid:false', () => {
+      const { valid } = AppUtils.validateContactForm({
+        name: '   ', email: 'a@b.com', message: 'Bonjour',
+      });
+      if (valid) throw new Error('Nom composé d\'espaces devrait être invalide');
+    });
+
+    test('email sans @ → valid:false', () => {
+      const { valid } = AppUtils.validateContactForm({
+        name: 'Alice', email: 'sansarobas.com', message: 'Bonjour',
+      });
+      if (valid) throw new Error('Email sans @ devrait être invalide');
+    });
+
+    test('email sans domaine → valid:false', () => {
+      const { valid } = AppUtils.validateContactForm({
+        name: 'Alice', email: 'test@', message: 'Bonjour',
+      });
+      if (valid) throw new Error('Email sans domaine devrait être invalide');
+    });
+
+    test('message avec espaces uniquement → valid:false', () => {
+      const { valid } = AppUtils.validateContactForm({
+        name: 'Alice', email: 'a@b.com', message: '   ',
+      });
+      if (valid) throw new Error('Message composé d\'espaces devrait être invalide');
+    });
+
+    test('tous les champs vides → 3 erreurs', () => {
+      const { valid, errors } = AppUtils.validateContactForm({
+        name: '', email: '', message: '',
+      });
+      if (valid) throw new Error('valid devrait être false');
+      if (errors.length !== 3)
+        throw new Error(`${errors.length} erreurs, attendu 3 : ${JSON.stringify(errors)}`);
+    });
+
+    test('retourne toujours { valid, errors }', () => {
+      const result = AppUtils.validateContactForm({ name: 'A', email: 'a@b.com', message: 'M' });
+      if (typeof result.valid === 'undefined')  throw new Error('Champ "valid" absent');
+      if (!Array.isArray(result.errors))        throw new Error('Champ "errors" non-tableau');
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 3 — Sécurité (escapeHtml / protection XSS)
+    ══════════════════════════════════════════════════════════ */
+    group('3 · AppUtils.escapeHtml — protection XSS');
+
+    test('balise script → encodée correctement', () => {
+      const res = AppUtils.escapeHtml('<script>alert(1)</script>');
+      const expected = '&lt;script&gt;alert(1)&lt;/script&gt;';
+      if (res !== expected)
+        throw new Error(`reçu "${res}" · attendu "${expected}"`);
+    });
+
+    test('texte normal → inchangé', () => {
+      const res = AppUtils.escapeHtml('normal text');
+      if (res !== 'normal text')
+        throw new Error(`reçu "${res}" · attendu "normal text"`);
+    });
+
+    test('esperluette → &amp;', () => {
+      if (AppUtils.escapeHtml('A & B') !== 'A &amp; B')
+        throw new Error('& non encodé');
+    });
+
+    test('guillemets doubles → &quot;', () => {
+      if (AppUtils.escapeHtml('"texte"') !== '&quot;texte&quot;')
+        throw new Error('" non encodé');
+    });
+
+    test('guillemets simples → &#39;', () => {
+      if (AppUtils.escapeHtml("it's") !== "it&#39;s")
+        throw new Error("' non encodé");
+    });
+
+    test('chevrons < et > → &lt; et &gt;', () => {
+      const res = AppUtils.escapeHtml('<div>');
+      if (res !== '&lt;div&gt;')
+        throw new Error(`reçu "${res}"`);
+    });
+
+    test('injection XSS complexe → entièrement encodée', () => {
+      const input  = '<img src=x onerror="alert(\'xss\')">';
+      const result = AppUtils.escapeHtml(input);
+      // Le résultat ne doit pas contenir de < ou > bruts
+      if (result.includes('<') || result.includes('>'))
+        throw new Error('Chevrons non encodés dans la sortie');
+    });
+
+    test('chaîne vide → chaîne vide', () => {
+      if (AppUtils.escapeHtml('') !== '')
+        throw new Error('Chaîne vide modifiée');
+    });
+
+    test('null → chaîne vide', () => {
+      if (AppUtils.escapeHtml(null) !== '')
+        throw new Error('null ne retourne pas une chaîne vide');
+    });
+
+    test('undefined → chaîne vide', () => {
+      if (AppUtils.escapeHtml(undefined) !== '')
+        throw new Error('undefined ne retourne pas une chaîne vide');
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       Rendu final
+    ══════════════════════════════════════════════════════════ */
+    const elapsed = Math.round(performance.now() - t0);
+    const total   = _results.length;
+    const passed  = _results.filter(Boolean).length;
+    const failed  = total - passed;
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display     = 'block';
+
+    document.getElementById('summary').className =
+      'summary ' + (failed === 0 ? 'summary--all-pass' : 'summary--has-fail');
+    document.getElementById('summary').innerHTML = `
+      <span class="summary__total">Total : <strong>${total}</strong></span>
+      <span class="summary__pass">✅ ${passed} passés</span>
+      ${failed ? `<span class="summary__fail">❌ ${failed} échoués</span>` : ''}
+      <span class="summary__time">${elapsed} ms</span>
+    `;
+
+    const groupsEl = document.getElementById('groups');
+    for (const g of _groups) {
+      const gFail = g.tests.filter(t => !t.pass).length;
+      const div   = document.createElement('div');
+      div.className = 'group';
+      div.innerHTML = `
+        <div class="group__title">
+          ${gFail === 0 ? '✅' : '❌'} ${g.name}
+          &nbsp;·&nbsp; ${g.tests.filter(t => t.pass).length}/${g.tests.length}
+        </div>
+        ${g.tests.map(t => `
+          <div class="test ${t.pass ? 'test--pass' : 'test--fail'}">
+            <span class="test__icon">${t.pass ? '✓' : '✗'}</span>
+            <span class="test__label">${t.label}</span>
+            ${t.detail ? `<span class="test__detail">→ ${t.detail}</span>` : ''}
+          </div>
+        `).join('')}
+      `;
+      groupsEl.appendChild(div);
+    }
+
+    document.title = `${failed === 0 ? '✅' : '❌'} Tests Contact (${passed}/${total})`;
+  })();
+  </script>
+</body>
+</html>

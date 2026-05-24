@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests Expériences — Portfolio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0d0d0d;
+      color: #e2e2e2;
+      padding: 32px;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: .15em; color: #fff; margin-bottom: 6px; }
+    .hint { color: #555; font-size: 0.78rem; margin-bottom: 32px; }
+    .hint code { color: #888; }
+
+    .summary {
+      display: flex; gap: 20px; align-items: center;
+      padding: 12px 18px; border: 1px solid #2a2a2a;
+      border-radius: 4px; margin-bottom: 32px; font-size: 0.85rem;
+    }
+    .summary__pass  { color: #4ade80; font-weight: 700; }
+    .summary__fail  { color: #f87171; font-weight: 700; }
+    .summary__total { color: #888; }
+    .summary__time  { color: #444; margin-left: auto; font-size: 0.75rem; }
+    .summary--all-pass { border-color: #14532d; background: #052e16; }
+    .summary--has-fail { border-color: #7f1d1d; background: #2d0e0e; }
+
+    .group { margin-bottom: 26px; }
+    .group__title {
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: .2em;
+      color: #444; border-bottom: 1px solid #1c1c1c;
+      padding-bottom: 5px; margin-bottom: 8px;
+    }
+    .test { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 0.81rem; }
+    .test__icon  { flex-shrink: 0; width: 14px; }
+    .test--pass .test__label { color: #c8c8c8; }
+    .test--fail .test__label { color: #fca5a5; }
+    .test__detail { color: #f87171; font-size: 0.73rem; }
+
+    #loading { color: #555; font-size: 0.85rem; padding: 12px 0; }
+    #loading.error { color: #f87171; }
+  </style>
+</head>
+<body>
+
+  <h1>Tests unitaires · Expériences</h1>
+  <p class="hint">
+    Servir depuis le serveur PHP : <code>http://localhost/tests/experiences.test.html</code><br>
+    ⚠ Les tests du Groupe 1 (API) nécessitent le serveur PHP actif et la BDD peuplée.
+  </p>
+
+  <div id="loading">⏳ Exécution des tests…</div>
+  <div id="app" style="display:none">
+    <div class="summary" id="summary"></div>
+    <div id="groups"></div>
+  </div>
+
+  <!-- AppUtils : fonctions pures testables -->
+  <script src="../assets/js/app-utils.js"></script>
+
+  <script>
+  (async () => {
+    /* ══════════════════════════════════════════════════════════
+       Mini test runner (identique à i18n.test.html)
+    ══════════════════════════════════════════════════════════ */
+    const _groups  = [];
+    const _results = [];
+    let   _current = null;
+
+    function group(name) {
+      _current = { name, tests: [] };
+      _groups.push(_current);
+    }
+
+    function _record(label, pass, detail = '') {
+      _current.tests.push({ label, pass, detail });
+      _results.push(pass);
+    }
+
+    function test(label, fn) {
+      try   { fn(); _record(label, true); }
+      catch (e) { _record(label, false, e.message); }
+    }
+
+    async function testAsync(label, fn) {
+      try   { await fn(); _record(label, true); }
+      catch (e) { _record(label, false, e.message); }
+    }
+
+    function expect(received) {
+      return {
+        toBe(exp) {
+          if (received !== exp)
+            throw new Error(`reçu "${JSON.stringify(received)}" · attendu "${JSON.stringify(exp)}"`);
+        },
+        toBeTruthy() {
+          if (!received)
+            throw new Error(`valeur falsy : "${received}"`);
+        },
+        toBeFalsy() {
+          if (received)
+            throw new Error(`valeur truthy inattendue : "${received}"`);
+        },
+        toBeGreaterThanOrEqual(n) {
+          if (received < n)
+            throw new Error(`reçu ${received} < attendu >= ${n}`);
+        },
+        toContain(item) {
+          if (!received.includes(item))
+            throw new Error(`"${received}" ne contient pas "${item}"`);
+        },
+        toHaveLength(n) {
+          if (received.length !== n)
+            throw new Error(`longueur ${received.length} · attendu ${n}`);
+        },
+      };
+    }
+
+    const t0 = performance.now();
+
+    /* ══════════════════════════════════════════════════════════
+       Données mock (sans réseau) pour les tests synchrones
+    ══════════════════════════════════════════════════════════ */
+    const MOCK_EXP = [
+      {
+        id: 1, company: 'ACME Corp', role: 'Développeur Full-Stack', type: 'Alternance',
+        type_key: 'work_study', start_date: '2022-01-01', end_date: '2023-01-01',
+        skills: [{ name: 'PHP' }, { name: 'MySQL' }, { name: 'JavaScript' }],
+        description: 'Développement d\'une application web.',
+      },
+      {
+        id: 2, company: 'StartupXYZ', role: 'Stagiaire Dev', type: 'Stage',
+        type_key: 'internship', start_date: '2023-06-01', end_date: null,
+        skills: [{ name: 'PHP' }, { name: 'React' }],
+      },
+      {
+        id: 3, company: 'AgenceZ', role: 'Freelance', type: 'Freelance',
+        type_key: 'freelance', start_date: '2021-03-01', end_date: '2021-09-01',
+        skills: [{ name: 'MySQL' }, { name: 'JavaScript' }, { name: 'CSS' }],
+      },
+    ];
+
+    // Expérience fictive d'exactement 1 an (pour tester totalYears)
+    const now = new Date();
+    const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+      .toISOString().split('T')[0];
+    const today = now.toISOString().split('T')[0];
+    const EXP_1_AN = [{
+      id: 10, company: 'Test', role: 'Dev', type_key: 'internship',
+      start_date: oneYearAgo, end_date: today,
+      skills: [],
+    }];
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 1 — API (nécessite serveur PHP + BDD peuplée)
+    ══════════════════════════════════════════════════════════ */
+    group('1 · API — GET /api/experiences.php');
+
+    let apiDataFr = null;
+    let apiDataEn = null;
+
+    await testAsync('lang=fr → réponse HTTP 200', async () => {
+      const res = await fetch('../api/experiences.php?lang=fr');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      apiDataFr = await res.json();
+    });
+
+    await testAsync('lang=fr → tableau non vide', async () => {
+      if (!apiDataFr) throw new Error('Données FR non chargées');
+      if (!Array.isArray(apiDataFr) || apiDataFr.length === 0)
+        throw new Error('Tableau vide ou non-tableau');
+    });
+
+    await testAsync('lang=fr → chaque item a id, company, role, type, start_date', async () => {
+      if (!apiDataFr) throw new Error('Données FR non chargées');
+      const required = ['id', 'company', 'role', 'type', 'start_date'];
+      for (const exp of apiDataFr) {
+        for (const field of required) {
+          if (exp[field] === undefined)
+            throw new Error(`Champ "${field}" manquant dans l'exp id=${exp.id}`);
+        }
+      }
+    });
+
+    await testAsync('lang=fr → chaque item a skills[] (tableau)', async () => {
+      if (!apiDataFr) throw new Error('Données FR non chargées');
+      for (const exp of apiDataFr) {
+        if (!Array.isArray(exp.skills))
+          throw new Error(`skills non-tableau dans l'exp id=${exp.id}`);
+      }
+    });
+
+    await testAsync('lang=fr → aucun champ sensible (password, session)', async () => {
+      if (!apiDataFr) throw new Error('Données FR non chargées');
+      const forbidden = ['password', 'session_token', 'secret'];
+      for (const exp of apiDataFr) {
+        for (const f of forbidden) {
+          if (f in exp) throw new Error(`Champ sensible "${f}" présent dans la réponse`);
+        }
+      }
+    });
+
+    await testAsync('lang=en → réponse HTTP 200', async () => {
+      const res = await fetch('../api/experiences.php?lang=en');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      apiDataEn = await res.json();
+    });
+
+    await testAsync('lang=en → role diffère de lang=fr (champ traduit)', async () => {
+      if (!apiDataFr || !apiDataEn) throw new Error('Données non chargées');
+      // Au moins une expérience doit avoir un role différent entre FR et EN
+      const hasDiff = apiDataFr.some((expFr, i) => {
+        const expEn = apiDataEn[i];
+        return expEn && expFr.role !== expEn.role;
+      });
+      if (!hasDiff)
+        throw new Error('Aucun rôle ne diffère entre FR et EN — vérifier les traductions en BDD');
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 2 — filterByType
+    ══════════════════════════════════════════════════════════ */
+    group('2 · AppUtils.filterByType');
+
+    test('filterByType(exp, "all") → retourne tous les items', () => {
+      const res = AppUtils.filterByType(MOCK_EXP, 'all');
+      expect(res.length).toBe(MOCK_EXP.length);
+    });
+
+    test('filterByType(exp, "internship") → tous ont type_key === "internship"', () => {
+      const res = AppUtils.filterByType(MOCK_EXP, 'internship');
+      if (res.length === 0) throw new Error('Aucun résultat — vérifier les données mock');
+      const allMatch = res.every(e => e.type_key === 'internship');
+      if (!allMatch) throw new Error('Certains items ont un type_key différent de "internship"');
+    });
+
+    test('filterByType(exp, "work_study") → retourne les alternances uniquement', () => {
+      const res = AppUtils.filterByType(MOCK_EXP, 'work_study');
+      expect(res.length).toBe(1);
+      expect(res[0].type_key).toBe('work_study');
+    });
+
+    test('filterByType(exp, "xxx") → tableau vide', () => {
+      const res = AppUtils.filterByType(MOCK_EXP, 'xxx');
+      expect(res.length).toBe(0);
+    });
+
+    test('filterByType([], "all") → tableau vide', () => {
+      expect(AppUtils.filterByType([], 'all').length).toBe(0);
+    });
+
+    test('filterByType ne mute pas le tableau d\'origine', () => {
+      const original = [...MOCK_EXP];
+      AppUtils.filterByType(MOCK_EXP, 'internship');
+      expect(MOCK_EXP.length).toBe(original.length);
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 3 — computeHighlights
+    ══════════════════════════════════════════════════════════ */
+    group('3 · AppUtils.computeHighlights');
+
+    test('exp de 1 an → totalYears === 1', () => {
+      const { totalYears } = AppUtils.computeHighlights(EXP_1_AN);
+      expect(totalYears).toBe(1);
+    });
+
+    test('tableau vide → totalYears === 0', () => {
+      const { totalYears } = AppUtils.computeHighlights([]);
+      expect(totalYears).toBe(0);
+    });
+
+    test('3 skills communs → apparaissent dans topSkills', () => {
+      const exps = [
+        { type_key: 'a', start_date: '2022-01-01', end_date: '2022-06-01',
+          skills: [{ name: 'PHP' }, { name: 'MySQL' }, { name: 'JS' }] },
+        { type_key: 'b', start_date: '2022-01-01', end_date: '2022-06-01',
+          skills: [{ name: 'PHP' }, { name: 'Python' }, { name: 'MySQL' }] },
+      ];
+      const { topSkills } = AppUtils.computeHighlights(exps);
+      // PHP et MySQL doivent apparaître (premiers uniques rencontrés)
+      expect(topSkills.includes('PHP')).toBeTruthy();
+      expect(topSkills.includes('MySQL')).toBeTruthy();
+    });
+
+    test('topSkills limité à 3 éléments maximum', () => {
+      const exps = [{
+        type_key: 'a', start_date: '2022-01-01', end_date: '2022-06-01',
+        skills: [
+          { name: 'PHP' }, { name: 'MySQL' }, { name: 'JS' },
+          { name: 'Python' }, { name: 'Go' },
+        ],
+      }];
+      const { topSkills } = AppUtils.computeHighlights(exps);
+      if (topSkills.length > 3) throw new Error(`topSkills a ${topSkills.length} éléments, max 3`);
+    });
+
+    test('hasOpenStatus → true si au moins une exp sans end_date', () => {
+      const { hasOpenStatus } = AppUtils.computeHighlights(MOCK_EXP); // id=2 est null
+      expect(hasOpenStatus).toBeTruthy();
+    });
+
+    test('hasOpenStatus → false si toutes les exps ont end_date', () => {
+      const closed = MOCK_EXP.filter(e => e.end_date !== null);
+      const { hasOpenStatus } = AppUtils.computeHighlights(closed);
+      expect(hasOpenStatus).toBeFalsy();
+    });
+
+    test('uniqueTypes → contient les types présents', () => {
+      const { uniqueTypes } = AppUtils.computeHighlights(MOCK_EXP);
+      const keys = uniqueTypes.map(t => t.key);
+      expect(keys.includes('work_study')).toBeTruthy();
+      expect(keys.includes('internship')).toBeTruthy();
+      expect(keys.includes('freelance')).toBeTruthy();
+    });
+
+    test('uniqueTypes → pas de doublon de clé', () => {
+      const exps = [
+        ...MOCK_EXP,
+        { id: 99, type_key: 'work_study', type: 'Alternance',
+          start_date: '2020-01-01', end_date: '2021-01-01', skills: [] },
+      ];
+      const { uniqueTypes } = AppUtils.computeHighlights(exps);
+      const keys = uniqueTypes.map(t => t.key);
+      const unique = [...new Set(keys)];
+      if (keys.length !== unique.length)
+        throw new Error(`Doublons détectés dans uniqueTypes : ${keys.join(', ')}`);
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       Rendu final
+    ══════════════════════════════════════════════════════════ */
+    const elapsed = Math.round(performance.now() - t0);
+    const total   = _results.length;
+    const passed  = _results.filter(Boolean).length;
+    const failed  = total - passed;
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display     = 'block';
+
+    document.getElementById('summary').className =
+      'summary ' + (failed === 0 ? 'summary--all-pass' : 'summary--has-fail');
+    document.getElementById('summary').innerHTML = `
+      <span class="summary__total">Total : <strong>${total}</strong></span>
+      <span class="summary__pass">✅ ${passed} passés</span>
+      ${failed ? `<span class="summary__fail">❌ ${failed} échoués</span>` : ''}
+      <span class="summary__time">${elapsed} ms</span>
+    `;
+
+    const groupsEl = document.getElementById('groups');
+    for (const g of _groups) {
+      const gFail = g.tests.filter(t => !t.pass).length;
+      const div   = document.createElement('div');
+      div.className = 'group';
+      div.innerHTML = `
+        <div class="group__title">
+          ${gFail === 0 ? '✅' : '❌'} ${g.name}
+          &nbsp;·&nbsp; ${g.tests.filter(t => t.pass).length}/${g.tests.length}
+        </div>
+        ${g.tests.map(t => `
+          <div class="test ${t.pass ? 'test--pass' : 'test--fail'}">
+            <span class="test__icon">${t.pass ? '✓' : '✗'}</span>
+            <span class="test__label">${t.label}</span>
+            ${t.detail ? `<span class="test__detail">→ ${t.detail}</span>` : ''}
+          </div>
+        `).join('')}
+      `;
+      groupsEl.appendChild(div);
+    }
+
+    document.title = `${failed === 0 ? '✅' : '❌'} Tests Expériences (${passed}/${total})`;
+  })();
+  </script>
+</body>
+</html>
