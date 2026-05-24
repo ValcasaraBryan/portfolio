@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests i18n — Portfolio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0d0d0d;
+      color: #e2e2e2;
+      padding: 32px;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: .15em; color: #fff; margin-bottom: 6px; }
+    .hint { color: #555; font-size: 0.78rem; margin-bottom: 32px; }
+    .hint code { color: #888; }
+
+    /* Barre de résumé */
+    .summary {
+      display: flex; gap: 20px; align-items: center;
+      padding: 12px 18px; border: 1px solid #2a2a2a;
+      border-radius: 4px; margin-bottom: 32px; font-size: 0.85rem;
+    }
+    .summary__pass  { color: #4ade80; font-weight: 700; }
+    .summary__fail  { color: #f87171; font-weight: 700; }
+    .summary__total { color: #888; }
+    .summary__time  { color: #444; margin-left: auto; font-size: 0.75rem; }
+    .summary--all-pass { border-color: #14532d; background: #052e16; }
+    .summary--has-fail { border-color: #7f1d1d; background: #2d0e0e; }
+
+    /* Groupes */
+    .group { margin-bottom: 26px; }
+    .group__title {
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: .2em;
+      color: #444; border-bottom: 1px solid #1c1c1c;
+      padding-bottom: 5px; margin-bottom: 8px;
+    }
+
+    /* Lignes de test */
+    .test { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 0.81rem; }
+    .test__icon  { flex-shrink: 0; width: 14px; }
+    .test--pass .test__label { color: #c8c8c8; }
+    .test--fail .test__label { color: #fca5a5; }
+    .test__detail { color: #f87171; font-size: 0.73rem; }
+
+    #loading { color: #555; font-size: 0.85rem; padding: 12px 0; }
+    #loading.error { color: #f87171; }
+  </style>
+</head>
+<body>
+
+  <h1>Tests unitaires · Module I18n</h1>
+  <p class="hint">Servir depuis le serveur PHP : <code>http://localhost/tests/i18n.test.html</code></p>
+
+  <div id="loading">⏳ Chargement des fichiers de traduction…</div>
+  <div id="app" style="display:none">
+    <div class="summary" id="summary"></div>
+    <div id="groups"></div>
+  </div>
+
+  <!-- Zone DOM isolée pour tester applyI18n() -->
+  <div id="sandbox" style="display:none" aria-hidden="true"></div>
+
+  <!-- Module i18n à tester -->
+  <script src="../assets/js/i18n.js"></script>
+
+  <script>
+  (async () => {
+    /* ══════════════════════════════════════════════════════════
+       Mini test runner
+    ══════════════════════════════════════════════════════════ */
+    const _groups  = [];
+    const _results = [];
+    let   _current = null;
+
+    function group(name) {
+      _current = { name, tests: [] };
+      _groups.push(_current);
+    }
+
+    function _record(label, pass, detail = '') {
+      _current.tests.push({ label, pass, detail });
+      _results.push(pass);
+    }
+
+    function test(label, fn) {
+      try   { fn(); _record(label, true); }
+      catch (e) { _record(label, false, e.message); }
+    }
+
+    async function testAsync(label, fn) {
+      try   { await fn(); _record(label, true); }
+      catch (e) { _record(label, false, e.message); }
+    }
+
+    /* Assertions */
+    function expect(received) {
+      return {
+        toBe(exp) {
+          if (received !== exp)
+            throw new Error(`reçu "${received}" · attendu "${exp}"`);
+        },
+        toNotBe(exp) {
+          if (received === exp)
+            throw new Error(`"${received}" ne devrait pas être égal à "${exp}"`);
+        },
+        toBeTruthy() {
+          if (!received)
+            throw new Error(`valeur falsy : "${received}"`);
+        },
+      };
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       Chargement des vrais fichiers JSON
+    ══════════════════════════════════════════════════════════ */
+    let FR_JSON, EN_JSON;
+    try {
+      [FR_JSON, EN_JSON] = await Promise.all([
+        fetch('../i18n/fr.json').then(r => { if (!r.ok) throw r; return r.json(); }),
+        fetch('../i18n/en.json').then(r => { if (!r.ok) throw r; return r.json(); }),
+      ]);
+    } catch {
+      const el = document.getElementById('loading');
+      el.className = 'error';
+      el.textContent = '❌ Échec du chargement JSON. Lance le serveur PHP et ouvre ce fichier via http://…';
+      return;
+    }
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display     = 'block';
+
+    /* Données mock inline pour tests synchrones (pas de réseau) */
+    const MOCK_FR = {
+      nav:     { experiences: 'Expériences', creations: 'Créations' },
+      common:  { present: 'Présent', open_status: 'Disponible' },
+      contact: { form: { submit: 'Envoyer', success: 'Message envoyé !' } },
+    };
+    const MOCK_EN = {
+      nav:     { experiences: 'Experience', creations: 'Projects' },
+      common:  { present: 'Present', open_status: 'Open' },
+      contact: { form: { submit: 'Send', success: 'Message sent!' } },
+    };
+
+    const sandbox = document.getElementById('sandbox');
+    const t0 = performance.now();
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 1 — Résolution de clé t()
+    ══════════════════════════════════════════════════════════ */
+    group('1 · Résolution de clé — t()');
+
+    test('clé simple → valeur FR correcte', () => {
+      I18n.setTranslations(MOCK_FR, 'fr');
+      expect(I18n.t('nav.experiences')).toBe('Expériences');
+    });
+
+    test('clé simple → valeur EN correcte', () => {
+      I18n.setTranslations(MOCK_EN, 'en');
+      expect(I18n.t('nav.experiences')).toBe('Experience');
+    });
+
+    test('clé profondément imbriquée (contact.form.submit) en FR', () => {
+      I18n.setTranslations(MOCK_FR, 'fr');
+      expect(I18n.t('contact.form.submit')).toBe('Envoyer');
+    });
+
+    test('clé profondément imbriquée (contact.form.submit) en EN', () => {
+      I18n.setTranslations(MOCK_EN, 'en');
+      expect(I18n.t('contact.form.submit')).toBe('Send');
+    });
+
+    test('clé totalement absente → retourne la clé brute', () => {
+      I18n.setTranslations(MOCK_FR, 'fr');
+      expect(I18n.t('inexistant.profond.cle')).toBe('inexistant.profond.cle');
+    });
+
+    test('clé partiellement absente → retourne la clé brute', () => {
+      I18n.setTranslations(MOCK_FR, 'fr');
+      expect(I18n.t('nav.inexistant')).toBe('nav.inexistant');
+    });
+
+    test('traductions vides → toutes les clés retournent leur nom', () => {
+      I18n.setTranslations({});
+      expect(I18n.t('nav.experiences')).toBe('nav.experiences');
+      expect(I18n.t('common.present')).toBe('common.present');
+    });
+
+    test('clé avec un seul segment → retourne la valeur si feuille', () => {
+      I18n.setTranslations({ hello: 'Bonjour' }, 'fr');
+      expect(I18n.t('hello')).toBe('Bonjour');
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 2 — setTranslations() / getLang()
+    ══════════════════════════════════════════════════════════ */
+    group('2 · setTranslations() et getLang()');
+
+    test('setTranslations(FR) → getLang() retourne "fr"', () => {
+      I18n.setTranslations(MOCK_FR, 'fr');
+      expect(I18n.getLang()).toBe('fr');
+    });
+
+    test('setTranslations(EN) → getLang() retourne "en"', () => {
+      I18n.setTranslations(MOCK_EN, 'en');
+      expect(I18n.getLang()).toBe('en');
+    });
+
+    test('setTranslations sans argument lang → getLang() inchangé', () => {
+      I18n.setTranslations(MOCK_FR, 'fr');
+      I18n.setTranslations(MOCK_EN); // pas de lang
+      expect(I18n.getLang()).toBe('fr');
+    });
+
+    test('cycle FR → EN → FR : t() suit la langue active', () => {
+      I18n.setTranslations(MOCK_FR, 'fr');
+      expect(I18n.t('nav.experiences')).toBe('Expériences');
+      I18n.setTranslations(MOCK_EN, 'en');
+      expect(I18n.t('nav.experiences')).toBe('Experience');
+      I18n.setTranslations(MOCK_FR, 'fr');
+      expect(I18n.t('nav.experiences')).toBe('Expériences');
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 3 — applyI18n() DOM
+    ══════════════════════════════════════════════════════════ */
+    group('3 · Mise à jour DOM — applyI18n()');
+
+    test('data-i18n → textContent mis à jour (FR)', () => {
+      I18n.setTranslations(MOCK_FR, 'fr');
+      sandbox.innerHTML = '<span data-i18n="nav.experiences"></span>';
+      I18n.applyI18n(sandbox);
+      expect(sandbox.querySelector('[data-i18n]').textContent).toBe('Expériences');
+    });
+
+    test('data-i18n → textContent mis à jour (EN)', () => {
+      I18n.setTranslations(MOCK_EN, 'en');
+      sandbox.innerHTML = '<span data-i18n="nav.experiences"></span>';
+      I18n.applyI18n(sandbox);
+      expect(sandbox.querySelector('[data-i18n]').textContent).toBe('Experience');
+    });
+
+    test('data-i18n imbriqué (contact.form.submit) → textContent correct', () => {
+      I18n.setTranslations(MOCK_FR, 'fr');
+      sandbox.innerHTML = '<button data-i18n="contact.form.submit"></button>';
+      I18n.applyI18n(sandbox);
+      expect(sandbox.querySelector('button').textContent).toBe('Envoyer');
+    });
+
+    test('data-i18n-placeholder → attribut placeholder mis à jour', () => {
+      I18n.setTranslations(MOCK_FR, 'fr');
+      sandbox.innerHTML = '<input data-i18n-placeholder="nav.experiences">';
+      I18n.applyI18n(sandbox);
+      expect(sandbox.querySelector('input').placeholder).toBe('Expériences');
+    });
+
+    test('changement de langue + re-apply → DOM mis à jour', () => {
+      I18n.setTranslations(MOCK_FR, 'fr');
+      sandbox.innerHTML = '<span data-i18n="nav.creations"></span>';
+      I18n.applyI18n(sandbox);
+      expect(sandbox.querySelector('span').textContent).toBe('Créations');
+
+      I18n.setTranslations(MOCK_EN, 'en');
+      I18n.applyI18n(sandbox);
+      expect(sandbox.querySelector('span').textContent).toBe('Projects');
+    });
+
+    test('clé absente dans data-i18n → affiche la clé brute', () => {
+      I18n.setTranslations(MOCK_FR, 'fr');
+      sandbox.innerHTML = '<span data-i18n="cle.absente"></span>';
+      I18n.applyI18n(sandbox);
+      expect(sandbox.querySelector('span').textContent).toBe('cle.absente');
+    });
+
+    test('plusieurs éléments data-i18n mis à jour en un seul appel', () => {
+      I18n.setTranslations(MOCK_FR, 'fr');
+      sandbox.innerHTML = `
+        <span data-i18n="nav.experiences"></span>
+        <span data-i18n="nav.creations"></span>
+        <span data-i18n="common.present"></span>
+      `;
+      I18n.applyI18n(sandbox);
+      const spans = sandbox.querySelectorAll('[data-i18n]');
+      expect(spans[0].textContent).toBe('Expériences');
+      expect(spans[1].textContent).toBe('Créations');
+      expect(spans[2].textContent).toBe('Présent');
+    });
+
+    test('applyI18n() sans argument → ne lève pas d\'erreur', () => {
+      I18n.setTranslations(MOCK_FR, 'fr');
+      // doit s'exécuter sans throw même sur le document complet
+      I18n.applyI18n();
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 4 — loadLang() async + localStorage
+    ══════════════════════════════════════════════════════════ */
+    group('4 · loadLang() — chargement réseau et localStorage');
+
+    await testAsync('loadLang("fr") → getLang() === "fr"', async () => {
+      await I18n.loadLang('fr', '../i18n');
+      expect(I18n.getLang()).toBe('fr');
+    });
+
+    await testAsync('loadLang("fr") → localStorage.lang === "fr"', async () => {
+      await I18n.loadLang('fr', '../i18n');
+      expect(localStorage.getItem('lang')).toBe('fr');
+    });
+
+    await testAsync('loadLang("en") → getLang() === "en"', async () => {
+      await I18n.loadLang('en', '../i18n');
+      expect(I18n.getLang()).toBe('en');
+    });
+
+    await testAsync('loadLang("en") → localStorage.lang === "en"', async () => {
+      await I18n.loadLang('en', '../i18n');
+      expect(localStorage.getItem('lang')).toBe('en');
+    });
+
+    await testAsync('loadLang("fr") → t("nav.experiences") === "Expériences"', async () => {
+      await I18n.loadLang('fr', '../i18n');
+      expect(I18n.t('nav.experiences')).toBe('Expériences');
+    });
+
+    await testAsync('loadLang("en") → t("nav.experiences") === "Experience"', async () => {
+      await I18n.loadLang('en', '../i18n');
+      expect(I18n.t('nav.experiences')).toBe('Experience');
+    });
+
+    await testAsync('loadLang("fr") → t("common.present") === "Présent"', async () => {
+      await I18n.loadLang('fr', '../i18n');
+      expect(I18n.t('common.present')).toBe('Présent');
+    });
+
+    await testAsync('loadLang("en") → t("common.present") === "Present"', async () => {
+      await I18n.loadLang('en', '../i18n');
+      expect(I18n.t('common.present')).toBe('Present');
+    });
+
+    await testAsync('loadLang() applique data-i18n sur sandbox', async () => {
+      sandbox.innerHTML = '<span data-i18n="nav.creations"></span>';
+      await I18n.loadLang('fr', '../i18n');
+      I18n.applyI18n(sandbox);
+      expect(sandbox.querySelector('span').textContent).toBe('Créations');
+    });
+
+    await testAsync('loadLang fichier inexistant → lance une Error', async () => {
+      let threw = false;
+      try { await I18n.loadLang('xx', '../i18n'); }
+      catch { threw = true; }
+      if (!threw) throw new Error('aucune erreur lancée — une exception était attendue');
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 5 — Cohérence fr.json ↔ en.json
+    ══════════════════════════════════════════════════════════ */
+    group('5 · Cohérence des fichiers fr.json ↔ en.json');
+
+    /** Retourne toutes les clés pointées d'un objet (ex: "contact.form.submit") */
+    function flatKeys(obj, prefix = '') {
+      return Object.entries(obj).flatMap(([k, v]) => {
+        const path = prefix ? `${prefix}.${k}` : k;
+        return (v !== null && typeof v === 'object') ? flatKeys(v, path) : [path];
+      });
+    }
+
+    function deepGet(obj, key) {
+      return key.split('.').reduce((o, k) => o?.[k], obj);
+    }
+
+    const frKeys   = flatKeys(FR_JSON);
+    const enKeys   = flatKeys(EN_JSON);
+    const enKeySet = new Set(enKeys);
+    const frKeySet = new Set(frKeys);
+
+    test('toutes les clés de fr.json existent dans en.json', () => {
+      const missing = frKeys.filter(k => !enKeySet.has(k));
+      if (missing.length)
+        throw new Error(`Absentes dans EN : ${missing.join(', ')}`);
+    });
+
+    test('toutes les clés de en.json existent dans fr.json', () => {
+      const missing = enKeys.filter(k => !frKeySet.has(k));
+      if (missing.length)
+        throw new Error(`Absentes dans FR : ${missing.join(', ')}`);
+    });
+
+    test('fr.json et en.json ont le même nombre de clés', () => {
+      if (frKeys.length !== enKeys.length)
+        throw new Error(`FR: ${frKeys.length} clés · EN: ${enKeys.length} clés`);
+    });
+
+    test('aucune valeur vide dans fr.json', () => {
+      const empty = frKeys.filter(k => {
+        const v = deepGet(FR_JSON, k);
+        return v === '' || v == null;
+      });
+      if (empty.length)
+        throw new Error(`Valeurs vides dans FR : ${empty.join(', ')}`);
+    });
+
+    test('aucune valeur vide dans en.json', () => {
+      const empty = enKeys.filter(k => {
+        const v = deepGet(EN_JSON, k);
+        return v === '' || v == null;
+      });
+      if (empty.length)
+        throw new Error(`Valeurs vides dans EN : ${empty.join(', ')}`);
+    });
+
+    test('les clés traduisibles ont des valeurs différentes FR ≠ EN', () => {
+      // Clés qui doivent obligatoirement différer selon la langue
+      const mustDiffer = [
+        'nav.experiences', 'nav.creations', 'nav.formations',
+        'common.download_cv', 'common.present', 'common.open_status',
+        'experiences.display_title', 'experiences.roles_label',
+        'experiences.years_label', 'experiences.hover_hint',
+        'creations.display_title', 'creations.subtitle',
+        'creations.website', 'creations.close', 'creations.see_all',
+        'creations.site_offline', 'creations.checking',
+        'formations.title', 'formations.skills_title',
+        'contact.tagline', 'contact.open_to_work',
+        'contact.form.submit', 'contact.form.success', 'contact.form.error',
+      ];
+      const same = mustDiffer.filter(k => deepGet(FR_JSON, k) === deepGet(EN_JSON, k));
+      if (same.length)
+        throw new Error(`Valeurs identiques FR=EN (non traduit) : ${same.join(', ')}`);
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 6 — Spot checks valeurs réelles
+    ══════════════════════════════════════════════════════════ */
+    group('6 · Valeurs attendues — fichiers réels');
+
+    const SPOT = [
+      // [langue, clé, valeur attendue]
+      ['fr', 'nav.experiences',              'Expériences'],
+      ['fr', 'nav.creations',                'Créations'],
+      ['fr', 'nav.formations',               'Formations'],
+      ['fr', 'nav.contact',                  'Contact'],
+      ['fr', 'common.present',               'Présent'],
+      ['fr', 'common.open_status',           'Disponible'],
+      ['fr', 'experiences.breadcrumb',       'EXPÉRIENCES'],
+      ['fr', 'experiences.highlight_years',  'ANS'],
+      ['fr', 'experiences.highlight_roles',  'POSTES'],
+      ['fr', 'experiences.highlight_stack',  'STACK PRINCIPAL'],
+      ['fr', 'experiences.highlight_status', 'STATUT'],
+      ['fr', 'creations.subtitle',           'Cliquez sur une carte pour voir les détails du projet.'],
+      ['fr', 'creations.site_offline',       'Site hors ligne'],
+      ['fr', 'creations.checking',           'Vérification...'],
+      ['fr', 'contact.form.submit',          'Envoyer'],
+      ['fr', 'contact.form.success',         'Message envoyé !'],
+      ['en', 'nav.experiences',              'Experience'],
+      ['en', 'nav.creations',                'Projects'],
+      ['en', 'nav.formations',               'Education'],
+      ['en', 'nav.contact',                  'Contact'],
+      ['en', 'common.present',               'Present'],
+      ['en', 'common.open_status',           'Open'],
+      ['en', 'experiences.breadcrumb',       'EXPERIENCE'],
+      ['en', 'experiences.highlight_years',  'YEARS'],
+      ['en', 'experiences.highlight_roles',  'ROLES'],
+      ['en', 'experiences.highlight_stack',  'MAIN STACK'],
+      ['en', 'experiences.highlight_status', 'STATUS'],
+      ['en', 'creations.subtitle',           'Click a card to view project details.'],
+      ['en', 'creations.site_offline',       'Site offline'],
+      ['en', 'creations.checking',           'Checking...'],
+      ['en', 'contact.form.submit',          'Send'],
+      ['en', 'contact.form.success',         'Message sent!'],
+    ];
+
+    for (const [lg, key, expected] of SPOT) {
+      test(`[${lg.toUpperCase()}] ${key}`, () => {
+        I18n.setTranslations(lg === 'fr' ? FR_JSON : EN_JSON, lg);
+        expect(I18n.t(key)).toBe(expected);
+      });
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       Rendu final
+    ══════════════════════════════════════════════════════════ */
+    const elapsed = Math.round(performance.now() - t0);
+    const total   = _results.length;
+    const passed  = _results.filter(Boolean).length;
+    const failed  = total - passed;
+
+    document.getElementById('summary').className =
+      'summary ' + (failed === 0 ? 'summary--all-pass' : 'summary--has-fail');
+    document.getElementById('summary').innerHTML = `
+      <span class="summary__total">Total : <strong>${total}</strong></span>
+      <span class="summary__pass">✅ ${passed} passés</span>
+      ${failed ? `<span class="summary__fail">❌ ${failed} échoués</span>` : ''}
+      <span class="summary__time">${elapsed} ms</span>
+    `;
+
+    const groupsEl = document.getElementById('groups');
+    for (const g of _groups) {
+      const gFail = g.tests.filter(t => !t.pass).length;
+      const div   = document.createElement('div');
+      div.className = 'group';
+      div.innerHTML = `
+        <div class="group__title">
+          ${gFail === 0 ? '✅' : '❌'} ${g.name}
+          &nbsp;·&nbsp; ${g.tests.filter(t => t.pass).length}/${g.tests.length}
+        </div>
+        ${g.tests.map(t => `
+          <div class="test ${t.pass ? 'test--pass' : 'test--fail'}">
+            <span class="test__icon">${t.pass ? '✓' : '✗'}</span>
+            <span class="test__label">${t.label}</span>
+            ${t.detail ? `<span class="test__detail">→ ${t.detail}</span>` : ''}
+          </div>
+        `).join('')}
+      `;
+      groupsEl.appendChild(div);
+    }
+
+    document.title = `${failed === 0 ? '✅' : '❌'} Tests i18n (${passed}/${total})`;
+  })();
+  </script>
+</body>
+</html>

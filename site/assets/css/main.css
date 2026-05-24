@@ -264,6 +264,12 @@ a { color: inherit; text-decoration: none; }
 .btn--primary  { background: var(--green); color: #000; border-color: var(--border); }
 .btn--outline  { /* defaults OK */ }
 .btn--sm       { padding: 5px 14px; font-size: 0.75rem; }
+.btn--disabled {
+  opacity:        0.45;
+  cursor:         not-allowed;
+  pointer-events: none;
+  border-style:   dashed;
+}
 
 /* ── LANG TOGGLE ─────────────────────────────────────────── */
 .lang-toggle {

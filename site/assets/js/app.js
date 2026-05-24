@@ -1,37 +1,29 @@
 const API = './api';
 let lang = 'fr';
-let i18n = {};
 let projectsCache = null;
 let _altchaPayload = '';
 
-/* ── I18N ──────────────────────────────────────────────────── */
+/* ── I18N — délègue au module i18n.js ──────────────────────── */
+function t(key)      { return I18n.t(key); }
+function applyI18n() { I18n.applyI18n(); }
+
 async function loadLang(newLang) {
-  const res = await fetch(`./i18n/${newLang}.json`);
-  i18n = await res.json();
-  lang = newLang;
-  applyI18n();
+  await I18n.loadLang(newLang, './i18n');
+  lang = I18n.getLang();
+
   document.querySelectorAll('.lang-toggle__btn')
     .forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
 
-  // Refetch l'onglet actif avec la nouvelle locale
+  // Invalider TOUS les onglets — ils se rechargeront à la prochaine visite
+  Object.keys(tabLoaded).forEach(k => delete tabLoaded[k]);
   projectsCache = null;
+
+  // Recharger l'onglet actif immédiatement
   const activeTab = document.querySelector('[data-tab].active')?.dataset.tab;
   if (activeTab) {
-    delete tabLoaded[activeTab];
     tabLoaded[activeTab] = true;
     loadTab(activeTab);
   }
-}
-
-function t(key) {
-  return key.split('.').reduce((o, k) => o?.[k], i18n) ?? key;
-}
-
-function applyI18n() {
-  document.querySelectorAll('[data-i18n]')
-    .forEach(el => { el.textContent = t(el.dataset.i18n); });
-  document.querySelectorAll('[data-i18n-placeholder]')
-    .forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
 }
 
 /* ── TAB NAVIGATION ────────────────────────────────────────── */
@@ -83,24 +75,30 @@ async function renderExperiences() {
     ? [...new Set(data.flatMap(e => e.skills ?? []).map(s => s.name))].slice(0, 3).join(' / ')
     : '—';
 
-  /* Catégorie de filtre selon le type de contrat */
-  function filterCat(type) {
-    const t = (type ?? '').toLowerCase();
-    if (t === 'cdi' || t === 'cdd')          return 'fulltime';
-    if (t === 'stage' || t === 'alternance') return 'internship';
-    return 'other';
-  }
+  /* Types uniques présents dans les données (dédupliqués, insensible à la casse)
+   * Chaque entrée : { key: 'cdi', label: 'CDI' }
+   * - key   → valeur normalisée utilisée pour data-filter et la comparaison
+   * - label → valeur d'origine retournée par l'API (déjà traduite si dispo)
+   */
+  const uniqueTypes = [
+    ...new Map(
+      (data ?? [])
+        .filter(e => e.type?.trim())
+        .map(e => [e.type.trim().toLowerCase(), e.type.trim()])
+    ).entries()
+  ].map(([key, label]) => ({ key, label }));
 
   panel.innerHTML = `
     <div class="exp-section">
 
       <!-- Breadcrumb + filtres -->
       <div class="exp-header">
-        <span class="exp-breadcrumb">/01 · EXPERIENCE</span>
+        <span class="exp-breadcrumb">/01 · ${t('experiences.breadcrumb')}</span>
         <div class="exp-filters">
           <button class="exp-filter active" data-filter="all">${t('experiences.filter_all')}</button>
-          <button class="exp-filter" data-filter="fulltime">${t('experiences.filter_fulltime')}</button>
-          <button class="exp-filter" data-filter="internship">${t('experiences.filter_internship')}</button>
+          ${uniqueTypes
+            .map(f => `<button class="exp-filter" data-filter="${f.key}">${f.label}</button>`)
+            .join('')}
         </div>
       </div>
 
@@ -118,19 +116,19 @@ async function renderExperiences() {
       <!-- Highlights strip -->
       <div class="exp-highlights">
         <div class="exp-highlight-cell">
-          <div class="exp-highlight-label">YEARS</div>
+          <div class="exp-highlight-label">${t('experiences.highlight_years')}</div>
           <div class="exp-highlight-value">${totalYears}+</div>
         </div>
         <div class="exp-highlight-cell">
-          <div class="exp-highlight-label">ROLES</div>
+          <div class="exp-highlight-label">${t('experiences.highlight_roles')}</div>
           <div class="exp-highlight-value">${data?.length ?? 0}</div>
         </div>
         <div class="exp-highlight-cell">
-          <div class="exp-highlight-label">MAIN STACK</div>
+          <div class="exp-highlight-label">${t('experiences.highlight_stack')}</div>
           <div class="exp-highlight-value exp-highlight-value--stack">${topSkills || '—'}</div>
         </div>
         <div class="exp-highlight-cell">
-          <div class="exp-highlight-label">STATUS</div>
+          <div class="exp-highlight-label">${t('experiences.highlight_status')}</div>
           <div class="exp-highlight-value">
             <span class="exp-status-dot"></span> ${t('common.open_status')}
           </div>
@@ -139,14 +137,14 @@ async function renderExperiences() {
 
       <!-- Timeline -->
       <div class="exp-timeline">
-        ${(data ?? []).map((exp, i) => {
+        ${(data ?? []).map((exp) => {
           const isCurrent = !exp.end_date;
-          const cat       = filterCat(exp.type);
+          const typeKey   = (exp.type ?? '').trim().toLowerCase(); // même clé que les boutons
           const co        = exp.company  ? `[ ${exp.company} ]`   : '';
           const loc       = exp.location ? ` · ${exp.location}`   : '';
           const typ       = exp.type     ? ` · ${exp.type}`       : '';
           return `
-          <div class="timeline-row ${isCurrent ? 'current' : ''}" data-filter-cat="${cat}">
+          <div class="timeline-row ${isCurrent ? 'current' : ''}" data-filter-cat="${typeKey}">
             <div class="timeline-year">${periodDisplay(exp.start_date, exp.end_date)}</div>
             <div class="timeline-detail">
               <div class="timeline-role ${isCurrent ? 'current' : ''}">${exp.role}</div>
@@ -373,12 +371,16 @@ async function renderProjects() {
 
       <!-- Header: breadcrumb + filtres -->
       <div class="proj-header">
-        <span class="proj-breadcrumb">/02 · CREATIONS · ${total} PROJECTS</span>
+        <span class="proj-breadcrumb">/02 · ${t('creations.breadcrumb')} · ${total} ${t('creations.projects_label')}</span>
         <div class="proj-filters">
           <button class="proj-filter active" data-filter="all">${t('creations.filter_all')}</button>
-          <button class="proj-filter" data-filter="web">${t('creations.filter_web')}</button>
-          <button class="proj-filter" data-filter="opensource">${t('creations.filter_opensource')}</button>
-          <button class="proj-filter" data-filter="side">${t('creations.filter_side')}</button>
+          ${['web', 'opensource', 'side']
+            .filter(cat => (data ?? []).some(p => {
+              const c = (p.category ?? '').toLowerCase();
+              return c === cat || c.includes(cat);
+            }))
+            .map(cat => `<button class="proj-filter" data-filter="${cat}">${t('creations.filter_' + cat)}</button>`)
+            .join('')}
         </div>
       </div>
 
@@ -398,7 +400,17 @@ async function renderProjects() {
     </div>
   `;
 
-  /* Filtres */
+  /* Filtres — reset si le filtre courant n'existe plus dans les données */
+  const availableFilters = ['all', 'web', 'opensource', 'side'].filter(cat =>
+    cat === 'all' || (data ?? []).some(p => {
+      const c = (p.category ?? '').toLowerCase();
+      return c === cat || c.includes(cat);
+    })
+  );
+  if (!availableFilters.includes(_projFilter)) {
+    _projFilter = 'all';
+  }
+
   panel.querySelectorAll('.proj-filter').forEach(btn => {
     btn.addEventListener('click', () => {
       panel.querySelectorAll('.proj-filter').forEach(b => b.classList.toggle('active', b === btn));
@@ -412,10 +424,21 @@ async function renderProjects() {
   applyI18n();
 }
 
+async function checkUrl(url) {
+  try {
+    const res  = await fetch(`./api/check-url.php?url=${encodeURIComponent(url)}`);
+    const data = await res.json();
+    return data.online === true;
+  } catch {
+    return false;
+  }
+}
+
 function openModal(id) {
   const p = projectsCache?.find(x => x.id === id);
   if (!p) return;
   const year = p.date ? new Date(p.date).getFullYear() : null;
+
   document.getElementById('proj-modal-body').innerHTML = `
     <div class="modal-header">
       <h3 class="modal__title">[ ${p.name} ]</h3>
@@ -426,8 +449,10 @@ function openModal(id) {
     ${chips(p.skills)}
     <div class="modal__actions">
       ${p.url
-        ? `<a href="${p.url}" target="_blank" rel="noopener noreferrer"
-              class="btn btn--outline btn--sm" onclick="event.stopPropagation()">${t('creations.website')}</a>`
+        ? `<a id="modal-url-btn" href="${p.url}" target="_blank" rel="noopener noreferrer"
+              class="btn btn--outline btn--sm" onclick="event.stopPropagation()">
+             ${t('creations.checking')}
+           </a>`
         : ''}
       ${p.github_url
         ? `<a href="${p.github_url}" target="_blank" rel="noopener noreferrer"
@@ -440,6 +465,23 @@ function openModal(id) {
     </div>
   `;
   document.getElementById('proj-modal').classList.remove('hidden');
+
+  /* Vérification asynchrone du lien externe */
+  if (p.url) {
+    checkUrl(p.url).then(online => {
+      const btn = document.getElementById('modal-url-btn');
+      if (!btn) return;
+      if (online) {
+        btn.textContent = t('creations.website');
+      } else {
+        btn.textContent  = t('creations.site_offline');
+        btn.removeAttribute('href');
+        btn.classList.add('btn--disabled');
+        btn.setAttribute('aria-disabled', 'true');
+        btn.onclick = e => e.stopPropagation();
+      }
+    });
+  }
 }
 
 function closeModal(e) {
@@ -570,7 +612,7 @@ function chips(items) {
 function periodDisplay(start, end) {
   if (!start) return '';
   const sy = new Date(start).getFullYear();
-  if (!end)  return `${sy} — now`;
+  if (!end)  return `${sy} — ${t('common.present')}`;
   const ey = new Date(end).getFullYear();
   return sy === ey ? String(sy) : `${sy} — ${ey}`;
 }
@@ -631,7 +673,7 @@ function _syncThemeButtons() {
 async function init() {
   initTheme();   /* ← en premier pour éviter le flash */
 
-  await loadLang('fr');
+  await loadLang(localStorage.getItem('lang') || 'fr');
 
   const profile = await get('profile.php');
   if (profile) {
