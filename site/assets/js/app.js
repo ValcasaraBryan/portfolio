@@ -525,14 +525,26 @@ async function renderFormations() {
       <div class="formations-list">
         ${(formations ?? []).map(f => `
           <div class="formation-card">
-            <div class="formation-card__school">${f.school}</div>
-            <div class="formation-card__title">${f.title}</div>
-            ${f.level ? `<div class="formation-card__level">${f.level}</div>` : ''}
+            <div class="formation-card__school">${escapeHtml(f.school)}</div>
+            <div class="formation-card__title">${escapeHtml(f.title)}</div>
+            ${f.level ? `<div class="formation-card__level">${escapeHtml(f.level)}</div>` : ''}
             <span class="period">${period(f.start_date, f.end_date)}</span>
             ${f.description
-              ? `<p style="font-size:0.83rem;color:#ccc;margin-top:10px;line-height:1.65">${f.description}</p>`
+              ? `<p style="font-size:0.83rem;color:#ccc;margin-top:10px;line-height:1.65">${escapeHtml(f.description)}</p>`
               : ''}
             ${chips(f.skills)}
+            ${(() => {
+              const certs = f.certifications ?? [];
+              if (!certs.length) return '';
+              return `<ul class="formation__certs">
+                ${certs.map(c =>
+                  `<li class="formation__cert">
+                    ${c.year ? `<span class="formation__cert-year">${escapeHtml(String(c.year))}</span> — ` : ''}
+                    <span class="formation__cert-name">${escapeHtml(c.name)}</span>
+                  </li>`
+                ).join('')}
+              </ul>`;
+            })()}
           </div>
         `).join('')}
       </div>
@@ -619,6 +631,11 @@ async function sendContact(e) {
 }
 
 /* ── HELPERS ───────────────────────────────────────────────── */
+const _escapeMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => _escapeMap[c]);
+}
+
 function chips(items) {
   if (!items?.length) return '';
   return `<div class="chips-list">${items.map(s => `<span class="chip">${s.name ?? s}</span>`).join('')}</div>`;

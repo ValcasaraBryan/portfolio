@@ -39,9 +39,9 @@
       Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
       Dialog, DialogTitle, DialogContent, DialogActions,
       TextField, Alert, Snackbar, CircularProgress, Chip, Autocomplete,
-      MenuItem, createTheme, ThemeProvider, CssBaseline,
+      MenuItem, Divider, createTheme, ThemeProvider, CssBaseline,
     } from '@mui/material';
-    import { Star, StarBorder } from '@mui/icons-material';
+    import { Star, StarBorder, Delete } from '@mui/icons-material';
 
     const API = '../api';
     const DRAWER_WIDTH = 220;
@@ -517,12 +517,13 @@
 
     /* ── CRUD TABLE ────────────────────────────────────────── */
     function CrudTable({ section }) {
-      const [rows,    setRows]    = useState([]);
-      const [rowsEn,  setRowsEn]  = useState([]);
-      const [loading, setLoading] = useState(true);
-      const [dialog,  setDialog]  = useState(null);
-      const [form,    setForm]    = useState({});
-      const [snack,   setSnack]   = useState(null);
+      const [rows,              setRows]              = useState([]);
+      const [rowsEn,            setRowsEn]            = useState([]);
+      const [loading,           setLoading]           = useState(true);
+      const [dialog,            setDialog]            = useState(null);
+      const [form,              setForm]              = useState({});
+      const [snack,             setSnack]             = useState(null);
+      const [editCertifications, setEditCertifications] = useState([]);
 
       const load = useCallback(async () => {
         setLoading(true);
@@ -543,7 +544,11 @@
 
       useEffect(() => { load(); }, [load]);
 
-      const openCreate = () => { setForm({}); setDialog('create'); };
+      const openCreate = () => {
+        setEditCertifications([]);
+        setForm({});
+        setDialog('create');
+      };
       const openEdit   = row  => {
         const base = { ...row, skill_ids: (row.skills ?? []).map(s => s.id) };
         if (section.bilingual) {
@@ -564,18 +569,48 @@
             }
           }
         }
+        /* Charger les certifications si c'est une formation */
+        if (section.id === 'formations' && row.id) {
+          apiFetch(`certifications.php?formation_id=${row.id}`)
+            .then(certs => setEditCertifications((certs ?? []).map(c => ({ ...c, _status: 'existing' }))))
+            .catch(() => setEditCertifications([]));
+        } else {
+          setEditCertifications([]);
+        }
         setForm(base);
         setDialog('edit');
       };
-      const closeDialog= ()   => { setDialog(null); setForm({}); };
+      const closeDialog= ()   => { setDialog(null); setForm({}); setEditCertifications([]); };
 
       const save = async () => {
         try {
+          let formationId = form.id;
           if (dialog === 'create') {
-            await apiFetch(section.endpoint, { method: 'POST', body: JSON.stringify(form) });
+            const created = await apiFetch(section.endpoint, { method: 'POST', body: JSON.stringify(form) });
+            formationId = created?.id;
           } else {
-            await apiFetch(section.endpoint, { method: 'PUT',  body: JSON.stringify(form) });
+            await apiFetch(section.endpoint, { method: 'PUT', body: JSON.stringify(form) });
           }
+
+          /* Gérer les certifications pour la section formations */
+          if (section.id === 'formations') {
+            const certOps = editCertifications.flatMap(c => {
+              if (c._status === 'deleted' && c.id) {
+                return [apiFetch(`certifications.php?id=${c.id}`, { method: 'DELETE' })];
+              }
+              if (c._status === 'new') {
+                const payload = { name: c.name, year: c.year || null, formation_id: formationId };
+                return [apiFetch('certifications.php', { method: 'POST', body: JSON.stringify(payload) })];
+              }
+              if (c._status === 'modified' && c.id) {
+                const payload = { name: c.name, year: c.year || null };
+                return [apiFetch(`certifications.php?id=${c.id}`, { method: 'PUT', body: JSON.stringify(payload) })];
+              }
+              return [];
+            });
+            await Promise.all(certOps);
+          }
+
           setSnack({ msg: 'Saved successfully', sev: 'success' });
           closeDialog();
           load();
@@ -703,7 +738,54 @@
                 });
               }
               return React.createElement(AutoField, { key: f.key, fieldDef: f, form, setForm, rows });
-            })
+            }),
+
+            /* Sous-section Certifications (formations uniquement) */
+            section.id === 'formations' && React.createElement(Box, { key: '__certs', sx: { mt: 1 } },
+              React.createElement(Divider, { sx: { mb: 1.5 } }),
+              React.createElement(Typography, { variant: 'subtitle2', sx: { mb: 1, color: '#7ED9B1' } }, 'Certifications'),
+              ...editCertifications
+                .filter(c => c._status !== 'deleted')
+                .map((c, idx) => {
+                  const realIdx = editCertifications.indexOf(c);
+                  return React.createElement(Box, { key: c.id ?? `new-${idx}`, sx: { display: 'flex', gap: 1, alignItems: 'center', mb: 1 } },
+                    React.createElement(TextField, {
+                      label:    'Année',
+                      size:     'small',
+                      type:     'number',
+                      value:    c.year ?? '',
+                      onChange: e => setEditCertifications(prev => prev.map((x, i) =>
+                        i === realIdx ? { ...x, year: e.target.value ? parseInt(e.target.value, 10) : null, _status: x._status === 'new' ? 'new' : 'modified' } : x
+                      )),
+                      sx: { width: 100 },
+                    }),
+                    React.createElement(TextField, {
+                      label:    'Nom',
+                      size:     'small',
+                      value:    c.name ?? '',
+                      onChange: e => setEditCertifications(prev => prev.map((x, i) =>
+                        i === realIdx ? { ...x, name: e.target.value, _status: x._status === 'new' ? 'new' : 'modified' } : x
+                      )),
+                      sx: { flex: 1 },
+                    }),
+                    React.createElement(IconButton, {
+                      size:    'small',
+                      color:   'error',
+                      onClick: () => setEditCertifications(prev => prev.map((x, i) =>
+                        i === realIdx
+                          ? (x._status === 'new' ? null : { ...x, _status: 'deleted' })
+                          : x
+                      ).filter(Boolean)),
+                    }, React.createElement(Delete, { fontSize: 'small' }))
+                  );
+                }),
+              React.createElement(Button, {
+                size:    'small',
+                variant: 'outlined',
+                onClick: () => setEditCertifications(prev => [...prev, { name: '', year: null, _status: 'new' }]),
+                sx:      { mt: 0.5 },
+              }, '+ Ajouter une certification')
+            ),
           ),
           React.createElement(DialogActions, null,
             React.createElement(Button, { onClick: closeDialog }, 'Cancel'),

@@ -811,6 +811,24 @@ a { color: inherit; text-decoration: none; }
 .formation-card__title  { font-size: 0.98rem; font-weight: 700; margin: 4px 0; color: var(--text); }
 .formation-card__level  { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 8px; }
 
+.formation__certs {
+  list-style:  none;
+  margin-top:  12px;
+  padding:     0;
+  border-top:  1px solid var(--border-dim);
+  padding-top: 10px;
+}
+.formation__cert {
+  font-size:    0.78rem;
+  color:        var(--text-muted);
+  padding:      3px 0;
+  line-height:  1.5;
+}
+.formation__cert-year {
+  font-weight: 600;
+  color:        var(--green);
+}
+
 .skills-sidebar {
   background:    var(--bg-surface);
   border:        1px solid var(--border);

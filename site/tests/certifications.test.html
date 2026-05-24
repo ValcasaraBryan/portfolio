@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests certifications — Portfolio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0d0d0d;
+      color: #e2e2e2;
+      padding: 32px;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: .15em; color: #fff; margin-bottom: 6px; }
+    .hint { color: #555; font-size: 0.78rem; margin-bottom: 32px; }
+    .hint code { color: #888; }
+
+    .summary {
+      display: flex; gap: 20px; align-items: center;
+      padding: 12px 18px; border: 1px solid #2a2a2a;
+      border-radius: 4px; margin-bottom: 32px; font-size: 0.85rem;
+    }
+    .summary__pass  { color: #4ade80; font-weight: 700; }
+    .summary__fail  { color: #f87171; font-weight: 700; }
+    .summary__total { color: #888; }
+    .summary__time  { color: #444; margin-left: auto; font-size: 0.75rem; }
+    .summary--all-pass { border-color: #14532d; background: #052e16; }
+    .summary--has-fail { border-color: #7f1d1d; background: #2d0e0e; }
+
+    .group { margin-bottom: 26px; }
+    .group__title {
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: .2em;
+      color: #444; border-bottom: 1px solid #1c1c1c;
+      padding-bottom: 5px; margin-bottom: 8px;
+    }
+
+    .test { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 0.81rem; }
+    .test__icon  { flex-shrink: 0; width: 14px; }
+    .test--pass .test__label { color: #c8c8c8; }
+    .test--fail .test__label { color: #fca5a5; }
+    .test__detail { color: #f87171; font-size: 0.73rem; }
+
+    #loading { color: #555; font-size: 0.85rem; padding: 12px 0; }
+  </style>
+</head>
+<body>
+  <h1>Tests — API Certifications</h1>
+  <p class="hint">
+    Ouvrir dans un navigateur depuis XAMPP/Apache
+    (<code>http://localhost/portefolio/site/tests/certifications.test.html</code>).
+    Nécessite une session admin active pour les tests d'écriture
+    — se connecter sur <code>/admin/</code> avant d'ouvrir cette page.
+    La formation avec <code>id=1</code> doit exister en BDD.
+  </p>
+
+  <div id="loading">Chargement des tests…</div>
+  <div id="summary" style="display:none"></div>
+  <div id="results"></div>
+
+  <script>
+  const API = '../api';
+  const FORMATION_ID = 1; // Adapter si nécessaire
+
+  /* ── Mini framework de tests ──────────────────────────────── */
+  const _results = [];
+  let   _pass = 0, _fail = 0;
+
+  function assert(label, condition, detail = '') {
+    const ok = !!condition;
+    ok ? _pass++ : _fail++;
+    _results.push({ label, ok, detail: ok ? '' : detail });
+  }
+
+  async function apiReq(path, opts = {}) {
+    const res = await fetch(`${API}/${path}`, {
+      headers: { 'Content-Type': 'application/json' },
+      ...opts,
+    });
+    let json = null;
+    try { json = await res.json(); } catch { /* texte */ }
+    return { status: res.status, json };
+  }
+
+  function render(groupTitle, start, end) {
+    const container = document.getElementById('results');
+    const group = document.createElement('div');
+    group.className = 'group';
+
+    const title = document.createElement('div');
+    title.className = 'group__title';
+    title.textContent = groupTitle;
+    group.appendChild(title);
+
+    for (let i = start; i < end; i++) {
+      const r = _results[i];
+      const row = document.createElement('div');
+      row.className = `test ${r.ok ? 'test--pass' : 'test--fail'}`;
+      row.innerHTML = `
+        <span class="test__icon">${r.ok ? '✓' : '✗'}</span>
+        <span class="test__label">${r.label}</span>
+        ${r.detail ? `<span class="test__detail">— ${r.detail}</span>` : ''}
+      `;
+      group.appendChild(row);
+    }
+
+    container.appendChild(group);
+  }
+
+  function renderSummary(ms) {
+    const el = document.getElementById('summary');
+    el.style.display = 'flex';
+    el.className = `summary ${_fail === 0 ? 'summary--all-pass' : 'summary--has-fail'}`;
+    el.innerHTML = `
+      <span class="summary__pass">✓ ${_pass} passé${_pass > 1 ? 's' : ''}</span>
+      <span class="summary__fail">${_fail > 0 ? `✗ ${_fail} échec${_fail > 1 ? 's' : ''}` : ''}</span>
+      <span class="summary__total">${_pass + _fail} tests au total</span>
+      <span class="summary__time">${ms} ms</span>
+    `;
+  }
+
+  /* ── Tests ────────────────────────────────────────────────── */
+  async function runTests() {
+    const t0 = performance.now();
+    let newCertId = null;
+
+    /* ── 1. GET (lecture publique) ─────────────────────────── */
+    {
+      const g0 = _results.length;
+
+      const r1 = await apiReq(`certifications.php?formation_id=${FORMATION_ID}`);
+      assert('GET ?formation_id retourne HTTP 200', r1.status === 200,
+        `status=${r1.status}`);
+      assert('GET ?formation_id retourne un tableau', Array.isArray(r1.json),
+        `reçu: ${JSON.stringify(r1.json)}`);
+
+      const r2 = await apiReq('certifications.php');
+      assert('GET sans paramètre retourne HTTP 200 (toutes les certifs)', r2.status === 200,
+        `status=${r2.status}`);
+      assert('GET sans paramètre retourne un tableau', Array.isArray(r2.json),
+        `reçu: ${JSON.stringify(r2.json)}`);
+
+      const r3 = await apiReq('certifications.php?formation_id=0');
+      assert('GET ?formation_id=0 retourne HTTP 400', r3.status === 400,
+        `status=${r3.status}`);
+
+      render('1 — GET (lecture publique)', g0, _results.length);
+    }
+
+    /* ── 2. POST sans auth → 401 ──────────────────────────── */
+    {
+      const g0 = _results.length;
+
+      const r = await apiReq('certifications.php', {
+        method: 'POST',
+        body: JSON.stringify({ name: 'Test', year: 2024, formation_id: FORMATION_ID }),
+      });
+      assert('POST sans session admin → 401', r.status === 401,
+        `status=${r.status} — se connecter sur /admin/ avant d'ouvrir cette page`);
+
+      render('2 — POST sans auth', g0, _results.length);
+    }
+
+    /* ── 3. DELETE sans auth → 401 ────────────────────────── */
+    {
+      const g0 = _results.length;
+
+      const r = await apiReq('certifications.php?id=1', { method: 'DELETE' });
+      assert('DELETE sans session admin → 401', r.status === 401,
+        `status=${r.status}`);
+
+      render('3 — DELETE sans auth', g0, _results.length);
+    }
+
+    /* ── 4. Validations POST ──────────────────────────────── */
+    {
+      const g0 = _results.length;
+
+      const r1 = await apiReq('certifications.php', {
+        method: 'POST',
+        body: JSON.stringify({ name: '', year: 2024, formation_id: FORMATION_ID }),
+      });
+      assert('POST name="" → 400 ou 401', r1.status === 400 || r1.status === 401,
+        `status=${r1.status}`);
+
+      const r2 = await apiReq('certifications.php', {
+        method: 'POST',
+        body: JSON.stringify({ name: 'Test', year: 'abc', formation_id: FORMATION_ID }),
+      });
+      assert('POST year="abc" → 400 ou 401', r2.status === 400 || r2.status === 401,
+        `status=${r2.status}`);
+
+      const r3 = await apiReq('certifications.php', {
+        method: 'POST',
+        body: JSON.stringify({ name: 'Test', year: 1800, formation_id: FORMATION_ID }),
+      });
+      assert('POST year=1800 (hors plage) → 400 ou 401', r3.status === 400 || r3.status === 401,
+        `status=${r3.status}`);
+
+      const r4 = await apiReq('certifications.php', {
+        method: 'POST',
+        body: JSON.stringify({ name: 'Test', year: 2024, formation_id: 0 }),
+      });
+      assert('POST formation_id=0 invalide → 400 ou 401', r4.status === 400 || r4.status === 401,
+        `status=${r4.status}`);
+
+      render('4 — Validations POST (sans auth)', g0, _results.length);
+    }
+
+    /* ── 5. CRUD complet (nécessite session admin) ──────────── */
+    {
+      const g0 = _results.length;
+
+      // POST → créer
+      const rPost = await apiReq('certifications.php', {
+        method: 'POST',
+        body: JSON.stringify({ name: 'Test AWS Architect', year: 2024, formation_id: FORMATION_ID }),
+      });
+
+      if (rPost.status === 401) {
+        assert('CRUD complet ignoré — pas de session admin (connectez-vous sur /admin/)', false,
+          '401 — veuillez vous connecter sur /admin/ avant d\'ouvrir cette page');
+        render('5 — CRUD complet (admin)', g0, _results.length);
+      } else {
+        assert('POST crée une certification → 201', rPost.status === 201,
+          `status=${rPost.status} body=${JSON.stringify(rPost.json)}`);
+        assert('POST retourne un id', typeof rPost.json?.id === 'number',
+          `id=${rPost.json?.id}`);
+
+        newCertId = rPost.json?.id;
+
+        // GET → vérifier que la certification apparaît
+        const rGet = await apiReq(`certifications.php?formation_id=${FORMATION_ID}`);
+        const found = (rGet.json ?? []).find(c => c.id === newCertId);
+        assert('GET après POST contient la nouvelle certification', !!found,
+          `id=${newCertId} absent du tableau`);
+        assert('La certification a le bon nom', found?.name === 'Test AWS Architect',
+          `name=${found?.name}`);
+        assert('La certification a la bonne année', Number(found?.year) === 2024,
+          `year=${found?.year}`);
+
+        // PUT → modifier
+        const rPut = await apiReq(`certifications.php?id=${newCertId}`, {
+          method: 'PUT',
+          body: JSON.stringify({ name: 'Test AWS Architect (modifié)', year: 2025 }),
+        });
+        assert('PUT met à jour → 200', rPut.status === 200,
+          `status=${rPut.status}`);
+
+        const rGet2 = await apiReq(`certifications.php?formation_id=${FORMATION_ID}`);
+        const modified = (rGet2.json ?? []).find(c => c.id === newCertId);
+        assert('GET après PUT reflète la modification', modified?.name === 'Test AWS Architect (modifié)',
+          `name=${modified?.name}`);
+        assert('GET après PUT reflète la nouvelle année', Number(modified?.year) === 2025,
+          `year=${modified?.year}`);
+
+        // DELETE → supprimer
+        const rDel = await apiReq(`certifications.php?id=${newCertId}`, { method: 'DELETE' });
+        assert('DELETE supprime → 200', rDel.status === 200,
+          `status=${rDel.status}`);
+
+        const rGet3 = await apiReq(`certifications.php?formation_id=${FORMATION_ID}`);
+        const stillThere = (rGet3.json ?? []).find(c => c.id === newCertId);
+        assert('GET après DELETE ne contient plus la certification', !stillThere,
+          `id=${newCertId} encore présent`);
+
+        render('5 — CRUD complet (admin)', g0, _results.length);
+      }
+    }
+
+    /* ── 6. PUT avec id invalide ──────────────────────────── */
+    {
+      const g0 = _results.length;
+
+      const r = await apiReq('certifications.php?id=abc', {
+        method: 'PUT',
+        body: JSON.stringify({ name: 'Test', year: 2024 }),
+      });
+      assert('PUT ?id=abc → 400 ou 401', r.status === 400 || r.status === 401,
+        `status=${r.status}`);
+
+      render('6 — Validation id invalide (PUT)', g0, _results.length);
+    }
+
+    /* ── Rendu final ─────────────────────────────────────────── */
+    document.getElementById('loading').style.display = 'none';
+    renderSummary(Math.round(performance.now() - t0));
+  }
+
+  runTests().catch(err => {
+    document.getElementById('loading').textContent = 'Erreur : ' + err.message;
+    document.getElementById('loading').className = 'error';
+  });
+  </script>
+</body>
+</html>
