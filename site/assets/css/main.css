@@ -699,6 +699,47 @@ a { color: inherit; text-decoration: none; }
 }
 .proj-showing { font-size: 0.78rem; color: var(--text-muted); font-style: italic; }
 
+/* Pagination */
+.proj-pagination {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             6px;
+  padding:         16px 0 4px;
+}
+.proj-pag-btn {
+  width:           32px;
+  height:          32px;
+  border:          1px solid var(--border);
+  background:      var(--bg-surface);
+  color:           var(--text);
+  cursor:          pointer;
+  border-radius:   var(--radius);
+  font-size:       1rem;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  transition:      background 0.15s;
+}
+.proj-pag-btn:disabled            { opacity: 0.3; cursor: default; }
+.proj-pag-btn:not(:disabled):hover { background: var(--bg-hover); }
+.proj-pag-pages   { display: flex; gap: 4px; align-items: center; }
+.proj-pag-num {
+  min-width:     32px;
+  height:        32px;
+  border:        1px solid var(--border);
+  background:    var(--bg-surface);
+  color:         var(--text);
+  cursor:        pointer;
+  border-radius: var(--radius);
+  font-size:     0.82rem;
+  font-family:   var(--font);
+  transition:    background 0.15s;
+}
+.proj-pag-num.active              { background: var(--green); border-color: var(--green); color: #000; }
+.proj-pag-num:not(.active):hover  { background: var(--bg-hover); }
+.proj-pag-ellipsis { font-size: 0.82rem; color: var(--text-muted); padding: 0 2px; }
+
 /* ── Modal ────────────────────────────────────────────────── */
 .modal-overlay {
   position:        fixed;

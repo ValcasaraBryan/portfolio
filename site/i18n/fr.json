@@ -35,7 +35,7 @@
     "filter_web":        "Web",
     "filter_opensource": "Open source",
     "filter_side":       "Side",
-    "showing":           "Affichage de {n} sur {total}",
+    "showing":           "{start}–{end} sur {total}",
     "see_all":           "Tout voir sur GitHub →"
   },
   "formations": {

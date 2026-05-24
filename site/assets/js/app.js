@@ -178,69 +178,195 @@ async function renderExperiences() {
 }
 
 /* ── PROJECTS ──────────────────────────────────────────────── */
-async function renderProjects() {
-  const data = await get('projects.php');
-  projectsCache = data;
-  const panel = document.getElementById('tab-creations');
+const PROJ_PER_PAGE = 6;
+let _projPage   = 1;
+let _projFilter = 'all';
 
-  /* Tri : is_favorite en tête (déjà fait par l'API) */
-  const featured    = data?.find(p => p.is_favorite) ?? data?.[0] ?? null;
-  const rest        = (data ?? []).filter(p => p !== featured);
-  const sideCards   = rest.slice(0, 2);
-  const bottomCards = rest.slice(2, 5);
-  const total = data?.length ?? 0;
-  const shown = (featured ? 1 : 0) + sideCards.length + bottomCards.length;
-
-  /* Helpers */
-  const yr    = d  => d ? new Date(d).getFullYear() : '';
-  const stack = ss => (ss ?? []).slice(0, 3).map(s => s.name ?? s).join(' · ');
-  const mediaLabels = `
-    <span class="proj-card__media-label">IMG · 16:9</span>`;
-
-  /* Carte featured */
-  const featuredHtml = featured ? `
-    <div class="proj-card proj-card--featured" data-cat="${(featured.category ?? '').toLowerCase()}" onclick="openModal(${featured.id})">
-      <div class="proj-card__media proj-card__media--hatch">
-        ${featured.photo_url ? `<img src="${featured.photo_url}" alt="${featured.name}" class="proj-card__img">` : ''}
-        <span class="proj-card__tag">FEATURED</span>
-      </div>
-      <div class="proj-card__body proj-card__body--featured">
-        <div class="proj-card__name proj-card__name--lg">[ ${featured.name} ]</div>
-        ${featured.description ? `<p class="proj-card__pitch">${featured.description.slice(0, 140)}${featured.description.length > 140 ? '…' : ''}</p>` : ''}
-        ${featured.skills?.length ? `<p class="proj-card__stack-line">Stack: ${stack(featured.skills)}.</p>` : ''}
-      </div>
-    </div>` : '';
-
-  /* Cartes latérales */
-  const sideHtml = sideCards.map(p => `
-    <div class="proj-card proj-card--side" data-cat="${(p.category ?? '').toLowerCase()}" onclick="openModal(${p.id})">
-      <div class="proj-card__media proj-card__media--hatch proj-card__media--sm">
-        ${p.photo_url ? `<img src="${p.photo_url}" alt="${p.name}" class="proj-card__img">` : ''}
-        ${mediaLabels}
-        <span class="proj-card__year">${yr(p.date)}</span>
-      </div>
-      <div class="proj-card__body">
-        <div class="proj-card__name">[ ${p.name} ]</div>
-        ${p.skills?.length ? `<div class="proj-card__cat-line">${stack(p.skills)}</div>` : ''}
-      </div>
-    </div>`).join('');
-
-  /* Cartes du bas */
-  const bottomHtml = bottomCards.map(p => `
+/* Carte standard (page 2+ et vues filtrées) */
+function _projCardSmall(p) {
+  const yr    = p.date ? new Date(p.date).getFullYear() : '';
+  const stack = (p.skills ?? []).slice(0, 3).map(s => s.name ?? s).join(' · ');
+  return `
     <div class="proj-card" data-cat="${(p.category ?? '').toLowerCase()}" onclick="openModal(${p.id})">
       <div class="proj-card__media proj-card__media--hatch proj-card__media--ratio">
         ${p.photo_url ? `<img src="${p.photo_url}" alt="${p.name}" class="proj-card__img">` : ''}
-        ${mediaLabels}
-        <span class="proj-card__year">${yr(p.date)}</span>
+        <span class="proj-card__media-label">IMG · 16:9</span>
+        ${yr ? `<span class="proj-card__year">${yr}</span>` : ''}
       </div>
       <div class="proj-card__body">
         <div class="proj-card__name">[ ${p.name} ]</div>
-        ${p.skills?.length ? `<div class="proj-card__cat-line">${stack(p.skills)}</div>` : ''}
+        ${p.skills?.length ? `<div class="proj-card__cat-line">${stack}</div>` : ''}
       </div>
-    </div>`).join('');
+    </div>`;
+}
 
+/* Numéros de page avec ellipsis */
+function _paginationPages(totalPages) {
+  const pages = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+    return pages;
+  }
+  const p   = _projPage;
+  const set = new Set([1, totalPages, p - 1, p, p + 1].filter(x => x >= 1 && x <= totalPages));
+  const sorted = [...set].sort((a, b) => a - b);
+  let prev = 0;
+  for (const n of sorted) {
+    if (n - prev > 1) pages.push('…');
+    pages.push(n);
+    prev = n;
+  }
+  return pages;
+}
+
+/* Rendu du contenu paginé (grille + pagination + footer) */
+function _renderProjPage() {
+  const data   = projectsCache ?? [];
+  const filter = _projFilter;
+
+  /* Pool filtré */
+  const pool = filter === 'all'
+    ? data
+    : data.filter(p => {
+        const cat = (p.category ?? '').toLowerCase();
+        return cat === filter || cat.includes(filter);
+      });
+
+  const total      = pool.length;
+  const totalPages = Math.max(1, Math.ceil(total / PROJ_PER_PAGE));
+  _projPage        = Math.min(_projPage, totalPages);
+  const page       = _projPage;
+
+  /* ── Grille ─────────────────────────────────────────────── */
+  let gridHtml = '';
+
+  if (filter === 'all' && page === 1) {
+    /* Vue featured : 1 featured + 2 side + 3 bottom */
+    const featured    = data.find(p => p.is_favorite) ?? data[0] ?? null;
+    const rest        = data.filter(p => p !== featured);
+    const sideCards   = rest.slice(0, 2);
+    const bottomCards = rest.slice(2, 5);
+
+    const yr    = d  => d ? new Date(d).getFullYear() : '';
+    const stack = ss => (ss ?? []).slice(0, 3).map(s => s.name ?? s).join(' · ');
+
+    const featuredHtml = featured ? `
+      <div class="proj-card proj-card--featured" data-cat="${(featured.category ?? '').toLowerCase()}" onclick="openModal(${featured.id})">
+        <div class="proj-card__media proj-card__media--hatch">
+          ${featured.photo_url ? `<img src="${featured.photo_url}" alt="${featured.name}" class="proj-card__img">` : ''}
+          <span class="proj-card__tag">FEATURED</span>
+        </div>
+        <div class="proj-card__body proj-card__body--featured">
+          <div class="proj-card__name proj-card__name--lg">[ ${featured.name} ]</div>
+          ${featured.description ? `<p class="proj-card__pitch">${featured.description.slice(0, 140)}${featured.description.length > 140 ? '…' : ''}</p>` : ''}
+          ${featured.skills?.length ? `<p class="proj-card__stack-line">Stack: ${stack(featured.skills)}.</p>` : ''}
+        </div>
+      </div>` : '';
+
+    const sideHtml = sideCards.map(p => `
+      <div class="proj-card proj-card--side" data-cat="${(p.category ?? '').toLowerCase()}" onclick="openModal(${p.id})">
+        <div class="proj-card__media proj-card__media--hatch proj-card__media--sm">
+          ${p.photo_url ? `<img src="${p.photo_url}" alt="${p.name}" class="proj-card__img">` : ''}
+          <span class="proj-card__media-label">IMG · 16:9</span>
+          <span class="proj-card__year">${yr(p.date)}</span>
+        </div>
+        <div class="proj-card__body">
+          <div class="proj-card__name">[ ${p.name} ]</div>
+          ${p.skills?.length ? `<div class="proj-card__cat-line">${stack(p.skills)}</div>` : ''}
+        </div>
+      </div>`).join('');
+
+    const bottomHtml = bottomCards.map(p => `
+      <div class="proj-card" data-cat="${(p.category ?? '').toLowerCase()}" onclick="openModal(${p.id})">
+        <div class="proj-card__media proj-card__media--hatch proj-card__media--ratio">
+          ${p.photo_url ? `<img src="${p.photo_url}" alt="${p.name}" class="proj-card__img">` : ''}
+          <span class="proj-card__media-label">IMG · 16:9</span>
+          <span class="proj-card__year">${yr(p.date)}</span>
+        </div>
+        <div class="proj-card__body">
+          <div class="proj-card__name">[ ${p.name} ]</div>
+          ${p.skills?.length ? `<div class="proj-card__cat-line">${stack(p.skills)}</div>` : ''}
+        </div>
+      </div>`).join('');
+
+    gridHtml = `
+      <div class="proj-grid">
+        ${(featured || sideCards.length) ? `
+        <div class="proj-grid__top">
+          ${featuredHtml}
+          ${sideCards.length ? `<div class="proj-grid__side">${sideHtml}</div>` : ''}
+        </div>` : ''}
+        ${bottomCards.length ? `<div class="proj-grid__row">${bottomHtml}</div>` : ''}
+      </div>`;
+
+  } else {
+    /* Grille standard : n colonnes */
+    const start = (page - 1) * PROJ_PER_PAGE;
+    const slice = pool.slice(start, start + PROJ_PER_PAGE);
+    gridHtml = `
+      <div class="proj-grid">
+        <div class="proj-grid__row">${slice.map(_projCardSmall).join('')}</div>
+      </div>`;
+  }
+
+  /* ── Pagination ──────────────────────────────────────────── */
+  let pagHtml = '';
+  if (totalPages > 1) {
+    const nums = _paginationPages(totalPages).map(n =>
+      n === '…'
+        ? `<span class="proj-pag-ellipsis">…</span>`
+        : `<button class="proj-pag-num${n === page ? ' active' : ''}" onclick="_goPage(${n})">${n}</button>`
+    ).join('');
+    pagHtml = `
+      <div class="proj-pagination">
+        <button class="proj-pag-btn" onclick="_goPage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>‹</button>
+        <div class="proj-pag-pages">${nums}</div>
+        <button class="proj-pag-btn" onclick="_goPage(${page + 1})" ${page >= totalPages ? 'disabled' : ''}>›</button>
+      </div>`;
+  }
+
+  /* ── Footer "showing" ────────────────────────────────────── */
+  const showStart = (filter === 'all' && page === 1) ? 1 : (page - 1) * PROJ_PER_PAGE + 1;
+  const showEnd   = (filter === 'all' && page === 1)
+    ? Math.min(PROJ_PER_PAGE, data.length)
+    : Math.min(page * PROJ_PER_PAGE, total);
+  const showTotal = filter === 'all' ? data.length : total;
   const showingStr = t('creations.showing')
-    .replace('{n}', shown).replace('{total}', total);
+    .replace('{start}', showStart)
+    .replace('{end}',   showEnd)
+    .replace('{total}', showTotal);
+
+  document.getElementById('proj-content').innerHTML = `
+    ${gridHtml}
+    ${pagHtml}
+    <div class="proj-footer">
+      <span class="proj-showing">${showingStr}</span>
+      <a href="https://github.com/ValcasaraBryan" target="_blank" rel="noopener"
+         class="btn btn--outline btn--sm">${t('creations.see_all')}</a>
+    </div>
+  `;
+}
+
+function _goPage(n) {
+  const data       = projectsCache ?? [];
+  const pool       = _projFilter === 'all' ? data : data.filter(p => {
+    const cat = (p.category ?? '').toLowerCase();
+    return cat === _projFilter || cat.includes(_projFilter);
+  });
+  const totalPages = Math.max(1, Math.ceil(pool.length / PROJ_PER_PAGE));
+  if (n < 1 || n > totalPages) return;
+  _projPage = n;
+  _renderProjPage();
+  document.getElementById('proj-content')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function renderProjects() {
+  const data = await get('projects.php');
+  projectsCache = data;
+  _projPage   = 1;
+  _projFilter = 'all';
+  const panel = document.getElementById('tab-creations');
+  const total = data?.length ?? 0;
 
   panel.innerHTML = `
     <div class="proj-section">
@@ -262,22 +388,8 @@ async function renderProjects() {
         <p class="proj-subtitle">${t('creations.subtitle')}</p>
       </div>
 
-      <!-- Grille -->
-      <div class="proj-grid">
-        ${(featured || sideCards.length) ? `
-        <div class="proj-grid__top">
-          ${featuredHtml}
-          ${sideCards.length ? `<div class="proj-grid__side">${sideHtml}</div>` : ''}
-        </div>` : ''}
-        ${bottomCards.length ? `<div class="proj-grid__row">${bottomHtml}</div>` : ''}
-      </div>
-
-      <!-- Footer -->
-      <div class="proj-footer">
-        <span class="proj-showing">${showingStr}</span>
-        <a href="https://github.com/ValcasaraBryan" target="_blank" rel="noopener"
-           class="btn btn--outline btn--sm">${t('creations.see_all')}</a>
-      </div>
+      <!-- Contenu paginé -->
+      <div id="proj-content"></div>
 
     </div>
     <!-- Modal -->
@@ -286,19 +398,17 @@ async function renderProjects() {
     </div>
   `;
 
-  /* Filtres par category */
+  /* Filtres */
   panel.querySelectorAll('.proj-filter').forEach(btn => {
     btn.addEventListener('click', () => {
-      const f = btn.dataset.filter;
       panel.querySelectorAll('.proj-filter').forEach(b => b.classList.toggle('active', b === btn));
-      panel.querySelectorAll('.proj-card').forEach(card => {
-        const cat = card.dataset.cat ?? '';
-        card.style.display =
-          (f === 'all' || cat === f || cat.includes(f)) ? '' : 'none';
-      });
+      _projFilter = btn.dataset.filter;
+      _projPage   = 1;
+      _renderProjPage();
     });
   });
 
+  _renderProjPage();
   applyI18n();
 }
 
