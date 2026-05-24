@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests — Liens sociaux (links.php + renderSocialLinks)</title>
+  <style>
+    body { font-family: monospace; padding: 1.5rem; background: #111; color: #ccc; }
+    h1   { color: #7ED9B1; }
+    .pass { color: #7ED9B1; }
+    .fail { color: #ff6b6b; font-weight: bold; }
+    .skip { color: #aaa; font-style: italic; }
+    .group { margin-top: 1.5rem; font-size: 1.1rem; color: #7ED9B1; border-bottom: 1px solid #333; padding-bottom: .3rem; }
+    pre  { background: #1a1a1a; padding: .5rem; border-radius: 4px; margin: .25rem 0; font-size: .85rem; }
+    #summary { margin-top: 2rem; font-size: 1.1rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+<h1>🔗 Tests — Liens sociaux</h1>
+<p>Ouvrir ce fichier via le serveur (<code>http://localhost/…/tests/links.test.html</code>). <br>
+Les tests CRUD nécessitent une session admin active (ouvrir <a href="../admin/login.html" target="_blank">admin/login.html</a> d'abord).</p>
+<div id="output"></div>
+<div id="summary"></div>
+
+<script>
+/* ── Helpers ──────────────────────────────────────────────── */
+const API = '../api/links.php';
+let passed = 0, failed = 0, skipped = 0;
+const out = document.getElementById('output');
+
+function log(icon, label, detail = '') {
+  const line = document.createElement('div');
+  line.className = icon === '✅' ? 'pass' : icon === '⏭' ? 'skip' : 'fail';
+  line.innerHTML = `${icon} <b>${label}</b>` + (detail ? `<pre>${escHtml(detail)}</pre>` : '');
+  out.appendChild(line);
+}
+
+function group(title) {
+  const d = document.createElement('div');
+  d.className = 'group';
+  d.textContent = title;
+  out.appendChild(d);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function assert(condition, label, detail = '') {
+  if (condition) { passed++; log('✅', label, detail); }
+  else            { failed++; log('❌', label, detail); }
+}
+
+async function api(method, qs = '', body = null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(API + qs, opts);
+  let json = null;
+  try { json = await r.json(); } catch (_) {}
+  return { status: r.status, json };
+}
+
+/* ── renderSocialLinks (simulé en dehors du DOM principal) ── */
+function renderSocialLinks(links) {
+  const container = document.createElement('div');
+  (links ?? []).forEach(link => {
+    const a = document.createElement('a');
+    a.href        = link.url;
+    a.className   = 'social-link';
+    a.title       = link.platform;
+    a.textContent = link.icon;
+    if (!link.url.startsWith('mailto:')) {
+      a.target = '_blank';
+      a.rel    = 'noopener noreferrer';
+    }
+    container.appendChild(a);
+  });
+  return container;
+}
+
+/* ── Tests ───────────────────────────────────────────────── */
+async function runTests() {
+  let createdId = null;
+
+  /* ─ Groupe 1 : GET public ─ */
+  group('1 — GET /api/links.php (public)');
+  const g1 = await api('GET');
+  assert(g1.status === 200, 'Status 200', JSON.stringify(g1.json));
+  assert(Array.isArray(g1.json), 'Retourne un tableau');
+  if (Array.isArray(g1.json) && g1.json.length > 0) {
+    const first = g1.json[0];
+    assert('platform' in first && 'url' in first && 'icon' in first,
+           'Champs platform / url / icon présents', JSON.stringify(first));
+  } else {
+    skipped++; log('⏭', 'Pas de liens en BDD — test de champs skippé');
+  }
+
+  /* ─ Groupe 2 : POST sans auth ─ */
+  group('2 — POST sans session admin → 401');
+  // On vide les cookies de session pour simuler l'absence d'auth
+  // (ce test est approximatif si une session est active)
+  const g2 = await api('POST', '', { platform: 'Test', url: 'https://test.com', icon: 'T' });
+  if (g2.status === 401) {
+    assert(true, 'POST sans auth → 401');
+  } else if (g2.status === 201) {
+    skipped++;
+    log('⏭', 'Session admin active : test "sans auth" ignoré (status 201 reçu)');
+    createdId = g2.json?.id ?? null; // réutiliser l'id créé involontairement
+  } else {
+    assert(false, `POST sans auth → 401 (reçu ${g2.status})`, JSON.stringify(g2.json));
+  }
+
+  /* ─ Groupe 3 : POST valide (nécessite session admin) ─ */
+  group('3 — POST valide (session admin requise)');
+  const g3 = await api('POST', '', { platform: 'TestSuite', url: 'https://example-test-suite.com', icon: 'TS' });
+  if (g3.status === 201) {
+    assert(true, 'POST valide → 201', JSON.stringify(g3.json));
+    assert(typeof g3.json?.id === 'number', 'Retourne un id numérique', String(g3.json?.id));
+    createdId = g3.json.id;
+  } else if (g3.status === 401) {
+    skipped++; log('⏭', 'Non authentifié — tests POST/PUT/DELETE ignorés (connectez-vous à l\'admin)');
+    createdId = null;
+  } else {
+    assert(false, `POST valide → 201 (reçu ${g3.status})`, JSON.stringify(g3.json));
+  }
+
+  /* ─ Groupe 4 : Validation URL ─ */
+  group('4 — Validation URL côté serveur');
+  const g4a = await api('POST', '', { platform: 'Bad', url: 'pas une url', icon: 'X' });
+  if (g4a.status === 400) {
+    assert(true, 'POST url invalide → 400');
+  } else if (g4a.status === 401) {
+    skipped++; log('⏭', 'Non authentifié — test validation URL skippé');
+  } else {
+    assert(false, `POST url invalide → 400 (reçu ${g4a.status})`, JSON.stringify(g4a.json));
+  }
+
+  const g4b = await api('POST', '', { platform: 'Empty', url: '', icon: 'X' });
+  if (g4b.status === 400) {
+    assert(true, 'POST url vide → 400');
+  } else if (g4b.status === 401) {
+    skipped++; log('⏭', 'Non authentifié — test url vide skippé');
+  } else {
+    assert(false, `POST url vide → 400 (reçu ${g4b.status})`, JSON.stringify(g4b.json));
+  }
+
+  /* ─ Groupe 5 : GET après POST ─ */
+  if (createdId !== null) {
+    group('5 — GET après POST (vérification persistance)');
+    const g5 = await api('GET');
+    const found = Array.isArray(g5.json) && g5.json.some(l => l.id === createdId);
+    assert(found, `GET contient le lien créé (id=${createdId})`);
+  }
+
+  /* ─ Groupe 6 : PUT ─ */
+  if (createdId !== null) {
+    group('6 — PUT ?id=X');
+    const g6 = await api('PUT', `?id=${createdId}`, {
+      platform: 'TestSuiteUpdated',
+      url: 'https://updated-example.com',
+      icon: 'UP',
+    });
+    if (g6.status === 200) {
+      assert(true, `PUT id=${createdId} → 200`);
+      const g6check = await api('GET');
+      const updated = Array.isArray(g6check.json) && g6check.json.find(l => l.id === createdId);
+      assert(updated?.url === 'https://updated-example.com', 'Mise à jour persistée en BDD', JSON.stringify(updated));
+    } else {
+      assert(false, `PUT → 200 (reçu ${g6.status})`, JSON.stringify(g6.json));
+    }
+  }
+
+  /* ─ Groupe 7 : DELETE id=abc ─ */
+  group('7 — DELETE ?id=abc → 400');
+  const g7 = await api('DELETE', '?id=abc');
+  if (g7.status === 400) {
+    assert(true, 'DELETE id=abc → 400 (intval = 0)');
+  } else if (g7.status === 401) {
+    skipped++; log('⏭', 'Non authentifié — test DELETE id=abc skippé');
+  } else {
+    assert(false, `DELETE id=abc → 400 (reçu ${g7.status})`, JSON.stringify(g7.json));
+  }
+
+  /* ─ Groupe 8 : DELETE valide ─ */
+  if (createdId !== null) {
+    group('8 — DELETE ?id=X (nettoyage)');
+    const g8 = await api('DELETE', `?id=${createdId}`);
+    if (g8.status === 200) {
+      assert(true, `DELETE id=${createdId} → 200`);
+      const g8check = await api('GET');
+      const stillThere = Array.isArray(g8check.json) && g8check.json.some(l => l.id === createdId);
+      assert(!stillThere, 'Lien absent du GET après DELETE');
+    } else {
+      assert(false, `DELETE → 200 (reçu ${g8.status})`, JSON.stringify(g8.json));
+    }
+  }
+
+  /* ─ Groupe 9 : Sécurité XSS frontend ─ */
+  group('9 — Sécurité XSS frontend (renderSocialLinks)');
+
+  // 9a : icône contenant du HTML → doit être affiché en texte brut
+  let xssTriggered = false;
+  const origAlert = window.alert;
+  window.alert = () => { xssTriggered = true; };
+
+  const xssLinks = [{ platform: 'XSS<img onerror=alert(1) src=x>', url: 'https://safe.com', icon: '<b>XSS</b>' }];
+  const xssContainer = renderSocialLinks(xssLinks);
+  const anchor = xssContainer.querySelector('a');
+  assert(anchor.textContent === '<b>XSS</b>', 'icon avec HTML → textContent brut (pas de tag <b>)');
+  assert(!xssTriggered, 'Pas d\'exécution JS (alert non déclenché)');
+  assert(anchor.innerHTML === '&lt;b&gt;XSS&lt;/b&gt;', 'innerHTML correctement échappé');
+
+  // 9b : url javascript: → filter_var côté serveur bloque, mais tester le rendu
+  const jsLinks = [{ platform: 'JS', url: 'javascript:alert(1)', icon: 'JS' }];
+  const jsContainer = renderSocialLinks(jsLinks);
+  const jsAnchor = jsContainer.querySelector('a');
+  // Le navigateur peut normaliser href javascript: — on vérifie juste que textContent est correct
+  assert(jsAnchor.textContent === 'JS', 'url javascript: → textContent intact');
+
+  window.alert = origAlert;
+
+  // 9c : liens externes → rel="noopener noreferrer"
+  const extLinks = [{ platform: 'GitHub', url: 'https://github.com', icon: 'GH' }];
+  const extContainer = renderSocialLinks(extLinks);
+  const extA = extContainer.querySelector('a');
+  assert(extA.rel === 'noopener noreferrer', 'Lien externe → rel="noopener noreferrer"');
+  assert(extA.target === '_blank', 'Lien externe → target="_blank"');
+
+  // 9d : mailto → pas de target _blank
+  const mailLinks = [{ platform: 'Email', url: 'mailto:test@example.com', icon: '@' }];
+  const mailContainer = renderSocialLinks(mailLinks);
+  const mailA = mailContainer.querySelector('a');
+  assert(mailA.target !== '_blank', 'Lien mailto → pas de target="_blank"');
+
+  /* ─ Résumé ─ */
+  document.getElementById('summary').innerHTML =
+    `<span class="${failed === 0 ? 'pass' : 'fail'}">` +
+    `Résultat : ${passed} passés · ${failed} échoués · ${skipped} ignorés` +
+    `</span>`;
+}
+
+runTests().catch(err => {
+  const d = document.createElement('pre');
+  d.style.color = '#ff6b6b';
+  d.textContent = 'Erreur inattendue : ' + err;
+  out.appendChild(d);
+});
+</script>
+</body>
+</html>

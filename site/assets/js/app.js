@@ -730,6 +730,25 @@ async function updateCvLink(currentLang) {
   }
 }
 
+/* ── SOCIAL LINKS ──────────────────────────────────────────── */
+function renderSocialLinks(links) {
+  const container = document.getElementById('social-links');
+  if (!container) return;
+  container.innerHTML = '';
+  (links ?? []).forEach(link => {
+    const a = document.createElement('a');
+    a.href       = link.url;
+    a.className  = 'social-link';
+    a.title      = link.platform;
+    a.textContent = link.icon;          // textContent, jamais innerHTML
+    if (!link.url.startsWith('mailto:')) {
+      a.target = '_blank';
+      a.rel    = 'noopener noreferrer';
+    }
+    container.appendChild(a);
+  });
+}
+
 /* ── INIT ──────────────────────────────────────────────────── */
 async function init() {
   initTheme();   /* ← en premier pour éviter le flash */
@@ -745,6 +764,7 @@ async function init() {
     document.querySelectorAll('.profile-avatar').forEach(img => {
       if (profile.photo_url) img.src = profile.photo_url;
     });
+    renderSocialLinks(profile.links);
   }
 
   // Chargement initial du lien CV
