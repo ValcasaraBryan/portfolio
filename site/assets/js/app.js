@@ -540,9 +540,6 @@ async function renderFormations() {
     ? `${minYear} → ${maxYear}`
     : (minYear ? String(minYear) : '');
 
-  /* Toutes les certifications aplaties (pour le bloc droit) */
-  const allCerts = data.flatMap(f => f.certifications ?? []);
-
   panel.innerHTML = `
     <!-- Breadcrumb + plage dates -->
     <div class="formations-top-header">
@@ -576,7 +573,7 @@ async function renderFormations() {
         }).join('')}
       </div>
 
-      <!-- Colonne droite : compétences + certifications -->
+      <!-- Colonne droite : compétences -->
       <div class="formations-right">
 
         <!-- Skills -->
@@ -589,17 +586,6 @@ async function renderFormations() {
             </div>
           `).join('')}
         </div>
-
-        <!-- Certifications -->
-        ${allCerts.length ? `
-        <div class="certs-block">
-          <h3 class="certs-block__title">${t('formations.certifications_title')}</h3>
-          ${allCerts.map(c => `
-            <div class="cert-item">
-              <span class="cert-item__name">${escapeHtml(c.name)}</span>
-              ${c.year ? `<span class="cert-item__year">${escapeHtml(String(c.year))}</span>` : ''}
-            </div>`).join('')}
-        </div>` : ''}
 
       </div>
     </div>
