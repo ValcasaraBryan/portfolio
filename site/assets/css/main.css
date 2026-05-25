@@ -308,6 +308,17 @@ button.chip {
   color:      var(--chip-color, var(--text-muted));
 }
 
+/* Light mode : fond plus visible et texte sombre pour les chips colorés */
+[data-theme="light"] .chip--colored {
+  background: color-mix(in srgb, var(--chip-color, transparent) 22%, white);
+  color:      color-mix(in srgb, var(--chip-color, #000) 70%, #000);
+}
+
+[data-theme="light"] .chip--category.chip--colored .chip__count {
+  background: white;
+  color:      color-mix(in srgb, var(--chip-color, #000) 80%, #000);
+}
+
 /* Chips interactifs */
 .chip--hoverable { cursor: pointer; }
 
@@ -318,6 +329,17 @@ button.chip {
 
 .chip--hoverable.chip--colored:hover {
   filter: brightness(1.18);
+}
+
+[data-theme="light"] .chip--hoverable.chip--colored:hover {
+  filter: none;
+  background: color-mix(in srgb, var(--chip-color, transparent) 40%, white);
+  color:      color-mix(in srgb, var(--chip-color, #000) 85%, #000);
+}
+
+[data-theme="light"] .chip--hoverable.chip--colored:hover .chip__count {
+  background: color-mix(in srgb, var(--chip-color, transparent) 20%, white);
+  color:      color-mix(in srgb, var(--chip-color, #000) 90%, #000);
 }
 
 /* ── PERIOD ──────────────────────────────────────────────── */
@@ -560,11 +582,14 @@ button.chip {
 .exp-highlight-value--stack { font-size: 1.1rem; }
 
 .exp-status-dot {
+  display:       inline-block;
   width:         10px;
   height:        10px;
   border-radius: 50%;
-  background:    var(--text);
+  background:    var(--green);
+  border:        2px solid var(--border);
   flex-shrink:   0;
+  animation:     pulse 1.5s ease-in-out infinite;
 }
 
 /* Timeline */

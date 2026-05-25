@@ -565,7 +565,7 @@ async function renderFormations() {
           const ey      = f.end_date   ? new Date(f.end_date).getFullYear()   : t('common.present');
           const dateStr = sy ? `${sy}<br>${ey}` : '';
           return `
-          <div class="formation-card${i === 0 ? ' formation-card--featured' : ''}">
+          <div class="formation-card">
             <div class="formation-card__date">${dateStr}</div>
             <div class="formation-card__content">
               <div class="formation-card__title">${escapeHtml(f.title)}</div>
