@@ -1356,7 +1356,8 @@ button.chip {
 .about__bio             { margin-bottom: 32px; line-height: 1.7; }
 .about__bio--empty      { color: var(--text-muted); font-style: italic; }
 .about__section-title   { font-size: 1rem; font-weight: 600; margin: 0 0 12px; }
-.about__skills          { margin-bottom: 16px; }
+.about__skills          { margin-bottom: 24px; }
+.about__certifications  { margin-bottom: 16px; }
 
 /* ════════════════════════════════════════════════════════════
    DESKTOP  ≥ 768px

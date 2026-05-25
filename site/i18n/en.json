@@ -11,7 +11,8 @@
         "location_label": "Location",
         "availability_label": "Availability",
         "skills_label": "Core Skills",
-        "no_bio": "No biography provided."
+        "no_bio": "No biography provided.",
+        "certifications_label": "Certifications"
     },
     "common": {
         "download_cv": "Download CV",

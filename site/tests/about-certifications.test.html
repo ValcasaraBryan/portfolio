@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Test — Certifications dans À propos</title>
+  <style>
+    body { font-family: monospace; padding: 24px; background: #111; color: #eee; }
+    .pass { color: #7ED9B1; }
+    .fail { color: #ff6b6b; }
+    h1 { color: #7ED9B1; margin-bottom: 24px; }
+    .result { margin: 6px 0; }
+    hr { border-color: #333; margin: 24px 0; }
+  </style>
+</head>
+<body>
+<h1>Test — Certifications dans À propos</h1>
+<div id="output"></div>
+
+<script>
+/* ── Helpers ─────────────────────────────────────────────────── */
+const results = [];
+function assert(label, condition) {
+  results.push({ label, ok: condition });
+}
+function escapeHtml(str) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Simulation du rendu ─────────────────────────────────────── */
+function renderCertsBlock(certsData) {
+  const certs = certsData ?? [];
+  if (!certs.length) return '';
+  const sorted = [...certs].sort((a, b) => (b.year ?? 0) - (a.year ?? 0) || a.id - b.id);
+  return `<div class="about__certifications">
+    <h2 class="about__section-title">Certifications</h2>
+    <div class="certs-block">
+      ${sorted.map(c => `
+      <div class="cert-item">
+        <span class="cert-item__name">${escapeHtml(c.name)}</span>
+        ${c.year ? `<span class="cert-item__year">${escapeHtml(String(c.year))}</span>` : ''}
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+/* ── Tests ───────────────────────────────────────────────────── */
+
+// 1. Le bloc n'apparaît pas quand la liste est vide
+const emptyHtml = renderCertsBlock([]);
+assert('Bloc absent si aucune certification', emptyHtml === '');
+
+// 2. Le bloc apparaît quand des certifications existent
+const certSample = [
+  { id: 1, name: 'AWS Cloud Practitioner', year: 2023, formation_id: 1 },
+  { id: 2, name: 'Scrum Master PSM I',      year: 2022, formation_id: 1 },
+];
+const filledHtml = renderCertsBlock(certSample);
+assert('Bloc présent si certifications existent',       filledHtml.includes('certs-block'));
+assert('Titre "Certifications" présent',                filledHtml.includes('Certifications'));
+assert('Nom de la 1re certification affiché',           filledHtml.includes('AWS Cloud Practitioner'));
+assert('Nom de la 2e certification affiché',            filledHtml.includes('Scrum Master PSM I'));
+assert('Année 2023 affichée',                           filledHtml.includes('2023'));
+assert('Année 2022 affichée',                           filledHtml.includes('2022'));
+
+// 3. Tri par année décroissante
+const multiYear = [
+  { id: 1, name: 'Old cert',  year: 2019, formation_id: 1 },
+  { id: 2, name: 'New cert',  year: 2024, formation_id: 1 },
+  { id: 3, name: 'Mid cert',  year: 2021, formation_id: 1 },
+];
+const sortedHtml = renderCertsBlock(multiYear);
+const pos2024 = sortedHtml.indexOf('New cert');
+const pos2021 = sortedHtml.indexOf('Mid cert');
+const pos2019 = sortedHtml.indexOf('Old cert');
+assert('Tri décroissant : 2024 avant 2021', pos2024 < pos2021);
+assert('Tri décroissant : 2021 avant 2019', pos2021 < pos2019);
+
+// 4. Certification sans année — pas de span année
+const noYear = [{ id: 10, name: 'Sans date', year: null, formation_id: 2 }];
+const noYearHtml = renderCertsBlock(noYear);
+assert('Pas de span année si year est null', !noYearHtml.includes('cert-item__year'));
+
+// 5. Échappement XSS du nom
+const xssCerts = [{ id: 99, name: '<script>alert("xss")</script>', year: 2025, formation_id: 1 }];
+const xssHtml = renderCertsBlock(xssCerts);
+assert('Nom XSS : balise <script> échappée (pas de tag brut)', !xssHtml.includes('<script>'));
+assert('Nom XSS : contenu encodé présent',                     xssHtml.includes('&lt;script&gt;'));
+
+// 6. null / undefined → traité comme tableau vide
+assert('null traité comme vide',      renderCertsBlock(null) === '');
+assert('undefined traité comme vide', renderCertsBlock(undefined) === '');
+
+/* ── Affichage des résultats ─────────────────────────────────── */
+const out = document.getElementById('output');
+let allPass = true;
+for (const r of results) {
+  if (!r.ok) allPass = false;
+  const cls = r.ok ? 'pass' : 'fail';
+  const icon = r.ok ? '✓' : '✗';
+  out.innerHTML += `<div class="result ${cls}">${icon} ${r.label}</div>`;
+}
+out.innerHTML += `<hr><div class="result ${allPass ? 'pass' : 'fail'}">
+  ${allPass ? '✓ Tous les tests passent.' : '✗ Des tests ont échoué.'}
+</div>`;
+</script>
+</body>
+</html>

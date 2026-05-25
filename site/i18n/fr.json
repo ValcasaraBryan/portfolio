@@ -11,7 +11,8 @@
         "location_label": "Localisation",
         "availability_label": "Disponibilité",
         "skills_label": "Compétences phares",
-        "no_bio": "Aucune biographie renseignée."
+        "no_bio": "Aucune biographie renseignée.",
+        "certifications_label": "Certifications"
     },
     "common": {
         "download_cv": "Télécharger CV",

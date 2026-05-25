@@ -749,9 +749,10 @@ async function sendContact(e) {
 
 /* ── ABOUT ─────────────────────────────────────────────────── */
 async function renderAbout() {
-  const [profile, skillsData] = await Promise.all([
-    get('profile.php'),
+  const [profile, skillsData, certsData] = await Promise.all([
+    get(`profile.php?lang=${lang}`),
     get(`skills.php?lang=${lang}`),
+    get('certifications.php'),
   ]);
   const panel = document.getElementById('tab-about');
 
@@ -814,6 +815,18 @@ async function renderAbout() {
         <div class="about__skills">
           <h2 class="about__section-title">${t('about.skills_label')}</h2>
           <div class="chips-list">${categories.map(c => _chipCategory(c.name, c.description, c.color, c.items)).join('')}</div>
+        </div>` : ''}
+
+      ${(certsData ?? []).length > 0 ? `
+        <div class="about__certifications">
+          <h2 class="about__section-title">${t('about.certifications_label')}</h2>
+          <div class="certs-block">
+            ${[...(certsData ?? [])].sort((a, b) => (b.year ?? 0) - (a.year ?? 0) || a.id - b.id).map(c => `
+            <div class="cert-item">
+              <span class="cert-item__name">${escapeHtml(c.name)}</span>
+              ${c.year ? `<span class="cert-item__year">${escapeHtml(String(c.year))}</span>` : ''}
+            </div>`).join('')}
+          </div>
         </div>` : ''}
 
     </div>
