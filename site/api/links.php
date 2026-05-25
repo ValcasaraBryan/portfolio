@@ -49,12 +49,13 @@ switch (method()) {
     case 'PUT':
         require_auth();
         try {
-            $id = intval($_GET['id'] ?? 0);
+            $data = body();
+
+            // L'ID est dans le body JSON (cohérent avec projects.php)
+            $id = intval($data['id'] ?? $_GET['id'] ?? 0);
             if ($id <= 0) {
                 json_response(['error' => 'ID invalide'], 400);
             }
-
-            $data = body();
 
             $url = $data['url'] ?? '';
             if ($url === '' || !filter_var($url, FILTER_VALIDATE_URL)) {

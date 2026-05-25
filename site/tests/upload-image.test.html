@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests — Upload image & icône lien</title>
+  <style>
+    body { font-family: monospace; background: #111; color: #eee; padding: 2rem; }
+    h1   { color: #7ED9B1; margin-bottom: 1.5rem; }
+    h2   { color: #7ED9B1; margin: 2rem 0 0.5rem; font-size: 1rem; }
+    .pass { color: #7ED9B1; }
+    .fail { color: #f88; }
+    .suite { border-left: 2px solid #333; padding-left: 1rem; margin-bottom: 1rem; }
+    .summary { margin-top: 2rem; font-size: 1.1rem; font-weight: bold; }
+    /* Upload manuel */
+    .manual { margin-top: 3rem; border-top: 1px solid #333; padding-top: 1.5rem; }
+    label { display: block; margin-bottom: .5rem; color: #aaa; font-size: .9rem; }
+    input[type=file], select { background: #222; color: #eee; border: 1px solid #444; padding: .4rem; margin-bottom: .5rem; }
+    button { background: #7ED9B1; color: #111; border: none; padding: .5rem 1.2rem; cursor: pointer; font-weight: 600; border-radius: 4px; }
+    button:hover { opacity: .85; }
+    pre  { background: #1a1a1a; padding: 1rem; border-radius: 4px; color: #ccc; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1>Tests — Upload image &amp; icône lien</h1>
+
+  <div id="results"></div>
+  <div class="summary" id="summary"></div>
+
+  <!-- ── Test manuel de l'endpoint upload ──────────────────── -->
+  <div class="manual">
+    <h2>🔧 Test manuel de l'endpoint /api/upload.php</h2>
+    <p style="color:#aaa;font-size:.85rem;margin-bottom:1rem">
+      Permet de tester l'upload réel vers le serveur (nécessite d'être connecté à l'admin).
+    </p>
+    <label>Type d'upload :
+      <select id="uploadType">
+        <option value="project">project</option>
+        <option value="link">link</option>
+      </select>
+    </label>
+    <label>Sélectionner une image :
+      <input type="file" id="fileInput" accept="image/*">
+    </label>
+    <button onclick="doManualUpload()">Uploader</button>
+    <pre id="manualResult">En attente…</pre>
+  </div>
+
+  <script>
+    /* ── Helpers de test ─────────────────────────────── */
+    let passed = 0, failed = 0;
+
+    function test(suite, desc, fn) {
+      try {
+        fn();
+        log(suite, desc, true);
+        passed++;
+      } catch (e) {
+        log(suite, desc, false, e.message);
+        failed++;
+      }
+    }
+
+    function assert(cond, msg) {
+      if (!cond) throw new Error(msg ?? 'Assertion échouée');
+    }
+
+    const suites = {};
+    function log(suite, desc, ok, err) {
+      if (!suites[suite]) {
+        suites[suite] = document.createElement('div');
+        suites[suite].className = 'suite';
+        suites[suite].innerHTML = `<h2>${suite}</h2>`;
+        document.getElementById('results').appendChild(suites[suite]);
+      }
+      const line = document.createElement('div');
+      line.className = ok ? 'pass' : 'fail';
+      line.textContent = `${ok ? '✓' : '✗'} ${desc}${err ? ' → ' + err : ''}`;
+      suites[suite].appendChild(line);
+    }
+
+    /* ── Copie locale de _isIconUrl (à garder en sync avec app.js) ── */
+    function _isIconUrl(v) {
+      return typeof v === 'string' && (v.startsWith('http') || v.startsWith('/'));
+    }
+
+    /* ── Suite 1 : détection URL vs emoji ────────────────── */
+    test('_isIconUrl', 'URL absolue https → true',
+      () => assert(_isIconUrl('https://example.com/icon.png') === true));
+
+    test('_isIconUrl', 'URL absolue http → true',
+      () => assert(_isIconUrl('http://example.com/icon.png') === true));
+
+    test('_isIconUrl', 'Chemin relatif /uploads/links/… → true',
+      () => assert(_isIconUrl('/uploads/links/abc123.jpg') === true));
+
+    test('_isIconUrl', 'Emoji 🐙 → false',
+      () => assert(_isIconUrl('🐙') === false));
+
+    test('_isIconUrl', 'Chaîne vide → false',
+      () => assert(_isIconUrl('') === false));
+
+    test('_isIconUrl', 'null → false',
+      () => assert(_isIconUrl(null) === false));
+
+    test('_isIconUrl', 'undefined → false',
+      () => assert(_isIconUrl(undefined) === false));
+
+    test('_isIconUrl', 'Texte simple "GH" → false',
+      () => assert(_isIconUrl('GH') === false));
+
+    /* ── Suite 2 : rendu renderSocialLinks ───────────────── */
+    /* Simulation minimale sans le DOM complet */
+    test('renderSocialLinks', 'Lien emoji → a.textContent = emoji', () => {
+      const container = document.createElement('div');
+      container.id = 'social-links-test';
+
+      const links = [{ url: 'https://github.com', platform: 'GitHub', icon: '🐙' }];
+      links.forEach(link => {
+        const a = document.createElement('a');
+        a.href = link.url;
+        if (_isIconUrl(link.icon)) {
+          const img = document.createElement('img');
+          img.src = link.icon; img.alt = link.platform;
+          a.appendChild(img);
+        } else if (link.icon) {
+          a.textContent = link.icon;
+        }
+        container.appendChild(a);
+      });
+
+      const a = container.querySelector('a');
+      assert(a.textContent === '🐙', 'textContent devrait être 🐙');
+      assert(!a.querySelector('img'), 'pas de <img> attendu pour un emoji');
+    });
+
+    test('renderSocialLinks', 'Lien icône URL → <img> avec src correct', () => {
+      const links = [{ url: 'https://github.com', platform: 'GitHub', icon: '/uploads/links/abc.png' }];
+      const a = document.createElement('a');
+      if (_isIconUrl(links[0].icon)) {
+        const img = document.createElement('img');
+        img.src = links[0].icon; img.alt = links[0].platform;
+        a.appendChild(img);
+      } else if (links[0].icon) {
+        a.textContent = links[0].icon;
+      }
+
+      const img = a.querySelector('img');
+      assert(img !== null, '<img> devrait être présent');
+      assert(img.src.endsWith('/uploads/links/abc.png'), 'src incorrect : ' + img.src);
+      assert(img.alt === 'GitHub', 'alt incorrect : ' + img.alt);
+      assert(a.textContent === '', 'textContent devrait être vide (pas de texte en double)');
+    });
+
+    test('renderSocialLinks', 'Lien sans icône → ni img ni textContent', () => {
+      const links = [{ url: 'https://example.com', platform: 'Site', icon: null }];
+      const a = document.createElement('a');
+      if (_isIconUrl(links[0].icon)) {
+        const img = document.createElement('img');
+        a.appendChild(img);
+      } else if (links[0].icon) {
+        a.textContent = links[0].icon;
+      }
+      assert(!a.querySelector('img'), 'pas de <img>');
+      assert(a.textContent === '', 'pas de textContent');
+    });
+
+    /* ── Résumé ──────────────────────────────────────────── */
+    const total = passed + failed;
+    const summary = document.getElementById('summary');
+    summary.className = failed === 0 ? 'summary pass' : 'summary fail';
+    summary.textContent = `${passed}/${total} tests passés${failed > 0 ? ` — ${failed} échec(s)` : ' ✓'}`;
+
+    /* ── Test manuel upload ──────────────────────────────── */
+    async function doManualUpload() {
+      const fileInput  = document.getElementById('fileInput');
+      const uploadType = document.getElementById('uploadType').value;
+      const pre        = document.getElementById('manualResult');
+
+      if (!fileInput.files[0]) {
+        pre.textContent = '⚠ Sélectionner un fichier avant d\'uploader.';
+        return;
+      }
+
+      pre.textContent = 'Upload en cours…';
+      try {
+        const fd = new FormData();
+        fd.append('image', fileInput.files[0]);
+        const res  = await fetch(`../api/upload.php?type=${uploadType}`, { method: 'POST', body: fd });
+        const data = await res.json();
+        pre.textContent = JSON.stringify(data, null, 2);
+        if (data.url) {
+          const img = document.createElement('img');
+          img.src   = '../' + data.url.replace(/^\//, '');
+          img.style = 'max-height:120px;display:block;margin-top:1rem;border:1px solid #333';
+          pre.after(img);
+        }
+      } catch (e) {
+        pre.textContent = 'Erreur réseau : ' + e.message;
+      }
+    }
+  </script>
+</body>
+</html>

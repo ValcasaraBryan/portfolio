@@ -99,7 +99,7 @@
         columns: ['is_favorite','name','category','url','github_url','skills'],
         fields: [
           { key: 'name' },
-          { key: 'photo_url' },
+          { key: 'photo_url', type: 'image_upload', uploadType: 'project', label: 'Photo' },
           { key: 'description' },
           { key: 'date' },
           { key: 'url' },
@@ -142,7 +142,7 @@
         fields: [
           { key: 'platform', suggestions: ['GitHub','LinkedIn','Email','Twitter','Behance','Dribbble'] },
           { key: 'url' },
-          { key: 'icon' },
+          { key: 'icon', type: 'image_upload', uploadType: 'link', label: 'Icône (image ou emoji)' },
         ],
       },
     ];
@@ -234,6 +234,91 @@
       );
     }
 
+    /* ── IMAGE PICKER FIELD ──────────────────────────────── */
+    function ImagePickerField({ value, onChange, uploadType, label }) {
+      const [uploading, setUploading] = useState(false);
+      const [error,     setError]     = useState(null);
+
+      const isPreviewable = v => typeof v === 'string' && v.trim() !== '' &&
+        (v.startsWith('http') || v.startsWith('/'));
+
+      const handleUpload = () => {
+        const input = document.createElement('input');
+        input.type   = 'file';
+        input.accept = 'image/*';
+        input.onchange = async () => {
+          const file = input.files[0];
+          if (!file) return;
+          setUploading(true);
+          setError(null);
+          try {
+            const fd = new FormData();
+            fd.append('image', file);
+            const res = await fetch(`${API}/upload.php?type=${uploadType}`, {
+              method: 'POST',
+              body: fd,
+              /* Pas de Content-Type : le navigateur gère le boundary multipart */
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error ?? 'Erreur upload');
+            onChange(data.url);
+          } catch (e) {
+            setError(e.message);
+          } finally {
+            setUploading(false);
+          }
+        };
+        input.click();
+      };
+
+      return React.createElement(Box, { sx: { display: 'flex', flexDirection: 'column', gap: 1 } },
+        /* Label */
+        React.createElement(Typography, {
+          variant: 'caption',
+          sx: { color: 'text.secondary', fontWeight: 500 },
+        }, label),
+
+        /* Prévisualisation */
+        isPreviewable(value) && React.createElement(Box, {
+          sx: { width: 80, height: 80, border: '1px solid #333', borderRadius: 1,
+                overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: '#222' },
+        },
+          React.createElement('img', {
+            src: value, alt: 'Aperçu',
+            style: { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' },
+          })
+        ),
+
+        /* Ligne : champ texte + bouton upload */
+        React.createElement(Box, { sx: { display: 'flex', gap: 1, alignItems: 'center' } },
+          React.createElement(TextField, {
+            size: 'small',
+            placeholder: 'URL ou emoji…',
+            value: value ?? '',
+            onChange: e => onChange(e.target.value || null),
+            sx: { flex: 1 },
+          }),
+          React.createElement(Button, {
+            variant: 'outlined', size: 'small',
+            disabled: uploading,
+            onClick:  handleUpload,
+            sx: { whiteSpace: 'nowrap', minWidth: 110 },
+          }, uploading ? 'Envoi…' : '📁 Uploader'),
+          value && React.createElement(Button, {
+            variant: 'outlined', size: 'small', color: 'error',
+            onClick: () => onChange(null),
+            sx: { minWidth: 32, px: 0.5 },
+          }, '✕'),
+        ),
+
+        /* Erreur upload */
+        error && React.createElement(Typography, {
+          variant: 'caption', sx: { color: 'error.main' },
+        }, error),
+      );
+    }
+
     /* ── AUTO FIELD ───────────────────────────────────────── */
     function AutoField({ fieldDef, form, setForm, rows }) {
       const key   = fieldDef.key;
@@ -260,6 +345,17 @@
             sx: { color: '#7ED9B1', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' },
           }, label)
         );
+      }
+
+      /* Upload d'image (projets, liens) */
+      if (fieldDef.type === 'image_upload') {
+        return React.createElement(ImagePickerField, {
+          key,
+          label,
+          value:      form[key] ?? null,
+          uploadType: fieldDef.uploadType,
+          onChange:   url => setForm(prev => ({ ...prev, [key]: url ?? '' })),
+        });
       }
 
       if (opts) {

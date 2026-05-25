@@ -23,4 +23,11 @@ bdd/*
 .vscode/
 
 # CV uploads (fichiers binaires, hors git)
-site/uploads/cv/*.pdf
+site/uploads/**/*.pdf
+site/uploads/**/*.jpg
+site/uploads/**/*.jpeg
+site/uploads/**/*.png
+site/uploads/**/*.webp
+site/uploads/**/*.gif
+!site/uploads/**/.htaccess
+

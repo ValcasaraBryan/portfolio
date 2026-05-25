@@ -609,10 +609,16 @@ function renderContactLink(link) {
     ? link.url : '#';
   const isEmail = safeUrl.startsWith('mailto:');
   const display = escapeHtml(safeUrl.replace('mailto:', ''));
+
+  // Même logique que le drawer : image si URL/chemin, sinon emoji/texte
+  const iconHtml = _isIconUrl(link.icon)
+    ? `<img src="${escapeHtml(link.icon)}" alt="${escapeHtml(link.platform ?? '')}" width="24" height="24" style="object-fit:contain">`
+    : escapeHtml(link.icon ?? '');
+
   return `
     <a class="contact-link-row" href="${escapeHtml(safeUrl)}"
        ${!isEmail ? 'target="_blank" rel="noopener noreferrer"' : ''}>
-      <span class="contact-link-row__icon">${escapeHtml(link.icon ?? '')}</span>
+      <span class="contact-link-row__icon">${iconHtml}</span>
       <span class="contact-link-row__body">
         <span class="contact-link-row__label">${escapeHtml(link.platform ?? '')}</span>
         <span class="contact-link-row__value">${display}</span>
@@ -883,20 +889,40 @@ async function updateCvLink(currentLang) {
 }
 
 /* ── SOCIAL LINKS ──────────────────────────────────────────── */
+
+/** Détecte si une valeur d'icône est une URL/chemin vers une image. */
+function _isIconUrl(v) {
+  return typeof v === 'string' && (v.startsWith('http') || v.startsWith('/'));
+}
+
 function renderSocialLinks(links) {
   const container = document.getElementById('social-links');
   if (!container) return;
   container.innerHTML = '';
   (links ?? []).forEach(link => {
     const a = document.createElement('a');
-    a.href       = link.url;
-    a.className  = 'social-link';
-    a.title      = link.platform;
-    a.textContent = link.icon;          // textContent, jamais innerHTML
+    a.href      = link.url;
+    a.className = 'social-link';
+    a.title     = link.platform;
     if (!link.url.startsWith('mailto:')) {
       a.target = '_blank';
       a.rel    = 'noopener noreferrer';
     }
+
+    if (_isIconUrl(link.icon)) {
+      /* Icône image (fichier uploadé ou URL externe) */
+      const img = document.createElement('img');
+      img.src              = link.icon;
+      img.alt              = link.platform;
+      img.width            = 24;
+      img.height           = 24;
+      img.style.objectFit  = 'contain';
+      a.appendChild(img);
+    } else if (link.icon) {
+      /* Emoji ou texte court — textContent, jamais innerHTML */
+      a.textContent = link.icon;
+    }
+
     container.appendChild(a);
   });
 }
