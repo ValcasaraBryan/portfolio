@@ -41,7 +41,7 @@
       TextField, Alert, Snackbar, CircularProgress, Chip, Autocomplete,
       MenuItem, Divider, createTheme, ThemeProvider, CssBaseline,
     } from '@mui/material';
-    import { Star, StarBorder, Delete } from '@mui/icons-material';
+    import { Star, StarBorder, Delete, ExpandMore } from '@mui/icons-material';
 
     const API = '../api';
     const DRAWER_WIDTH = 220;
@@ -519,6 +519,200 @@
       );
     }
 
+    /* ── i18n UTILITIES ───────────────────────────────────── */
+
+    // Aplatit { contact: { form: { name_label: "Nom" } } } → { "contact.form.name_label": "Nom" }
+    function flattenI18n(obj, prefix = '') {
+      return Object.entries(obj).reduce((acc, [k, v]) => {
+        const key = prefix ? `${prefix}.${k}` : k;
+        if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
+          Object.assign(acc, flattenI18n(v, key));
+        } else {
+          acc[key] = String(v ?? '');
+        }
+        return acc;
+      }, {});
+    }
+
+    // Inverse : "contact.form.name_label" → { contact: { form: { name_label: "Nom" } } }
+    function unflattenI18n(flat) {
+      return Object.entries(flat).reduce((acc, [path, val]) => {
+        const parts = path.split('.');
+        let cur = acc;
+        for (let i = 0; i < parts.length - 1; i++) {
+          if (!cur[parts[i]] || typeof cur[parts[i]] !== 'object') cur[parts[i]] = {};
+          cur = cur[parts[i]];
+        }
+        cur[parts[parts.length - 1]] = val;
+        return acc;
+      }, {});
+    }
+
+    // Groupe les clés aplaties par section top-level
+    function groupBySection(flatKeys) {
+      return Object.keys(flatKeys).reduce((acc, key) => {
+        const section = key.split('.')[0];
+        if (!acc[section]) acc[section] = [];
+        acc[section].push(key);
+        return acc;
+      }, {});
+    }
+
+    /* ── TRANSLATIONS EDITOR ──────────────────────────────── */
+    function TranslationsEditor() {
+      const [flatFr,   setFlatFr]   = useState({});
+      const [flatEn,   setFlatEn]   = useState({});
+      const [original, setOriginal] = useState(null);
+      const [loading,  setLoading]  = useState(true);
+      const [saving,   setSaving]   = useState(false);
+      const [snack,    setSnack]    = useState(null);
+      const [expanded, setExpanded] = useState(new Set());
+
+      useEffect(() => {
+        apiFetch('i18n.php')
+          .then(data => {
+            const fr = flattenI18n(data.fr);
+            const en = flattenI18n(data.en);
+            setFlatFr(fr);
+            setFlatEn(en);
+            setOriginal(JSON.stringify({ fr, en }));
+          })
+          .catch(() => setSnack({ msg: 'Erreur de chargement des traductions.', sev: 'error' }))
+          .finally(() => setLoading(false));
+      }, []);
+
+      const isDirty = original !== null
+        && JSON.stringify({ fr: flatFr, en: flatEn }) !== original;
+
+      const save = async () => {
+        setSaving(true);
+        try {
+          await apiFetch('i18n.php', {
+            method: 'PUT',
+            body: JSON.stringify({ fr: unflattenI18n(flatFr), en: unflattenI18n(flatEn) }),
+          });
+          setOriginal(JSON.stringify({ fr: flatFr, en: flatEn }));
+          setSnack({ msg: 'Traductions enregistrées.', sev: 'success' });
+        } catch {
+          setSnack({ msg: 'Erreur lors de la sauvegarde.', sev: 'error' });
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      if (loading) return React.createElement(Box, { sx: { p: 4, textAlign: 'center' } },
+        React.createElement(CircularProgress, { color: 'primary' }));
+
+      const grouped  = groupBySection(flatFr);
+      const sections = ['nav', 'about', 'common', 'experiences', 'creations', 'formations', 'contact']
+        .filter(s => grouped[s]);
+
+      return React.createElement(Box, { sx: { maxWidth: 900 } },
+
+        /* En-tête + bouton Enregistrer */
+        React.createElement(Box, { sx: { display: 'flex', alignItems: 'center', mb: 3, gap: 2 } },
+          React.createElement(Typography, { variant: 'h6', sx: { flexGrow: 1 } }, 'Traductions'),
+          React.createElement(Button, {
+            variant:  'contained',
+            color:    'primary',
+            disabled: !isDirty || saving,
+            onClick:  save,
+          }, saving
+            ? React.createElement(CircularProgress, { size: 16, color: 'inherit' })
+            : (isDirty ? 'Enregistrer *' : 'Enregistrer')
+          ),
+        ),
+
+        /* Sections dépliables (custom — sans MUI Accordion) */
+        ...sections.map(section => {
+          const isOpen = expanded.has(section);
+          const toggle = () => setExpanded(prev => {
+            const next = new Set(prev);
+            next.has(section) ? next.delete(section) : next.add(section);
+            return next;
+          });
+          return React.createElement(Box, {
+            key: section,
+            sx: { background: '#1a1a1a', mb: 1, borderRadius: 1, overflow: 'hidden', border: '1px solid #2a2a2a' },
+          },
+            /* ── En-tête cliquable ── */
+            React.createElement(Box, {
+              onClick: toggle,
+              sx: {
+                display: 'flex', alignItems: 'center', p: '12px 16px',
+                cursor: 'pointer', userSelect: 'none',
+                borderBottom: isOpen ? '1px solid #2a2a2a' : 'none',
+                '&:hover': { background: 'rgba(126,217,177,0.05)' },
+              },
+            },
+              React.createElement(Typography, {
+                sx: { color: '#7ED9B1', fontWeight: 600, textTransform: 'capitalize', flexGrow: 1 },
+              }, section),
+              React.createElement(Typography, {
+                sx: { color: '#555', mr: 1.5, fontSize: '0.8rem' },
+              }, `${grouped[section].length} clé${grouped[section].length > 1 ? 's' : ''}`),
+              React.createElement(ExpandMore, {
+                sx: {
+                  color: '#7ED9B1', fontSize: '1.2rem',
+                  transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 200ms ease',
+                },
+              }),
+            ),
+            /* ── Contenu (affiché si ouvert) ── */
+            isOpen && React.createElement(Box, { sx: { p: 2 } },
+              /* Ligne d'en-tête colonnes */
+              React.createElement(Box, {
+                sx: { display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 1, mb: 1, px: 0.5 },
+              },
+                React.createElement(Typography, { sx: { fontSize: '0.75rem', color: '#444', fontFamily: 'monospace' } }, 'Clé'),
+                React.createElement(Typography, { sx: { fontSize: '0.75rem', color: '#444' } }, 'FR'),
+                React.createElement(Typography, { sx: { fontSize: '0.75rem', color: '#444' } }, 'EN'),
+              ),
+              /* Lignes de clés */
+              ...grouped[section].map(key =>
+                React.createElement(Box, {
+                  key,
+                  sx: { display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 1, mb: 1, alignItems: 'flex-start' },
+                },
+                  React.createElement(Typography, {
+                    sx: { fontFamily: 'monospace', fontSize: '0.72rem', color: '#666', pt: 1, wordBreak: 'break-all' },
+                  }, key.replace(`${section}.`, '')),
+                  React.createElement(TextField, {
+                    fullWidth:  true,
+                    size:       'small',
+                    multiline:  (flatFr[key] ?? '').length > 60,
+                    rows:       (flatFr[key] ?? '').length > 60 ? 2 : 1,
+                    value:      flatFr[key] ?? '',
+                    onChange:   e => setFlatFr(prev => ({ ...prev, [key]: e.target.value })),
+                    sx: { '& .MuiInputBase-root': { fontSize: '0.8rem' } },
+                  }),
+                  React.createElement(TextField, {
+                    fullWidth:  true,
+                    size:       'small',
+                    multiline:  (flatEn[key] ?? '').length > 60,
+                    rows:       (flatEn[key] ?? '').length > 60 ? 2 : 1,
+                    value:      flatEn[key] ?? '',
+                    onChange:   e => setFlatEn(prev => ({ ...prev, [key]: e.target.value })),
+                    sx: { '& .MuiInputBase-root': { fontSize: '0.8rem' } },
+                  }),
+                )
+              ),
+            ),
+          );
+        }),
+
+        /* Snackbar */
+        React.createElement(Snackbar, {
+          open: !!snack, autoHideDuration: 4000,
+          onClose: () => setSnack(null),
+          anchorOrigin: { vertical: 'bottom', horizontal: 'center' },
+        },
+          snack && React.createElement(Alert, { severity: snack.sev, variant: 'filled' }, snack.msg)
+        ),
+      );
+    }
+
     /* ── CRUD TABLE ────────────────────────────────────────── */
     function CrudTable({ section }) {
       const [rows,              setRows]              = useState([]);
@@ -809,9 +1003,10 @@
     }
 
     /* ── ADMIN APP ─────────────────────────────────────────── */
-    const PROFILE_NAV = { id: 'profile', label: 'Profil' };
-    const CV_NAV      = { id: 'cv',      label: 'CV' };
-    const ALL_NAV     = [...SECTIONS, PROFILE_NAV, CV_NAV];
+    const PROFILE_NAV      = { id: 'profile',      label: 'Profil' };
+    const CV_NAV           = { id: 'cv',           label: 'CV' };
+    const I18N_NAV         = { id: 'translations', label: 'Traductions' };
+    const ALL_NAV          = [...SECTIONS, PROFILE_NAV, CV_NAV, I18N_NAV];
 
     function AdminApp() {
       const [active, setActive] = useState('experiences');
@@ -881,9 +1076,11 @@
               )
             ),
             active === 'profile'
-              ? React.createElement(ProfileForm, { key: 'profile' })
+              ? React.createElement(ProfileForm,         { key: 'profile' })
               : active === 'cv'
-              ? React.createElement(CvSection,   { key: 'cv' })
+              ? React.createElement(CvSection,           { key: 'cv' })
+              : active === 'translations'
+              ? React.createElement(TranslationsEditor,  { key: 'translations' })
               : section && React.createElement(CrudTable, { key: active, section }),
           )
         )
