@@ -44,7 +44,10 @@ switch (method()) {
             $photo_url = isset($data['photo_url']) && $data['photo_url'] !== ''
                 ? $data['photo_url']
                 : null;
-            if ($photo_url !== null && !filter_var($photo_url, FILTER_VALIDATE_URL)) {
+            // Accepte les URL absolues (https://…) ET les chemins d'upload locaux (/uploads/…)
+            if ($photo_url !== null
+                && !filter_var($photo_url, FILTER_VALIDATE_URL)
+                && !str_starts_with($photo_url, '/uploads/')) {
                 json_response(['error' => 'Invalid photo_url'], 400);
             }
 

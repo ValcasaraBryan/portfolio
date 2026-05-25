@@ -52,8 +52,8 @@ require_auth();
 
 // Validation du paramètre type
 $type = $_GET['type'] ?? '';
-if (!in_array($type, ['project', 'link'], true)) {
-    json_response(['error' => 'Paramètre type invalide. Valeurs acceptées : project, link.'], 400);
+if (!in_array($type, ['project', 'link', 'profile'], true)) {
+    json_response(['error' => 'Paramètre type invalide. Valeurs acceptées : project, link, profile.'], 400);
 }
 
 // Vérification présence du fichier
