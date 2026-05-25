@@ -90,8 +90,8 @@
     test('_isIconUrl', 'URL absolue http → true',
       () => assert(_isIconUrl('http://example.com/icon.png') === true));
 
-    test('_isIconUrl', 'Chemin relatif /uploads/links/… → true',
-      () => assert(_isIconUrl('/uploads/links/abc123.jpg') === true));
+    test('_isIconUrl', 'Chemin relatif /uploads/link/… → true',
+      () => assert(_isIconUrl('/uploads/link/abc123.jpg') === true));
 
     test('_isIconUrl', 'Emoji 🐙 → false',
       () => assert(_isIconUrl('🐙') === false));
@@ -134,7 +134,7 @@
     });
 
     test('renderSocialLinks', 'Lien icône URL → <img> avec src correct', () => {
-      const links = [{ url: 'https://github.com', platform: 'GitHub', icon: '/uploads/links/abc.png' }];
+      const links = [{ url: 'https://github.com', platform: 'GitHub', icon: '/uploads/link/abc.png' }];
       const a = document.createElement('a');
       if (_isIconUrl(links[0].icon)) {
         const img = document.createElement('img');
@@ -146,7 +146,7 @@
 
       const img = a.querySelector('img');
       assert(img !== null, '<img> devrait être présent');
-      assert(img.src.endsWith('/uploads/links/abc.png'), 'src incorrect : ' + img.src);
+      assert(img.src.endsWith('/uploads/link/abc.png'), 'src incorrect : ' + img.src);
       assert(img.alt === 'GitHub', 'alt incorrect : ' + img.alt);
       assert(a.textContent === '', 'textContent devrait être vide (pas de texte en double)');
     });
