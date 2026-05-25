@@ -62,7 +62,9 @@
         "subtitle": "Diplômes + les certifications & cours accumulés en chemin.",
         "diplomas_label": "diplômes",
         "skills_title": "Compétences",
-        "certifications_title": "Certifications"
+        "certifications_title": "Certifications",
+        "skill_modal_close": "Fermer",
+        "category_skills": "Compétences de la catégorie"
     },
     "contact": {
         "title": "Contact",

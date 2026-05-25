@@ -3,6 +3,8 @@ let lang = 'fr';
 let projectsCache = null;
 let _altchaPayload = '';
 
+const SKILLS_GROUP_THRESHOLD = 5;
+
 /* ── I18N — délègue au module i18n.js ──────────────────────── */
 function t(key)      { return I18n.t(key); }
 function applyI18n() { I18n.applyI18n(); }
@@ -562,7 +564,11 @@ async function renderFormations() {
             <div class="formation-card__content">
               <div class="formation-card__title">${escapeHtml(f.title)}</div>
               <div class="formation-card__school">${escapeHtml(f.school)}${f.level ? ` · ${escapeHtml(f.level)}` : ''}</div>
-              ${f.skills?.length ? `<div class="formation-card__sep"></div>${chips(f.skills)}` : ''}
+              ${f.skills?.length ? `<div class="formation-card__sep"></div>${
+                f.skills.length >= SKILLS_GROUP_THRESHOLD
+                  ? chipsGroupedByCategory(f.skills)
+                  : chips(f.skills)
+              }` : ''}
             </div>
           </div>`;
         }).join('')}
@@ -577,7 +583,12 @@ async function renderFormations() {
           ${Object.entries(byCategory).map(([cat, items]) => `
             <div class="skills-sidebar__category">
               <div class="skills-sidebar__category-name">${cat}</div>
-              <div class="chips-list">${items.map(s => `<span class="chip">${escapeHtml(s.name)}</span>`).join('')}</div>
+              <div class="chips-list">${items.map(s => {
+                const raw = s?.category_color ?? null;
+                const color = (typeof raw === 'string' && /^#[0-9a-fA-F]{6}$/.test(raw)) ? raw : null;
+                const colorAttr = color ? ` chip--colored" style="--chip-color:${color}` : '';
+                return `<span class="chip${colorAttr}">${escapeHtml(s.name)}</span>`;
+              }).join('')}</div>
             </div>
           `).join('')}
         </div>
@@ -595,8 +606,58 @@ async function renderFormations() {
 
       </div>
     </div>
+
+    <!-- Modal skill / catégorie -->
+    <div class="modal-overlay hidden" id="skill-modal" onclick="closeSkillModal(event)">
+      <div class="modal" id="skill-modal-body"></div>
+    </div>
   `;
   applyI18n();
+
+  // Attacher tooltip + modal sur les chips de skills individuels
+  panel.querySelectorAll('.chip--hoverable:not(.chip--category)').forEach(chip => {
+    chip.addEventListener('mouseenter', showSkillTooltip);
+    chip.addEventListener('mouseleave', hideSkillTooltip);
+    chip.addEventListener('click', () => {
+      hideSkillTooltip();
+      openSkillModal('skill', {
+        skill:       chip.dataset.skill,
+        category:    chip.dataset.category,
+        description: chip.dataset.description,
+      });
+    });
+  });
+
+  // Catégories : hover → dévoiler les skills ; clic → épingler ouvert/fermé
+  panel.querySelectorAll('.chip--category').forEach(btn => {
+    const group = btn.closest('.skill-group');
+
+    // Tooltip + ouverture au hover (desktop)
+    btn.addEventListener('mouseenter', e => {
+      showSkillTooltip(e);
+      group.classList.add('skill-group--open');
+    });
+    btn.addEventListener('mouseleave', hideSkillTooltip);
+
+    // Fermer au départ de la zone groupe (sauf si épinglé)
+    group.addEventListener('mouseleave', () => {
+      if (!group.classList.contains('skill-group--pinned')) {
+        group.classList.remove('skill-group--open');
+      }
+    });
+
+    // Clic : épingler/désépingler (toggle persistant — utile mobile + desktop)
+    btn.addEventListener('click', () => {
+      hideSkillTooltip();
+      const wasPinned = group.classList.contains('skill-group--pinned');
+      // Fermer les autres groupes épinglés
+      panel.querySelectorAll('.skill-group--pinned').forEach(g => {
+        if (g !== group) g.classList.remove('skill-group--pinned', 'skill-group--open');
+      });
+      group.classList.toggle('skill-group--pinned', !wasPinned);
+      group.classList.toggle('skill-group--open',   !wasPinned);
+    });
+  });
 }
 
 /* ── CONTACT — rendu d'un lien en rangée ────────────────────── */
@@ -788,7 +849,129 @@ function escapeHtml(str) { return AppUtils.escapeHtml(str); }
 
 function chips(items) {
   if (!items?.length) return '';
-  return `<div class="chips-list">${items.map(s => `<span class="chip">${s.name ?? s}</span>`).join('')}</div>`;
+  return `<div class="chips-list">${items.map(s => {
+    // Compatibilité usage legacy (tableau de chaînes)
+    if (typeof s === 'string') return `<span class="chip">${escapeHtml(s)}</span>`;
+
+    // Objet skill : lire category_color (champ API) — fallback sur color
+    const raw   = s?.category_color ?? s?.color ?? null;
+    const color = (typeof raw === 'string' && /^#[0-9a-fA-F]{6}$/.test(raw)) ? raw : null;
+
+    // Construire la liste de classes proprement (sans hack de fermeture de guillemet)
+    const classes = ['chip'];
+    if (s.category || s.category_description) classes.push('chip--hoverable');
+    if (color) classes.push('chip--colored');
+
+    const style = color ? ` style="--chip-color:${color}"` : '';
+
+    return `<span class="${classes.join(' ')}"${style}
+                  data-skill="${escapeHtml(s.name ?? '')}"
+                  data-category="${escapeHtml(s.category ?? '')}"
+                  data-description="${escapeHtml(s.category_description ?? '')}"
+                  data-color="${escapeHtml(raw ?? '')}">${escapeHtml(s.name ?? '')}</span>`;
+  }).join('')}</div>`;
+}
+
+function chipsGroupedByCategory(skills) {
+  if (!skills?.length) return '';
+  // Grouper par catégorie en préservant l'ordre retourné par l'API (sort_order)
+  const groups = {};
+  skills.forEach(s => {
+    const key = s.category ?? '';
+    if (!groups[key]) {
+      groups[key] = { description: s.category_description ?? '', color: s.category_color ?? null, items: [] };
+    }
+    groups[key].items.push(s);
+  });
+
+  return `<div class="skill-groups">${
+    Object.entries(groups).map(([cat, { description, color, items }]) => {
+      const safeColor = (typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color)) ? color : null;
+      const colorStyle = safeColor ? ` style="--chip-color:${safeColor}"` : '';
+      const colorClass = safeColor ? ' chip--colored' : '';
+      return `
+      <div class="skill-group">
+        <button class="chip chip--category chip--hoverable${colorClass}"
+                data-category="${escapeHtml(cat)}"
+                data-description="${escapeHtml(description)}"
+                data-color="${escapeHtml(color ?? '')}"
+                ${colorStyle}>
+          ${escapeHtml(cat)}<span class="chip__count">${items.length}</span><span class="chip__caret">▾</span>
+        </button>
+        <div class="chips-list chips-list--sub">
+          ${items.map(s => `
+            <span class="chip chip--hoverable${colorClass}"
+                  data-skill="${escapeHtml(s.name)}"
+                  data-category="${escapeHtml(cat)}"
+                  data-description="${escapeHtml(description)}"
+                  data-color="${escapeHtml(color ?? '')}"
+                  ${colorStyle}>
+              ${escapeHtml(s.name)}
+            </span>`).join('')}
+        </div>
+      </div>`;
+    }).join('')
+  }</div>`;
+}
+
+/* ── SKILL TOOLTIP (singleton) ─────────────────────────────── */
+function _getSkillTooltip() {
+  let el = document.getElementById('skill-tooltip');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'skill-tooltip';
+    el.className = 'skill-tooltip hidden';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+function showSkillTooltip(e) {
+  const target = e.currentTarget;
+  const cat    = target.dataset.category || target.dataset.skill || '';
+  const desc   = target.dataset.description || '';
+  if (!cat) return;
+  const tip = _getSkillTooltip();
+  tip.innerHTML = `<strong>${escapeHtml(cat)}</strong>${desc ? `<br><span>${escapeHtml(desc)}</span>` : ''}`;
+  tip.classList.remove('hidden');
+  const rect = target.getBoundingClientRect();
+  tip.style.left = `${rect.left}px`;
+  tip.style.top  = `${rect.bottom + 6}px`;
+}
+
+function hideSkillTooltip() {
+  _getSkillTooltip().classList.add('hidden');
+}
+
+/* ── SKILL MODAL ───────────────────────────────────────────── */
+function openSkillModal(type, data) {
+  const body = document.getElementById('skill-modal-body');
+  if (!body) return;
+  const closeBtn = `<button class="modal__close-btn" onclick="document.getElementById('skill-modal').classList.add('hidden')">${t('formations.skill_modal_close')}</button>`;
+  if (type === 'skill') {
+    body.innerHTML = `
+      <div class="modal__category">${escapeHtml(data.category ?? '')}</div>
+      <h2 class="modal__title">${escapeHtml(data.skill ?? '')}</h2>
+      ${data.description ? `<p class="modal__description">${escapeHtml(data.description)}</p>` : ''}
+      ${closeBtn}`;
+  } else {
+    // type === 'category'
+    body.innerHTML = `
+      <div class="modal__category">${t('formations.category_skills')}</div>
+      <h2 class="modal__title">${escapeHtml(data.category ?? '')}</h2>
+      ${data.description ? `<p class="modal__description">${escapeHtml(data.description)}</p>` : ''}
+      <div class="chips-list skill-modal__chips">${
+        (data.skills ?? []).map(s => `<span class="chip">${escapeHtml(s.name ?? s)}</span>`).join('')
+      }</div>
+      ${closeBtn}`;
+  }
+  document.getElementById('skill-modal').classList.remove('hidden');
+}
+
+function closeSkillModal(e) {
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.add('hidden');
+  }
 }
 
 /** Affiche "2024 — now", "2022 — 2024" ou "2020" — délègue à AppUtils */

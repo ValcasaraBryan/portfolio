@@ -22,12 +22,21 @@ function get_formations(PDO $pdo, string $locale): array
     $formations = $stmt->fetchAll();
 
     foreach ($formations as &$formation) {
+        // Sélection des colonnes locale-dépendantes côté PHP pour éviter le doublon :locale en PDO
+        $nameCol = ($locale === 'fr') ? 'sc.name_fr' : 'sc.name_en';
+        $descCol = ($locale === 'fr') ? 'sc.description_fr' : 'sc.description_en';
         $stmt = $pdo->prepare(
-            'SELECT s.id, st.name, st.category
+            "SELECT s.id, st.name,
+                    COALESCE(NULLIF({$nameCol}, ''), st.category) AS category,
+                    COALESCE({$descCol}, '') AS category_description,
+                    COALESCE(sc.color, '#888888') AS category_color
              FROM `skills` s
              JOIN `skill_translations` st ON st.skill_id = s.id AND st.locale = :locale
              JOIN `formation_skills` fs ON fs.skill_id = s.id
-             WHERE fs.formation_id = :formation_id'
+             LEFT JOIN `skill_translations` st_en ON st_en.skill_id = s.id AND st_en.locale = 'en'
+             LEFT JOIN `skill_categories` sc ON sc.key = st_en.category
+             WHERE fs.formation_id = :formation_id
+             ORDER BY COALESCE(sc.sort_order, 99), st.category, st.name"
         );
         $stmt->execute([':locale' => $locale, ':formation_id' => $formation['id']]);
         $formation['skills'] = $stmt->fetchAll();

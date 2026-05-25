@@ -10,13 +10,20 @@ require_once __DIR__ . '/db.php';
 switch (method()) {
     case 'GET':
         if (isset($_GET['lang'])) {
-            // Visitor site / SkillsPicker : retourne name+category dans la locale demandée
-            $locale = in_array($_GET['lang'], ['fr', 'en']) ? $_GET['lang'] : 'fr';
+            // Visitor site / SkillsPicker : retourne name+category+category_color dans la locale demandée
+            $locale  = in_array($_GET['lang'], ['fr', 'en']) ? $_GET['lang'] : 'fr';
+            $nameCol = ($locale === 'fr') ? 'sc.name_fr' : 'sc.name_en';
+            $descCol = ($locale === 'fr') ? 'sc.description_fr' : 'sc.description_en';
             $stmt = $pdo->prepare(
-                'SELECT s.id, st.name, st.category
+                "SELECT s.id, st.name,
+                        COALESCE(NULLIF({$nameCol}, ''), st.category) AS category,
+                        COALESCE({$descCol}, '') AS category_description,
+                        COALESCE(sc.color, '#888888') AS category_color
                  FROM `skills` s
                  JOIN `skill_translations` st ON st.skill_id = s.id AND st.locale = :locale
-                 ORDER BY st.category, st.name'
+                 LEFT JOIN `skill_translations` st_en ON st_en.skill_id = s.id AND st_en.locale = 'en'
+                 LEFT JOIN `skill_categories` sc ON sc.key = st_en.category
+                 ORDER BY COALESCE(sc.sort_order, 99), st.category, st.name"
             );
             $stmt->execute([':locale' => $locale]);
         } else {
@@ -37,11 +44,13 @@ switch (method()) {
 
     case 'POST':
         require_auth();
-        $d    = body();
+        $d      = body();
+        // category_key (nouveau form admin groupé) ou category_fr (ancien form) — fallback gracieux
+        $catKey = $d['category_key'] ?? $d['category_fr'] ?? '';
         $stmt = $pdo->prepare(
             'INSERT INTO `skills` (`name`, `category`) VALUES (:name, :category)'
         );
-        $stmt->execute([':name' => $d['name_fr'] ?? '', ':category' => $d['category_fr'] ?? '']);
+        $stmt->execute([':name' => $d['name_fr'] ?? '', ':category' => $catKey]);
         $id = (int) $pdo->lastInsertId();
         $tr = $pdo->prepare(
             'INSERT INTO `skill_translations` (`skill_id`, `locale`, `name`, `category`)
@@ -51,19 +60,21 @@ switch (method()) {
             $tr->execute([
                 ':sid'      => $id,
                 ':locale'   => $loc,
-                ':name'     => $d["name_{$loc}"]     ?? '',
-                ':category' => $d["category_{$loc}"] ?? '',
+                ':name'     => $d["name_{$loc}"] ?? '',
+                // Quand category_key fourni : même clé pour les deux locales (cohérence avec skill_categories)
+                ':category' => isset($d['category_key']) ? $catKey : ($d["category_{$loc}"] ?? ''),
             ]);
         }
         json_response(['id' => $id], 201);
 
     case 'PUT':
         require_auth();
-        $d    = body();
+        $d      = body();
+        $catKey = $d['category_key'] ?? $d['category_fr'] ?? '';
         $stmt = $pdo->prepare(
             'UPDATE `skills` SET `name`=:name, `category`=:category WHERE `id`=:id'
         );
-        $stmt->execute([':id' => $d['id'], ':name' => $d['name_fr'] ?? '', ':category' => $d['category_fr'] ?? '']);
+        $stmt->execute([':id' => $d['id'], ':name' => $d['name_fr'] ?? '', ':category' => $catKey]);
         $tr = $pdo->prepare(
             'INSERT INTO `skill_translations` (`skill_id`, `locale`, `name`, `category`)
              VALUES (:sid, :locale, :name, :category)
@@ -73,8 +84,8 @@ switch (method()) {
             $tr->execute([
                 ':sid'      => $d['id'],
                 ':locale'   => $loc,
-                ':name'     => $d["name_{$loc}"]     ?? '',
-                ':category' => $d["category_{$loc}"] ?? '',
+                ':name'     => $d["name_{$loc}"] ?? '',
+                ':category' => isset($d['category_key']) ? $catKey : ($d["category_{$loc}"] ?? ''),
             ]);
         }
         json_response(['success' => true]);

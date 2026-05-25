@@ -62,7 +62,9 @@
         "subtitle": "Diplomas + the certifications & courses I've stacked along the way.",
         "diplomas_label": "diplomas",
         "skills_title": "Skills",
-        "certifications_title": "Certifications"
+        "certifications_title": "Certifications",
+        "skill_modal_close": "Close",
+        "category_skills": "Category skills"
     },
     "contact": {
         "title": "Contact",

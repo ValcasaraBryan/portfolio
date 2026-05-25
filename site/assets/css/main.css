@@ -265,6 +265,61 @@ a { color: inherit; text-decoration: none; }
   margin-top: 6px;
 }
 
+/* ── CHIP — variantes couleur + interactivité ─────────────── */
+
+/* Reset bouton navigateur — la forme reste celle de .chip */
+button.chip {
+  background: none;
+  cursor:     pointer;
+}
+
+/* Catégorie : légèrement plus grasse, espace pour le badge de compte */
+.chip--category {
+  font-weight: 600;
+  gap:         6px;
+}
+
+/* Badge de compte à l'intérieur d'un chip catégorie */
+.chip__count {
+  display:         inline-flex;
+  align-items:     center;
+  justify-content: center;
+  min-width:       16px;
+  height:          16px;
+  padding:         0 3px;
+  border-radius:   8px;
+  background:      var(--border);
+  font-size:       0.62rem;
+  font-weight:     700;
+  color:           var(--text-muted);
+  line-height:     1;
+}
+
+/* Couleur de catégorie via CSS custom property --chip-color */
+.chip--colored {
+  border-color: var(--chip-color, var(--border));
+  color:        var(--chip-color, var(--text));
+  background:   color-mix(in srgb, var(--chip-color, transparent) 8%, transparent);
+}
+
+/* Badge teinté quand le chip catégorie est coloré */
+.chip--category.chip--colored .chip__count {
+  background: color-mix(in srgb, var(--chip-color, transparent) 18%, transparent);
+  color:      var(--chip-color, var(--text-muted));
+}
+
+/* Chips interactifs */
+.chip--hoverable { cursor: pointer; }
+
+.chip--hoverable:not(.chip--colored):hover {
+  border-color: var(--green);
+  color:        var(--green);
+}
+
+.chip--hoverable.chip--colored:hover {
+  filter: brightness(1.18);
+}
+
 /* ── PERIOD ──────────────────────────────────────────────── */
 .period {
   display:     inline-flex;
@@ -1003,6 +1058,79 @@ a { color: inherit; text-decoration: none; }
   font-weight: 600;
   flex-shrink: 0;
 }
+
+/* ── SKILL GROUPS — formations card ───────────────────────── */
+.skill-groups {
+  margin-top:     6px;
+  display:        flex;
+  flex-direction: column;
+  gap:            8px;
+}
+
+.skill-group { display: flex; flex-direction: column; }
+
+/* Chips skills enfants : masqués par défaut, révélés au hover/clic */
+.chips-list--sub {
+  max-height:     0;
+  overflow:       hidden;
+  pointer-events: none;
+  margin-top:     0;
+  margin-left:    2px;
+  transition:     max-height 0.22s ease, margin-top 0.18s ease;
+}
+.skill-group--open .chips-list--sub {
+  max-height:     400px; /* valeur haute, le vrai bound est le contenu */
+  pointer-events: auto;
+  margin-top:     4px;
+}
+
+/* Caret d'expand à l'intérieur du chip catégorie */
+.chip__caret {
+  font-size:   0.6rem;
+  line-height: 1;
+  transition:  transform 0.2s ease;
+  display:     inline-block;
+  opacity:     0.6;
+}
+.skill-group--open .chip__caret { transform: rotate(180deg); }
+
+/* ── SKILL TOOLTIP ─────────────────────────────────────────── */
+.skill-tooltip {
+  position:      fixed;
+  z-index:       300;
+  max-width:     240px;
+  padding:       8px 12px;
+  background:    var(--bg-surface);
+  border:        1px solid var(--border);
+  border-radius: var(--radius);
+  font-size:     0.75rem;
+  line-height:   1.5;
+  color:         var(--text);
+  pointer-events: none;
+  box-shadow:    0 4px 14px rgba(0,0,0,0.15);
+}
+.skill-tooltip.hidden  { display: none; }
+.skill-tooltip strong  { color: var(--text); font-weight: 700; display: block; margin-bottom: 2px; }
+.skill-tooltip span    { color: var(--text-muted); }
+
+/* ── SKILL MODAL ───────────────────────────────────────────── */
+.skill-modal__chips { margin-top: 12px; }
+
+.modal__close-btn {
+  display:         inline-flex;
+  align-items:     center;
+  justify-content: center;
+  margin-top:      16px;
+  padding:         8px 20px;
+  background:      transparent;
+  border:          1px solid var(--border);
+  border-radius:   var(--radius-pill);
+  font-size:       0.8rem;
+  color:           var(--text-muted);
+  cursor:          pointer;
+  transition:      border-color 0.2s, color 0.2s;
+}
+.modal__close-btn:hover { border-color: var(--green); color: var(--green); }
 
 /* ════════════════════════════════════════════════════════════
    CONTACT TAB

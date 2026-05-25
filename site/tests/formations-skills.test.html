@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Test — Formations Skills (chips + groupement + couleur)</title>
+  <style>
+    body { font-family: monospace; background: #111; color: #eee; padding: 20px; }
+    h1   { color: #7ED9B1; margin-bottom: 16px; }
+    h2   { color: #aaa; font-size: 0.9rem; margin: 20px 0 8px; text-transform: uppercase; letter-spacing: 0.08em; }
+    .pass { color: #7ED9B1; }
+    .fail { color: #ff6b6b; }
+    .result { margin: 4px 0; font-size: 0.85rem; }
+    #summary { margin-top: 20px; padding: 12px; border: 1px solid #333; border-radius: 6px; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <h1>formations-skills.test.html</h1>
+  <div id="output"></div>
+  <div id="summary"></div>
+
+  <!-- Dépendances -->
+  <script src="../assets/js/app-utils.js"></script>
+  <script>
+    /* ─── Mini test runner ─────────────────────────────────── */
+    let passed = 0, failed = 0;
+    const out = document.getElementById('output');
+
+    function section(name) {
+      const h = document.createElement('h2');
+      h.textContent = name;
+      out.appendChild(h);
+    }
+
+    function assert(label, condition) {
+      const div = document.createElement('div');
+      div.className = 'result';
+      if (condition) {
+        div.innerHTML = `<span class="pass">✓</span> ${label}`;
+        passed++;
+      } else {
+        div.innerHTML = `<span class="fail">✗</span> ${label}`;
+        failed++;
+      }
+      out.appendChild(div);
+    }
+
+    function assertContains(label, html, substring) {
+      assert(label, html.includes(substring));
+    }
+    function assertNotContains(label, html, substring) {
+      assert(label, !html.includes(substring));
+    }
+
+    /* ─── Fonctions à tester (inline, sans import) ─────────── */
+    const SKILLS_GROUP_THRESHOLD = 5;
+
+    function escapeHtml(str) { return AppUtils.escapeHtml(str); }
+
+    function chips(items) {
+      if (!items?.length) return '';
+      return `<div class="chips-list">${items.map(s => {
+        if (typeof s === 'string') return `<span class="chip">${escapeHtml(s)}</span>`;
+        const raw   = s?.category_color ?? s?.color ?? null;
+        const color = (typeof raw === 'string' && /^#[0-9a-fA-F]{6}$/.test(raw)) ? raw : null;
+        const classes = ['chip'];
+        if (s.category || s.category_description) classes.push('chip--hoverable');
+        if (color) classes.push('chip--colored');
+        const style = color ? ` style="--chip-color:${color}"` : '';
+        return `<span class="${classes.join(' ')}"${style}
+                      data-skill="${escapeHtml(s.name ?? '')}"
+                      data-category="${escapeHtml(s.category ?? '')}"
+                      data-description="${escapeHtml(s.category_description ?? '')}"
+                      data-color="${escapeHtml(raw ?? '')}">${escapeHtml(s.name ?? '')}</span>`;
+      }).join('')}</div>`;
+    }
+
+    function chipsGroupedByCategory(skills) {
+      if (!skills?.length) return '';
+      const groups = {};
+      skills.forEach(s => {
+        const key = s.category ?? '';
+        if (!groups[key]) {
+          groups[key] = { description: s.category_description ?? '', color: s.category_color ?? null, items: [] };
+        }
+        groups[key].items.push(s);
+      });
+      return `<div class="skill-groups">${
+        Object.entries(groups).map(([cat, { description, color, items }]) => {
+          const safeColor = (typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color)) ? color : null;
+          const colorStyle = safeColor ? ` style="--chip-color:${safeColor}"` : '';
+          const colorClass = safeColor ? ' chip--colored' : '';
+          return `
+          <div class="skill-group">
+            <button class="chip chip--category chip--hoverable${colorClass}"
+                    data-category="${escapeHtml(cat)}"
+                    data-description="${escapeHtml(description)}"
+                    data-color="${escapeHtml(color ?? '')}"
+                    ${colorStyle}>
+              ${escapeHtml(cat)}<span class="chip__count">${items.length}</span><span class="chip__caret">▾</span>
+            </button>
+            <div class="chips-list chips-list--sub">
+              ${items.map(s => `
+                <span class="chip chip--hoverable${colorClass}"
+                      data-skill="${escapeHtml(s.name)}"
+                      data-category="${escapeHtml(cat)}"
+                      data-description="${escapeHtml(description)}"
+                      data-color="${escapeHtml(color ?? '')}"
+                      ${colorStyle}>
+                  ${escapeHtml(s.name)}
+                </span>`).join('')}
+            </div>
+          </div>`;
+        }).join('')
+      }</div>`;
+    }
+
+    /* ────────────────────────────────────────────────────────
+       TESTS
+       ──────────────────────────────────────────────────────── */
+
+    // ── chips() ──────────────────────────────────────────────
+    section('chips() — mode plat');
+
+    const fewSkills = [
+      { name: 'React', category: 'Front-End', category_color: '#7ED9B1' },
+      { name: 'Vue',   category: 'Front-End', category_color: '#7ED9B1' },
+    ];
+
+    const htmlFew = chips(fewSkills);
+    assertContains ('Contient .chips-list',            htmlFew, 'class="chips-list"');
+    assertContains ('Contient "React"',                htmlFew, 'React');
+    assertNotContains('Pas de .skill-groups',          htmlFew, 'skill-groups');
+
+    // Couleur valide appliquée
+    const withColor = chips([{ name: 'PHP', category_color: '#6C9BCF' }]);
+    assertContains ('chip--colored présent si couleur valide',       withColor, 'chip--colored');
+    assertContains ('--chip-color injecté avec la bonne valeur',     withColor, '--chip-color:#6C9BCF');
+
+    // Sans couleur
+    const noColor = chips([{ name: 'PHP' }]);
+    assertNotContains('Pas de chip--colored si pas de couleur',      noColor, 'chip--colored');
+    assertNotContains('Pas de --chip-color si pas de couleur',        noColor, '--chip-color');
+
+    // Couleur invalide rejetée
+    const badColor1 = chips([{ name: 'PHP', category_color: '#ZZZ' }]);
+    assertNotContains('Couleur #ZZZ rejetée — pas de chip--colored',  badColor1, 'chip--colored');
+
+    const badColor2 = chips([{ name: 'PHP', category_color: '<script>alert(1)</script>' }]);
+    assertNotContains('Couleur XSS rejetée — pas de chip--colored',   badColor2, 'chip--colored');
+    assertNotContains('Couleur XSS rejetée — pas de script tag',       badColor2, '<script>');
+
+    // chip--hoverable sur objet avec catégorie
+    const withCat = chips([{ name: 'React', category: 'Front-End', category_color: '#7ED9B1' }]);
+    assertContains   ('chip--hoverable si catégorie présente',         withCat, 'chip--hoverable');
+    assertContains   ('data-skill injecté',                            withCat, 'data-skill="React"');
+    assertContains   ('data-category injecté',                         withCat, 'data-category="Front-End"');
+
+    // Pas de chip--hoverable si pas de catégorie
+    const noCat = chips([{ name: 'PHP', category_color: '#6C9BCF' }]);
+    assertNotContains('Pas de chip--hoverable si pas de catégorie',    noCat, 'chip--hoverable');
+
+    // XSS sur data-color (doit être echappé, pas injecté)
+    const xssColor = chips([{ name: 'X', category: 'A', category_color: '"><img src=x>' }]);
+    assertNotContains('XSS data-color — pas de balise img',            xssColor, '<img');
+
+    // Chaîne simple (usage legacy)
+    const strChips = chips(['JavaScript', 'Python']);
+    assertContains ('Chaîne legacy — contient "JavaScript"',          strChips, 'JavaScript');
+    assertNotContains('Chaîne legacy — pas de chip--colored',         strChips, 'chip--colored');
+
+    // ── chipsGroupedByCategory() — structure ─────────────────
+    section('chipsGroupedByCategory() — structure');
+
+    const manySkills = [
+      { name: 'React',    category: 'Front-End', category_description: 'Browser stuff', category_color: '#7ED9B1' },
+      { name: 'Vue',      category: 'Front-End', category_description: 'Browser stuff', category_color: '#7ED9B1' },
+      { name: 'Angular',  category: 'Front-End', category_description: 'Browser stuff', category_color: '#7ED9B1' },
+      { name: 'PHP',      category: 'Back-End',  category_description: 'Server stuff',  category_color: '#6C9BCF' },
+      { name: 'Node',     category: 'Back-End',  category_description: 'Server stuff',  category_color: '#6C9BCF' },
+      { name: 'Python',   category: 'Back-End',  category_description: 'Server stuff',  category_color: '#6C9BCF' },
+    ];
+
+    const htmlGroup = chipsGroupedByCategory(manySkills);
+    assertContains ('Contient .skill-groups',                  htmlGroup, 'class="skill-groups"');
+    assertContains ('Contient .skill-group',                   htmlGroup, 'class="skill-group"');
+    assertContains ('Contient chip--category',                 htmlGroup, 'chip--category');
+    assertContains ('Contient "Front-End"',                    htmlGroup, 'Front-End');
+    assertContains ('Contient "Back-End"',                     htmlGroup, 'Back-End');
+    assertContains ('Contient "React"',                        htmlGroup, 'React');
+    assertContains ('Contient "PHP"',                          htmlGroup, 'PHP');
+    assertContains ('chip__caret présent dans le bouton',      htmlGroup, 'chip__caret');
+    assertContains ('chips-list--sub présent',                 htmlGroup, 'chips-list--sub');
+
+    // ── chipsGroupedByCategory() — couleur propagée ──────────
+    section('chipsGroupedByCategory() — couleur propagée');
+
+    assertContains ('chip--colored sur catégorie Front-End',   htmlGroup, 'chip--category chip--hoverable chip--colored');
+    assertContains ('--chip-color:#7ED9B1 injecté',            htmlGroup, '--chip-color:#7ED9B1');
+    assertContains ('--chip-color:#6C9BCF injecté',            htmlGroup, '--chip-color:#6C9BCF');
+
+    // ── chipsGroupedByCategory() — data-attributes ───────────
+    section('chipsGroupedByCategory() — data-attributes');
+
+    assertContains ('data-category présent',                   htmlGroup, 'data-category=');
+    assertContains ('data-description présent',                htmlGroup, 'data-description=');
+    assertContains ('data-color présent',                      htmlGroup, 'data-color=');
+    assertContains ('data-skill présent sur chips enfants',    htmlGroup, 'data-skill=');
+
+    // ── chipsGroupedByCategory() — un seul groupe ────────────
+    section('chipsGroupedByCategory() — une seule catégorie');
+
+    const singleCat = Array.from({ length: 5 }, (_, i) => ({
+      name: `Skill${i}`, category: 'DevSecOps', category_color: '#9AD0B2'
+    }));
+    const htmlSingle = chipsGroupedByCategory(singleCat);
+    const groupCount = (htmlSingle.match(/class="skill-group"/g) ?? []).length;
+    assert('Un seul groupe généré', groupCount === 1);
+
+    // ── chipsGroupedByCategory() — XSS ───────────────────────
+    section('chipsGroupedByCategory() — protection XSS');
+
+    const xssSkills = Array.from({ length: 5 }, (_, i) => ({
+      name:                 `<script>alert(${i})</script>`,
+      category:             '<img src=x onerror=alert(1)>',
+      category_description: '<b>desc</b>',
+      category_color:       '<script>bad</script>',
+    }));
+    const htmlXss = chipsGroupedByCategory(xssSkills);
+    assertNotContains('XSS name — <script> neutralisé',       htmlXss, '<script>');
+    assertNotContains('XSS category — <img> neutralisé',      htmlXss, '<img');
+    assertNotContains('XSS description — <b> neutralisé',     htmlXss, '<b>desc</b>');
+    assertNotContains('XSS color — pas de chip--colored',      htmlXss, 'chip--colored');
+
+    // ── Seuil SKILLS_GROUP_THRESHOLD ─────────────────────────
+    section('Seuil SKILLS_GROUP_THRESHOLD = 5');
+
+    assert('Seuil défini à 5', SKILLS_GROUP_THRESHOLD === 5);
+
+    const skills4 = Array.from({ length: 4 }, (_, i) => ({ name: `S${i}`, category: 'A' }));
+    const skills5 = Array.from({ length: 5 }, (_, i) => ({ name: `S${i}`, category: 'A' }));
+
+    const result4 = skills4.length >= SKILLS_GROUP_THRESHOLD ? chipsGroupedByCategory(skills4) : chips(skills4);
+    const result5 = skills5.length >= SKILLS_GROUP_THRESHOLD ? chipsGroupedByCategory(skills5) : chips(skills5);
+
+    assertNotContains('4 skills → pas de skill-groups',        result4, 'skill-groups');
+    assertContains   ('5 skills → skill-groups',               result5, 'skill-groups');
+
+    /* ─── Résumé ─────────────────────────────────────────── */
+    const total = passed + failed;
+    const summary = document.getElementById('summary');
+    summary.style.borderColor = failed === 0 ? '#7ED9B1' : '#ff6b6b';
+    summary.innerHTML = failed === 0
+      ? `<span class="pass">✓ Tous les tests passent (${passed}/${total})</span>`
+      : `<span class="fail">✗ ${failed} test(s) échoué(s) sur ${total}</span>`;
+  </script>
+</body>
+</html>
