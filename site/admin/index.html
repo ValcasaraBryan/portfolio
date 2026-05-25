@@ -40,6 +40,7 @@
       Dialog, DialogTitle, DialogContent, DialogActions,
       TextField, Alert, Snackbar, CircularProgress, Chip, Autocomplete,
       MenuItem, Divider, createTheme, ThemeProvider, CssBaseline,
+      Switch, FormControlLabel,
     } from '@mui/material';
     import { Star, StarBorder, Delete, ExpandMore, Visibility } from '@mui/icons-material';
 
@@ -408,17 +409,20 @@
           apiFetch('profile.php?lang=en'),
         ]).then(([fr, en]) => {
           setForm({
-            name:      fr.name      ?? '',
-            photo_url: fr.photo_url ?? '',
-            location:  fr.location  ?? '',
-            email:     fr.email     ?? '',
-            phone:     fr.phone     ?? '',
-            title_fr:  fr.title     ?? '',
-            status_fr: fr.status    ?? '',
-            bio_fr:    fr.bio       ?? '',
-            title_en:  en.title     ?? '',
-            status_en: en.status    ?? '',
-            bio_en:    en.bio       ?? '',
+            name:                   fr.name                   ?? '',
+            photo_url:              fr.photo_url              ?? '',
+            about_use_drawer_photo: fr.about_use_drawer_photo ?? true,
+            about_photo_url:        fr.about_photo_url        ?? '',
+            cover_url:              fr.cover_url              ?? '',
+            location:               fr.location               ?? '',
+            email:                  fr.email                  ?? '',
+            phone:                  fr.phone                  ?? '',
+            title_fr:               fr.title                  ?? '',
+            status_fr:              fr.status                 ?? '',
+            bio_fr:                 fr.bio                    ?? '',
+            title_en:               en.title                  ?? '',
+            status_en:              en.status                 ?? '',
+            bio_en:                 en.bio                    ?? '',
           });
           setLoading(false);
         }).catch(() => {
@@ -468,10 +472,34 @@
           field('name',      'Nom'),
           React.createElement(ImagePickerField, {
             key:        'photo_url',
-            label:      'Photo de profil',
+            label:      'Photo de profil (avatar drawer)',
             value:      form.photo_url ?? null,
             uploadType: 'profile',
             onChange:   url => setForm(prev => ({ ...prev, photo_url: url ?? '' })),
+          }),
+          React.createElement(FormControlLabel, {
+            key: 'about_use_drawer_photo',
+            label: 'Page À propos : utiliser la photo du drawer',
+            control: React.createElement(Switch, {
+              checked:  !!form.about_use_drawer_photo,
+              onChange: e => setForm(prev => ({ ...prev, about_use_drawer_photo: e.target.checked })),
+              color:    'primary',
+            }),
+            sx: { ml: 0 },
+          }),
+          React.createElement(ImagePickerField, {
+            key:        'about_photo_url',
+            label:      'Photo page À propos (utilisée quand le toggle est désactivé)',
+            value:      form.about_photo_url ?? null,
+            uploadType: 'profile',
+            onChange:   url => setForm(prev => ({ ...prev, about_photo_url: url ?? '' })),
+          }),
+          React.createElement(ImagePickerField, {
+            key:        'cover_url',
+            label:      'Image de couverture (bannière en haut de la section À propos)',
+            value:      form.cover_url ?? null,
+            uploadType: 'profile',
+            onChange:   url => setForm(prev => ({ ...prev, cover_url: url ?? '' })),
           }),
           field('location',  'Localisation'),
           field('email',     'E-mail'),

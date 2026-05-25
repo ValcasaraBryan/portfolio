@@ -28,6 +28,8 @@ switch (method()) {
                     $profile['bio'] = $translation['bio'];
                 }
             }
+            // Cast booléen pour le toggle (évite d'exposer "0"/"1" en JSON)
+            $profile['about_use_drawer_photo'] = (bool) $profile['about_use_drawer_photo'];
             $links = $pdo->query('SELECT `id`, `platform`, `url`, `icon` FROM `links` ORDER BY `id`')->fetchAll();
             $profile['links'] = $links;
             json_response($profile);
@@ -51,6 +53,28 @@ switch (method()) {
                 json_response(['error' => 'Invalid photo_url'], 400);
             }
 
+            // Validation about_photo_url
+            $about_photo_url = isset($data['about_photo_url']) && $data['about_photo_url'] !== ''
+                ? $data['about_photo_url'] : null;
+            if ($about_photo_url !== null
+                && !filter_var($about_photo_url, FILTER_VALIDATE_URL)
+                && !str_starts_with($about_photo_url, '/uploads/')) {
+                json_response(['error' => 'Invalid about_photo_url'], 400);
+            }
+
+            // Validation cover_url
+            $cover_url = isset($data['cover_url']) && $data['cover_url'] !== ''
+                ? $data['cover_url'] : null;
+            if ($cover_url !== null
+                && !filter_var($cover_url, FILTER_VALIDATE_URL)
+                && !str_starts_with($cover_url, '/uploads/')) {
+                json_response(['error' => 'Invalid cover_url'], 400);
+            }
+
+            // about_use_drawer_photo — whitelist stricte : 0 ou 1
+            $about_use_drawer_photo = isset($data['about_use_drawer_photo'])
+                ? (int)(bool)$data['about_use_drawer_photo'] : 1;
+
             // Champs traduits FR (valeurs par défaut de la table principale)
             $title_fr  = $data['title_fr']  ?? $data['title']  ?? null;
             $status_fr = $data['status_fr'] ?? $data['status'] ?? null;
@@ -68,25 +92,31 @@ switch (method()) {
             // Mise à jour des champs non traduits + valeurs FR par défaut
             $stmt = $pdo->prepare(
                 'UPDATE `profile` SET
-                    `name`      = :name,
-                    `title`     = :title,
-                    `photo_url` = :photo_url,
-                    `location`  = :location,
-                    `status`    = :status,
-                    `bio`       = :bio,
-                    `email`     = :email,
-                    `phone`     = :phone
+                    `name`                   = :name,
+                    `title`                  = :title,
+                    `photo_url`              = :photo_url,
+                    `about_photo_url`        = :about_photo_url,
+                    `cover_url`              = :cover_url,
+                    `about_use_drawer_photo` = :about_use_drawer_photo,
+                    `location`               = :location,
+                    `status`                 = :status,
+                    `bio`                    = :bio,
+                    `email`                  = :email,
+                    `phone`                  = :phone
                 WHERE `id` = 1'
             );
             $stmt->execute([
-                ':name'      => $data['name']     ?? null,
-                ':title'     => $title_fr,
-                ':photo_url' => $photo_url,
-                ':location'  => $data['location'] ?? null,
-                ':status'    => $status_fr,
-                ':bio'       => $bio_fr,
-                ':email'     => $data['email']    ?? null,
-                ':phone'     => $data['phone']    ?? null,
+                ':name'                   => $data['name']     ?? null,
+                ':title'                  => $title_fr,
+                ':photo_url'              => $photo_url,
+                ':about_photo_url'        => $about_photo_url,
+                ':cover_url'              => $cover_url,
+                ':about_use_drawer_photo' => $about_use_drawer_photo,
+                ':location'               => $data['location'] ?? null,
+                ':status'                 => $status_fr,
+                ':bio'                    => $bio_fr,
+                ':email'                  => $data['email']    ?? null,
+                ':phone'                  => $data['phone']    ?? null,
             ]);
 
             // UPSERT profile_translations (UNIQUE sur locale)

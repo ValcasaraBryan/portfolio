@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests — Profile images (020)</title>
+  <style>
+    body { font-family: monospace; background: #111; color: #eee; padding: 24px; }
+    h1   { color: #7ED9B1; }
+    .suite { margin-bottom: 32px; }
+    h2   { color: #aaa; font-size: 1rem; margin-bottom: 8px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+    .pass { color: #7ED9B1; }
+    .fail { color: #ff6b6b; font-weight: bold; }
+    pre  { background: #1e1e1e; padding: 8px; border-radius: 4px; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+<h1>profile-images.test.html</h1>
+<p>Plan 020 — Photo À propos, bannière, toggle source photo.</p>
+<div id="results"></div>
+
+<script>
+/* ── Mini framework ──────────────────────────────────────────── */
+let passed = 0, failed = 0;
+const suites = [];
+let currentSuite = null;
+
+function describe(label, fn) {
+  currentSuite = { label, cases: [] };
+  suites.push(currentSuite);
+  fn();
+}
+
+function it(label, fn) {
+  try {
+    fn();
+    currentSuite.cases.push({ label, ok: true });
+    passed++;
+  } catch (e) {
+    currentSuite.cases.push({ label, ok: false, err: e.message });
+    failed++;
+  }
+}
+
+function assert(cond, msg) {
+  if (!cond) throw new Error(msg ?? 'assertion failed');
+}
+function assertEqual(a, b) {
+  if (a !== b) throw new Error(`Expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
+}
+
+/* ── Helpers reproduisant la logique de renderAbout() ─────── */
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Reproduit la logique de renderAbout() pour les images :
+ * retourne { coverHtml, photoHtml, isLarge }
+ */
+function computeAboutImages(profile) {
+  const useDrawerPhoto = profile?.about_use_drawer_photo !== false
+                      && profile?.about_use_drawer_photo !== 0;
+  const aboutPhoto = useDrawerPhoto ? profile?.photo_url : profile?.about_photo_url;
+  const isLarge    = !useDrawerPhoto && !!aboutPhoto;
+
+  const coverHtml = profile?.cover_url
+    ? `<div class="about__cover" style="background-image:url('${escapeHtml(profile.cover_url)}')"></div>`
+    : '';
+  const photoHtml = aboutPhoto
+    ? `<img src="${escapeHtml(aboutPhoto)}" alt="${escapeHtml(profile?.name ?? '')}" class="about__photo${isLarge ? ' about__photo--large' : ''}">`
+    : '';
+
+  return { coverHtml, photoHtml, isLarge, useDrawerPhoto, aboutPhoto };
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SUITE 1 — Toggle ON (utiliser photo_url)
+══════════════════════════════════════════════════════════════════ */
+describe('Toggle ON → photo_url affiché dans À propos', () => {
+  const profile = {
+    name: 'Bryan',
+    photo_url: '/uploads/profile/avatar.jpg',
+    about_photo_url: '/uploads/profile/about.jpg',
+    cover_url: null,
+    about_use_drawer_photo: true,
+  };
+  const { coverHtml, photoHtml, isLarge, aboutPhoto } = computeAboutImages(profile);
+
+  it('aboutPhoto = photo_url', () => {
+    assertEqual(aboutPhoto, profile.photo_url);
+  });
+  it('isLarge = false (style circulaire)', () => {
+    assertEqual(isLarge, false);
+  });
+  it('photoHtml contient about__photo mais pas about__photo--large', () => {
+    assert(photoHtml.includes('about__photo'), 'doit avoir about__photo');
+    assert(!photoHtml.includes('about__photo--large'), 'ne doit pas avoir about__photo--large');
+  });
+  it('photoHtml contient le bon src', () => {
+    assert(photoHtml.includes(escapeHtml(profile.photo_url)), 'src doit être photo_url');
+  });
+  it('coverHtml vide si cover_url null', () => {
+    assertEqual(coverHtml, '');
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SUITE 2 — Toggle OFF (utiliser about_photo_url)
+══════════════════════════════════════════════════════════════════ */
+describe('Toggle OFF → about_photo_url affiché dans À propos', () => {
+  const profile = {
+    name: 'Bryan',
+    photo_url: '/uploads/profile/avatar.jpg',
+    about_photo_url: '/uploads/profile/about.jpg',
+    cover_url: null,
+    about_use_drawer_photo: false,
+  };
+  const { coverHtml, photoHtml, isLarge, aboutPhoto } = computeAboutImages(profile);
+
+  it('aboutPhoto = about_photo_url', () => {
+    assertEqual(aboutPhoto, profile.about_photo_url);
+  });
+  it('isLarge = true', () => {
+    assertEqual(isLarge, true);
+  });
+  it('photoHtml contient about__photo--large', () => {
+    assert(photoHtml.includes('about__photo--large'), 'doit avoir about__photo--large');
+  });
+  it('photoHtml contient le bon src (about_photo_url)', () => {
+    assert(photoHtml.includes(escapeHtml(profile.about_photo_url)), 'src doit être about_photo_url');
+  });
+  it('photo_url non présente dans photoHtml', () => {
+    assert(!photoHtml.includes(escapeHtml(profile.photo_url)), 'photo_url ne doit pas apparaître');
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SUITE 3 — Toggle OFF, about_photo_url vide → aucune photo
+══════════════════════════════════════════════════════════════════ */
+describe('Toggle OFF + about_photo_url vide → aucune photo dans À propos', () => {
+  const profile = {
+    name: 'Bryan',
+    photo_url: '/uploads/profile/avatar.jpg',
+    about_photo_url: null,
+    cover_url: null,
+    about_use_drawer_photo: false,
+  };
+  const { photoHtml } = computeAboutImages(profile);
+
+  it('photoHtml vide', () => {
+    assertEqual(photoHtml, '');
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SUITE 4 — Toggle ON/OFF avec about_use_drawer_photo = 0 (int)
+══════════════════════════════════════════════════════════════════ */
+describe('about_use_drawer_photo = 0 (entier) traité comme false', () => {
+  const profile = {
+    name: 'Bryan',
+    photo_url: '/uploads/profile/avatar.jpg',
+    about_photo_url: '/uploads/profile/about.jpg',
+    cover_url: null,
+    about_use_drawer_photo: 0,
+  };
+  const { aboutPhoto } = computeAboutImages(profile);
+
+  it('aboutPhoto = about_photo_url (toggle OFF)', () => {
+    assertEqual(aboutPhoto, profile.about_photo_url);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SUITE 5 — Bannière (cover_url)
+══════════════════════════════════════════════════════════════════ */
+describe('cover_url — bannière', () => {
+  it('cover_url défini → .about__cover présent avec background-image', () => {
+    const profile = {
+      name: 'Bryan', photo_url: null, about_photo_url: null,
+      cover_url: '/uploads/profile/banner.jpg',
+      about_use_drawer_photo: true,
+    };
+    const { coverHtml } = computeAboutImages(profile);
+    assert(coverHtml.includes('about__cover'), 'doit avoir .about__cover');
+    assert(coverHtml.includes('background-image'), 'doit avoir background-image');
+    assert(coverHtml.includes(escapeHtml(profile.cover_url)), 'doit contenir l\'URL de la bannière');
+  });
+
+  it('cover_url absent → coverHtml vide', () => {
+    const profile = {
+      name: 'Bryan', photo_url: null, about_photo_url: null,
+      cover_url: null, about_use_drawer_photo: true,
+    };
+    const { coverHtml } = computeAboutImages(profile);
+    assertEqual(coverHtml, '');
+  });
+
+  it('cover_url affiché même si toggle OFF', () => {
+    const profile = {
+      name: 'Bryan', photo_url: '/p.jpg', about_photo_url: '/a.jpg',
+      cover_url: '/uploads/profile/banner.jpg',
+      about_use_drawer_photo: false,
+    };
+    const { coverHtml } = computeAboutImages(profile);
+    assert(coverHtml.includes('about__cover'), 'bannière toujours visible, toggle ignoré');
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SUITE 6 — Sécurité XSS — escapeHtml
+══════════════════════════════════════════════════════════════════ */
+describe('Sécurité — escapeHtml sur les URLs', () => {
+  it('cover_url avec caractères dangereux → échappé dans coverHtml', () => {
+    const profile = {
+      name: 'Bryan', photo_url: null, about_photo_url: null,
+      cover_url: "'/><script>alert(1)</script>",
+      about_use_drawer_photo: true,
+    };
+    const { coverHtml } = computeAboutImages(profile);
+    assert(!coverHtml.includes('<script>'), 'balise script ne doit pas être injectée');
+    assert(coverHtml.includes('&lt;script&gt;'), 'doit être échappé');
+  });
+
+  it('about_photo_url avec caractères dangereux → échappé dans photoHtml', () => {
+    const profile = {
+      name: 'Bryan', photo_url: null,
+      about_photo_url: '"onload="alert(1)',
+      cover_url: null,
+      about_use_drawer_photo: false,
+    };
+    const { photoHtml } = computeAboutImages(profile);
+    assert(!photoHtml.includes('onload="alert'), 'injection onload ne doit pas passer');
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SUITE 7 — Drawer (logique documentée : toujours photo_url)
+══════════════════════════════════════════════════════════════════ */
+describe('Drawer — toujours photo_url (indépendant du toggle)', () => {
+  /** Le drawer utilise directement profile.photo_url sans condition. */
+  function getDrawerSrc(profile) {
+    return profile.photo_url ?? null;
+  }
+
+  it('Toggle ON → drawer = photo_url', () => {
+    const p = { photo_url: '/avatar.jpg', about_use_drawer_photo: true };
+    assertEqual(getDrawerSrc(p), '/avatar.jpg');
+  });
+
+  it('Toggle OFF → drawer = photo_url (inchangé)', () => {
+    const p = { photo_url: '/avatar.jpg', about_use_drawer_photo: false };
+    assertEqual(getDrawerSrc(p), '/avatar.jpg');
+  });
+
+  it('Toggle OFF + about_photo_url défini → drawer toujours photo_url', () => {
+    const p = { photo_url: '/avatar.jpg', about_photo_url: '/about.jpg', about_use_drawer_photo: false };
+    assertEqual(getDrawerSrc(p), '/avatar.jpg');
+  });
+});
+
+/* ── Rendu des résultats ─────────────────────────────────────── */
+const container = document.getElementById('results');
+
+for (const suite of suites) {
+  const div = document.createElement('div');
+  div.className = 'suite';
+  div.innerHTML = `<h2>${suite.label}</h2>`;
+  for (const c of suite.cases) {
+    const p = document.createElement('p');
+    if (c.ok) {
+      p.className = 'pass';
+      p.textContent = `✓ ${c.label}`;
+    } else {
+      p.className = 'fail';
+      p.textContent = `✗ ${c.label}`;
+      const pre = document.createElement('pre');
+      pre.textContent = c.err;
+      p.appendChild(pre);
+    }
+    div.appendChild(p);
+  }
+  container.appendChild(div);
+}
+
+const summary = document.createElement('p');
+summary.style.fontSize = '1.1rem';
+summary.style.fontWeight = 'bold';
+summary.style.color = failed === 0 ? '#7ED9B1' : '#ff6b6b';
+summary.textContent = `${passed} passed, ${failed} failed`;
+container.prepend(summary);
+</script>
+</body>
+</html>

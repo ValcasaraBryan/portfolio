@@ -1344,8 +1344,10 @@ button.chip {
    ABOUT SECTION
    ════════════════════════════════════════════════════════════ */
 .about                  { max-width: 680px; margin: 0 auto; padding: 24px 0; }
+.about__cover           { width: 100%; height: 180px; background-size: cover; background-position: center; border-radius: 12px; margin-bottom: 24px; flex-shrink: 0; }
 .about__hero            { display: flex; flex-direction: column; align-items: center; gap: 20px; margin-bottom: 32px; text-align: center; }
 .about__photo           { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--green); flex-shrink: 0; }
+.about__photo--large    { width: 120px; height: 120px; border-radius: 12px; border: 2px solid var(--green); }
 .about__identity        { display: flex; flex-direction: column; gap: 4px; }
 .about__name            { font-size: 1.5rem; font-weight: 700; margin: 0; }
 .about__title           { font-size: 1rem; color: var(--text-muted); margin: 0; }
@@ -1648,6 +1650,8 @@ button.chip {
   .contact-form-wrapper { grid-column: 2; grid-row: 1 / span 2; }
 
   /* ── About layout (desktop) ─────────────────────────────── */
-  .about__hero { flex-direction: row; text-align: left; }
-  .about__photo { width: 96px; height: 96px; }
+  .about__cover           { height: 220px; }
+  .about__hero            { flex-direction: row; text-align: left; }
+  .about__photo           { width: 96px; height: 96px; }
+  .about__photo--large    { width: 150px; height: 150px; }
 }

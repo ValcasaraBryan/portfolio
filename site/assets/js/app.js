@@ -776,13 +776,26 @@ async function renderAbout() {
       name: cat, description: category_description, color: category_color, items,
     }));
 
+  // Toggle : ON → photo_url (même que drawer) ; OFF → about_photo_url
+  const useDrawerPhoto = profile?.about_use_drawer_photo !== false
+                      && profile?.about_use_drawer_photo !== 0;
+  const aboutPhoto = useDrawerPhoto ? profile?.photo_url : profile?.about_photo_url;
+  const isLarge    = !useDrawerPhoto && !!aboutPhoto;
+
+  const coverHtml = profile?.cover_url
+    ? `<div class="about__cover" style="background-image:url('${escapeHtml(profile.cover_url)}')"></div>`
+    : '';
+  const photoHtml = aboutPhoto
+    ? `<img src="${escapeHtml(aboutPhoto)}" alt="${escapeHtml(profile?.name ?? '')}" class="about__photo${isLarge ? ' about__photo--large' : ''}">`
+    : '';
+
   panel.innerHTML = `
     <div class="about">
 
+      ${coverHtml}
+
       <div class="about__hero">
-        ${profile?.photo_url
-          ? `<img src="${escapeHtml(profile.photo_url)}" alt="${escapeHtml(profile.name ?? '')}" class="about__photo">`
-          : ''}
+        ${photoHtml}
         <div class="about__identity">
           <h1 class="about__name">${escapeHtml(profile?.name ?? '')}</h1>
           <p class="about__title">${escapeHtml(profile?.title ?? '')}</p>
