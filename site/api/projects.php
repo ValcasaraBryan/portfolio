@@ -13,7 +13,7 @@ function get_projects(PDO $pdo, string $locale): array
         'SELECT p.id, p.photo_url, p.date, p.url, p.github_url, p.is_favorite,
                 COALESCE(pt.name,        p.name)        AS name,
                 COALESCE(pt.description, p.description) AS description,
-                COALESCE(pt.category,    p.category)    AS category
+                p.category                              AS category
          FROM `projects` p
          LEFT JOIN `project_translations` pt ON pt.project_id = p.id AND pt.locale = :locale
          ORDER BY p.is_favorite DESC, p.`id` ASC'
@@ -42,7 +42,11 @@ switch (method()) {
 
     case 'POST':
         require_auth();
-        $d    = body();
+        $d        = body();
+        $category = $d['category'] ?? null;
+        if ($category !== null && !in_array($category, ['web', 'opensource', 'side'], true)) {
+            json_response(['error' => 'Invalid category'], 400);
+        }
         $stmt = $pdo->prepare(
             'INSERT INTO `projects` (`name`,`photo_url`,`description`,`date`,`url`,`github_url`,`category`)
              VALUES (:name,:photo_url,:description,:date,:url,:github_url,:category)'
@@ -54,7 +58,7 @@ switch (method()) {
             ':date'       => $d['date']       ?? null,
             ':url'        => $d['url']        ?? null,
             ':github_url' => $d['github_url'] ?? null,
-            ':category'   => $d['category']   ?? null,
+            ':category'   => $category,
         ]);
         $projectId = (int) $pdo->lastInsertId();
         if (!empty($d['skill_ids']) && is_array($d['skill_ids'])) {
@@ -67,7 +71,11 @@ switch (method()) {
 
     case 'PUT':
         require_auth();
-        $d    = body();
+        $d        = body();
+        $category = $d['category'] ?? null;
+        if ($category !== null && !in_array($category, ['web', 'opensource', 'side'], true)) {
+            json_response(['error' => 'Invalid category'], 400);
+        }
         $stmt = $pdo->prepare(
             'UPDATE `projects`
              SET `name`=:name,`photo_url`=:photo_url,`description`=:description,
@@ -82,17 +90,16 @@ switch (method()) {
             ':date'       => $d['date']       ?? null,
             ':url'        => $d['url']        ?? null,
             ':github_url' => $d['github_url'] ?? null,
-            ':category'   => $d['category']   ?? null,
+            ':category'   => $category,
         ]);
         $pdo->prepare(
             'UPDATE `project_translations`
-             SET `name`=:name,`description`=:description,`category`=:category
+             SET `name`=:name,`description`=:description
              WHERE `project_id`=:id'
         )->execute([
             ':id'         => $d['id'],
             ':name'       => $d['name']       ?? '',
             ':description'=> $d['description']?? null,
-            ':category'   => $d['category']   ?? null,
         ]);
         $pdo->prepare('DELETE FROM `project_skills` WHERE `project_id` = ?')->execute([$d['id']]);
         if (!empty($d['skill_ids']) && is_array($d['skill_ids'])) {
