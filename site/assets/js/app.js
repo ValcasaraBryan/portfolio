@@ -827,8 +827,11 @@ function notify(msg) {
 
 /* ── THEME ─────────────────────────────────────────────────── */
 function initTheme() {
-  const saved = localStorage.getItem('theme') || 'light';
-  document.documentElement.dataset.theme = saved;
+  const saved  = localStorage.getItem('theme');
+  const theme  = saved
+    ? saved
+    : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.dataset.theme = theme;
   // les icônes sont gérées via CSS (::before selon data-theme),
   // on met juste à jour le aria-label / title
   _syncThemeButtons();
@@ -927,6 +930,20 @@ function renderSocialLinks(links) {
   });
 }
 
+/* ── LANG DETECTION ────────────────────────────────────────── */
+/**
+ * Retourne la langue à utiliser à l'initialisation.
+ * Priorité : préférence sauvegardée en localStorage → langue du navigateur → 'fr'.
+ * Ne persiste rien : l'utilisateur n'a pas encore exprimé de choix explicite.
+ */
+function _detectLang() {
+  const saved = localStorage.getItem('lang');
+  if (saved) return saved;
+  // navigator.language peut valoir 'en-GB', 'fr-FR', 'en', 'fr', …
+  const browserLang = (navigator.language || '').toLowerCase().slice(0, 2);
+  return browserLang === 'en' ? 'en' : 'fr';
+}
+
 /* ── INIT ──────────────────────────────────────────────────── */
 async function init() {
   initTheme();   /* ← en premier pour éviter le flash */
@@ -955,7 +972,7 @@ async function init() {
   /* ③ Chargement i18n + pré-render tous les onglets
    *   loadLang voit 'experiences' comme onglet actif → skeleton + loadTab pour lui,
    *   loadTab silencieux pour les autres */
-  await loadLang(localStorage.getItem('lang') || 'fr');
+  await loadLang(_detectLang());
 
   /* ④ Profil (en séquentiel pour afficher le nom/avatar dès qu'il arrive) */
   const profile = await get('profile.php');

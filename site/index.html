@@ -11,8 +11,11 @@
   <!-- Anti-flash : doit précéder le CSS pour éviter le scintillement -->
   <script>
     (function(){
-      var t = localStorage.getItem('theme');
-      if (t === 'dark') document.documentElement.dataset.theme = 'dark';
+      var saved = localStorage.getItem('theme');
+      var theme = saved
+        ? saved
+        : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.dataset.theme = theme;
     })();
   </script>
   <link rel="stylesheet" href="./assets/css/main.css">
