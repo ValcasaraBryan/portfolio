@@ -1060,39 +1060,7 @@ button.chip {
 }
 
 /* ── SKILL GROUPS — formations card ───────────────────────── */
-.skill-groups {
-  margin-top:     6px;
-  display:        flex;
-  flex-direction: column;
-  gap:            8px;
-}
-
-.skill-group { display: flex; flex-direction: column; }
-
-/* Chips skills enfants : masqués par défaut, révélés au hover/clic */
-.chips-list--sub {
-  max-height:     0;
-  overflow:       hidden;
-  pointer-events: none;
-  margin-top:     0;
-  margin-left:    2px;
-  transition:     max-height 0.22s ease, margin-top 0.18s ease;
-}
-.skill-group--open .chips-list--sub {
-  max-height:     400px; /* valeur haute, le vrai bound est le contenu */
-  pointer-events: auto;
-  margin-top:     4px;
-}
-
-/* Caret d'expand à l'intérieur du chip catégorie */
-.chip__caret {
-  font-size:   0.6rem;
-  line-height: 1;
-  transition:  transform 0.2s ease;
-  display:     inline-block;
-  opacity:     0.6;
-}
-.skill-group--open .chip__caret { transform: rotate(180deg); }
+/* (règles skill-group supprimées — le groupement par catégorie utilise désormais .chips-list) */
 
 /* ── SKILL TOOLTIP ─────────────────────────────────────────── */
 .skill-tooltip {
@@ -1110,8 +1078,24 @@ button.chip {
   box-shadow:    0 4px 14px rgba(0,0,0,0.15);
 }
 .skill-tooltip.hidden  { display: none; }
-.skill-tooltip strong  { color: var(--text); font-weight: 700; display: block; margin-bottom: 2px; }
+.skill-tooltip strong  { color: var(--text); font-weight: 700; display: block; margin-bottom: 4px; }
 .skill-tooltip span    { color: var(--text-muted); }
+
+/* Liste de skills dans le tooltip (mode catégorie) */
+.skill-tooltip__skills {
+  display:    flex;
+  flex-wrap:  wrap;
+  gap:        3px;
+  margin-top: 4px;
+}
+.skill-tooltip__skills span {
+  padding:       1px 6px;
+  border:        1px solid var(--border);
+  border-radius: 4px;
+  font-size:     0.68rem;
+  color:         var(--text-muted);
+  line-height:   1.6;
+}
 
 /* ── SKILL MODAL ───────────────────────────────────────────── */
 .skill-modal__chips { margin-top: 12px; }

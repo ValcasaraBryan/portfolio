@@ -1341,7 +1341,7 @@
       const [loading,    setLoading]    = useState(true);
       const [dialog,     setDialog]     = useState(null); // null | { mode:'add'|'edit', data:{} }
       const [snack,      setSnack]      = useState(null);
-      const emptyForm = { name_fr: '', name_en: '', category_key: '' };
+      const emptyForm = { name_fr: '', name_en: '', category_key: '', description_fr: '', description_en: '' };
 
       const load = () => {
         setLoading(true);
@@ -1366,7 +1366,7 @@
       });
 
       const openAdd  = (categoryKey = '') => setDialog({ mode: 'add',  data: { ...emptyForm, category_key: categoryKey } });
-      const openEdit = row => setDialog({ mode: 'edit', data: { id: row.id, name_fr: row.name_fr, name_en: row.name_en, category_key: row.category_fr || row.category_en || '' } });
+      const openEdit = row => setDialog({ mode: 'edit', data: { id: row.id, name_fr: row.name_fr, name_en: row.name_en, category_key: row.category_fr || row.category_en || '', description_fr: row.description_fr || '', description_en: row.description_en || '' } });
       const closeDialog = () => setDialog(null);
       const setField = (k, v) => setDialog(prev => ({ ...prev, data: { ...prev.data, [k]: v } }));
 
@@ -1465,7 +1465,10 @@
                   )
                 )
               )
-            )
+            ),
+            // Descriptions traduites
+            React.createElement(TextField, { label: 'Description FR', size: 'small', multiline: true, rows: 3, value: dialog.data.description_fr, onChange: e => setField('description_fr', e.target.value), helperText: 'Visible au hover et dans la modale (FR)' }),
+            React.createElement(TextField, { label: 'Description EN', size: 'small', multiline: true, rows: 3, value: dialog.data.description_en, onChange: e => setField('description_en', e.target.value), helperText: 'Visible au hover et dans la modale (EN)' }),
           ),
           React.createElement(DialogActions, null,
             React.createElement(Button, { onClick: closeDialog }, 'Annuler'),

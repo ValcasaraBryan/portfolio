@@ -21,13 +21,22 @@ function get_projects(PDO $pdo, string $locale): array
     $stmt->execute([':locale' => $locale]);
     $projects = $stmt->fetchAll();
 
+    $nameCol = ($locale === 'fr') ? 'sc.name_fr' : 'sc.name_en';
+    $descCol = ($locale === 'fr') ? 'sc.description_fr' : 'sc.description_en';
     foreach ($projects as &$project) {
         $stmt = $pdo->prepare(
-            'SELECT s.id, st.name, st.category
+            "SELECT s.id, st.name,
+                    COALESCE(NULLIF({$nameCol}, ''), st.category) AS category,
+                    COALESCE({$descCol}, '') AS category_description,
+                    COALESCE(sc.color, '#888888') AS category_color,
+                    COALESCE(st.description, '') AS skill_description
              FROM `skills` s
              JOIN `skill_translations` st ON st.skill_id = s.id AND st.locale = :locale
              JOIN `project_skills` ps ON ps.skill_id = s.id
-             WHERE ps.project_id = :project_id'
+             LEFT JOIN `skill_translations` st_en ON st_en.skill_id = s.id AND st_en.locale = 'en'
+             LEFT JOIN `skill_categories` sc ON sc.key = st_en.category
+             WHERE ps.project_id = :project_id
+             ORDER BY COALESCE(sc.sort_order, 99), st.category, st.name"
         );
         $stmt->execute([':locale' => $locale, ':project_id' => $project['id']]);
         $project['skills'] = $stmt->fetchAll();

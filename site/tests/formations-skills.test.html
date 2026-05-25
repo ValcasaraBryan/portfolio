@@ -84,32 +84,19 @@
         }
         groups[key].items.push(s);
       });
-      return `<div class="skill-groups">${
+      return `<div class="chips-list">${
         Object.entries(groups).map(([cat, { description, color, items }]) => {
           const safeColor = (typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color)) ? color : null;
           const colorStyle = safeColor ? ` style="--chip-color:${safeColor}"` : '';
           const colorClass = safeColor ? ' chip--colored' : '';
-          return `
-          <div class="skill-group">
-            <button class="chip chip--category chip--hoverable${colorClass}"
-                    data-category="${escapeHtml(cat)}"
-                    data-description="${escapeHtml(description)}"
-                    data-color="${escapeHtml(color ?? '')}"
-                    ${colorStyle}>
-              ${escapeHtml(cat)}<span class="chip__count">${items.length}</span><span class="chip__caret">▾</span>
-            </button>
-            <div class="chips-list chips-list--sub">
-              ${items.map(s => `
-                <span class="chip chip--hoverable${colorClass}"
-                      data-skill="${escapeHtml(s.name)}"
-                      data-category="${escapeHtml(cat)}"
-                      data-description="${escapeHtml(description)}"
-                      data-color="${escapeHtml(color ?? '')}"
-                      ${colorStyle}>
-                  ${escapeHtml(s.name)}
-                </span>`).join('')}
-            </div>
-          </div>`;
+          return `<button class="chip chip--category chip--hoverable${colorClass}"
+                  data-category="${escapeHtml(cat)}"
+                  data-description="${escapeHtml(description)}"
+                  data-color="${escapeHtml(color ?? '')}"
+                  data-skills="${escapeHtml(items.map(s => s.name).join('|'))}"
+                  ${colorStyle}>
+            ${escapeHtml(cat)}<span class="chip__count">${items.length}</span>
+          </button>`;
         }).join('')
       }</div>`;
     }
@@ -181,15 +168,14 @@
     ];
 
     const htmlGroup = chipsGroupedByCategory(manySkills);
-    assertContains ('Contient .skill-groups',                  htmlGroup, 'class="skill-groups"');
-    assertContains ('Contient .skill-group',                   htmlGroup, 'class="skill-group"');
+    assertContains ('Contient .chips-list',                    htmlGroup, 'class="chips-list"');
     assertContains ('Contient chip--category',                 htmlGroup, 'chip--category');
     assertContains ('Contient "Front-End"',                    htmlGroup, 'Front-End');
     assertContains ('Contient "Back-End"',                     htmlGroup, 'Back-End');
-    assertContains ('Contient "React"',                        htmlGroup, 'React');
-    assertContains ('Contient "PHP"',                          htmlGroup, 'PHP');
-    assertContains ('chip__caret présent dans le bouton',      htmlGroup, 'chip__caret');
-    assertContains ('chips-list--sub présent',                 htmlGroup, 'chips-list--sub');
+    assertContains ('Contient "React" dans data-skills',       htmlGroup, 'React');
+    assertContains ('Contient "PHP" dans data-skills',         htmlGroup, 'PHP');
+    assertNotContains('Pas de chips-list--sub',                htmlGroup, 'chips-list--sub');
+    assertNotContains('Pas de chip__caret',                    htmlGroup, 'chip__caret');
 
     // ── chipsGroupedByCategory() — couleur propagée ──────────
     section('chipsGroupedByCategory() — couleur propagée');
@@ -201,10 +187,12 @@
     // ── chipsGroupedByCategory() — data-attributes ───────────
     section('chipsGroupedByCategory() — data-attributes');
 
-    assertContains ('data-category présent',                   htmlGroup, 'data-category=');
-    assertContains ('data-description présent',                htmlGroup, 'data-description=');
-    assertContains ('data-color présent',                      htmlGroup, 'data-color=');
-    assertContains ('data-skill présent sur chips enfants',    htmlGroup, 'data-skill=');
+    assertContains ('data-category présent',                      htmlGroup, 'data-category=');
+    assertContains ('data-description présent',                   htmlGroup, 'data-description=');
+    assertContains ('data-color présent',                         htmlGroup, 'data-color=');
+    assertContains ('data-skills présent sur bouton catégorie',   htmlGroup, 'data-skills=');
+    assertContains ('data-skills contient les noms pipe-séparés', htmlGroup, 'React|Vue|Angular');
+    assertNotContains('Pas de data-skill (chips enfants supprimés)', htmlGroup, 'data-skill=');
 
     // ── chipsGroupedByCategory() — un seul groupe ────────────
     section('chipsGroupedByCategory() — une seule catégorie');
@@ -212,9 +200,9 @@
     const singleCat = Array.from({ length: 5 }, (_, i) => ({
       name: `Skill${i}`, category: 'DevSecOps', category_color: '#9AD0B2'
     }));
-    const htmlSingle = chipsGroupedByCategory(singleCat);
-    const groupCount = (htmlSingle.match(/class="skill-group"/g) ?? []).length;
-    assert('Un seul groupe généré', groupCount === 1);
+    const htmlSingle  = chipsGroupedByCategory(singleCat);
+    const groupCount  = (htmlSingle.match(/chip--category/g) ?? []).length;
+    assert('Un seul bouton catégorie généré', groupCount === 1);
 
     // ── chipsGroupedByCategory() — XSS ───────────────────────
     section('chipsGroupedByCategory() — protection XSS');
@@ -242,8 +230,8 @@
     const result4 = skills4.length >= SKILLS_GROUP_THRESHOLD ? chipsGroupedByCategory(skills4) : chips(skills4);
     const result5 = skills5.length >= SKILLS_GROUP_THRESHOLD ? chipsGroupedByCategory(skills5) : chips(skills5);
 
-    assertNotContains('4 skills → pas de skill-groups',        result4, 'skill-groups');
-    assertContains   ('5 skills → skill-groups',               result5, 'skill-groups');
+    assertNotContains('4 skills → pas de chip--category',       result4, 'chip--category');
+    assertContains   ('5 skills → chip--category présent',     result5, 'chip--category');
 
     /* ─── Résumé ─────────────────────────────────────────── */
     const total = passed + failed;

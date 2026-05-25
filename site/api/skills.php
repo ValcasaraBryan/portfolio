@@ -18,7 +18,8 @@ switch (method()) {
                 "SELECT s.id, st.name,
                         COALESCE(NULLIF({$nameCol}, ''), st.category) AS category,
                         COALESCE({$descCol}, '') AS category_description,
-                        COALESCE(sc.color, '#888888') AS category_color
+                        COALESCE(sc.color, '#888888') AS category_color,
+                        COALESCE(st.description, '') AS skill_description
                  FROM `skills` s
                  JOIN `skill_translations` st ON st.skill_id = s.id AND st.locale = :locale
                  LEFT JOIN `skill_translations` st_en ON st_en.skill_id = s.id AND st_en.locale = 'en'
@@ -27,13 +28,15 @@ switch (method()) {
             );
             $stmt->execute([':locale' => $locale]);
         } else {
-            // Admin CRUD : retourne les 4 champs de traduction fusionnés
+            // Admin CRUD : retourne les champs de traduction fusionnés
             $stmt = $pdo->query(
                 'SELECT s.id,
-                        MAX(CASE WHEN st.locale = \'fr\' THEN st.name     END) AS name_fr,
-                        MAX(CASE WHEN st.locale = \'en\' THEN st.name     END) AS name_en,
-                        MAX(CASE WHEN st.locale = \'fr\' THEN st.category END) AS category_fr,
-                        MAX(CASE WHEN st.locale = \'en\' THEN st.category END) AS category_en
+                        MAX(CASE WHEN st.locale = \'fr\' THEN st.name        END) AS name_fr,
+                        MAX(CASE WHEN st.locale = \'en\' THEN st.name        END) AS name_en,
+                        MAX(CASE WHEN st.locale = \'fr\' THEN st.category    END) AS category_fr,
+                        MAX(CASE WHEN st.locale = \'en\' THEN st.category    END) AS category_en,
+                        MAX(CASE WHEN st.locale = \'fr\' THEN st.description END) AS description_fr,
+                        MAX(CASE WHEN st.locale = \'en\' THEN st.description END) AS description_en
                  FROM `skills` s
                  LEFT JOIN `skill_translations` st ON st.skill_id = s.id
                  GROUP BY s.id
@@ -53,16 +56,16 @@ switch (method()) {
         $stmt->execute([':name' => $d['name_fr'] ?? '', ':category' => $catKey]);
         $id = (int) $pdo->lastInsertId();
         $tr = $pdo->prepare(
-            'INSERT INTO `skill_translations` (`skill_id`, `locale`, `name`, `category`)
-             VALUES (:sid, :locale, :name, :category)'
+            'INSERT INTO `skill_translations` (`skill_id`, `locale`, `name`, `category`, `description`)
+             VALUES (:sid, :locale, :name, :category, :description)'
         );
         foreach (['fr', 'en'] as $loc) {
             $tr->execute([
-                ':sid'      => $id,
-                ':locale'   => $loc,
-                ':name'     => $d["name_{$loc}"] ?? '',
-                // Quand category_key fourni : même clé pour les deux locales (cohérence avec skill_categories)
-                ':category' => isset($d['category_key']) ? $catKey : ($d["category_{$loc}"] ?? ''),
+                ':sid'         => $id,
+                ':locale'      => $loc,
+                ':name'        => $d["name_{$loc}"] ?? '',
+                ':category'    => isset($d['category_key']) ? $catKey : ($d["category_{$loc}"] ?? ''),
+                ':description' => $d["description_{$loc}"] ?? null,
             ]);
         }
         json_response(['id' => $id], 201);
@@ -76,16 +79,17 @@ switch (method()) {
         );
         $stmt->execute([':id' => $d['id'], ':name' => $d['name_fr'] ?? '', ':category' => $catKey]);
         $tr = $pdo->prepare(
-            'INSERT INTO `skill_translations` (`skill_id`, `locale`, `name`, `category`)
-             VALUES (:sid, :locale, :name, :category)
-             ON DUPLICATE KEY UPDATE `name`=VALUES(`name`), `category`=VALUES(`category`)'
+            'INSERT INTO `skill_translations` (`skill_id`, `locale`, `name`, `category`, `description`)
+             VALUES (:sid, :locale, :name, :category, :description)
+             ON DUPLICATE KEY UPDATE `name`=VALUES(`name`), `category`=VALUES(`category`), `description`=VALUES(`description`)'
         );
         foreach (['fr', 'en'] as $loc) {
             $tr->execute([
-                ':sid'      => $d['id'],
-                ':locale'   => $loc,
-                ':name'     => $d["name_{$loc}"] ?? '',
-                ':category' => isset($d['category_key']) ? $catKey : ($d["category_{$loc}"] ?? ''),
+                ':sid'         => $d['id'],
+                ':locale'      => $loc,
+                ':name'        => $d["name_{$loc}"] ?? '',
+                ':category'    => isset($d['category_key']) ? $catKey : ($d["category_{$loc}"] ?? ''),
+                ':description' => $d["description_{$loc}"] ?? null,
             ]);
         }
         json_response(['success' => true]);

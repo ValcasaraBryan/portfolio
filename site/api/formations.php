@@ -29,7 +29,8 @@ function get_formations(PDO $pdo, string $locale): array
             "SELECT s.id, st.name,
                     COALESCE(NULLIF({$nameCol}, ''), st.category) AS category,
                     COALESCE({$descCol}, '') AS category_description,
-                    COALESCE(sc.color, '#888888') AS category_color
+                    COALESCE(sc.color, '#888888') AS category_color,
+                    COALESCE(st.description, '') AS skill_description
              FROM `skills` s
              JOIN `skill_translations` st ON st.skill_id = s.id AND st.locale = :locale
              JOIN `formation_skills` fs ON fs.skill_id = s.id

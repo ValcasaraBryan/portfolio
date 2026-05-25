@@ -194,7 +194,7 @@ async function renderExperiences() {
               <div class="timeline-role ${isCurrent ? 'current' : ''}">${exp.role}</div>
               <div class="timeline-company">${co}${loc}${typ}</div>
               ${exp.description ? `<p class="timeline-desc">${exp.description}</p>` : ''}
-              ${exp.skills?.length ? `<div class="chips-list">${exp.skills.map(s => `<span class="chip">${s.name ?? s}</span>`).join('')}</div>` : ''}
+              ${exp.skills?.length ? renderSkillChips(exp.skills) : ''}
             </div>
           </div>`;
         }).join('')}
@@ -217,6 +217,9 @@ async function renderExperiences() {
   });
 
   applyI18n();
+
+  attachSkillChipEvents(panel);
+
 }
 
 /* ── PROJECTS ──────────────────────────────────────────────── */
@@ -466,7 +469,7 @@ function openModal(id) {
     </div>
     ${p.category ? `<p class="modal__category">${p.category}</p>` : ''}
     <p class="modal__description">${p.description ?? ''}</p>
-    ${chips(p.skills)}
+    ${renderSkillChips(p.skills)}
     <div class="modal__actions">
       ${p.url
         ? `<a id="modal-url-btn" href="${p.url}" target="_blank" rel="noopener noreferrer"
@@ -485,6 +488,9 @@ function openModal(id) {
     </div>
   `;
   document.getElementById('proj-modal').classList.remove('hidden');
+
+  /* Tooltip + modal skill sur les chips de la modale projet */
+  attachSkillChipEvents(document.getElementById('proj-modal-body'), { stopProp: true });
 
   /* Vérification asynchrone du lien externe */
   if (p.url) {
@@ -564,11 +570,7 @@ async function renderFormations() {
             <div class="formation-card__content">
               <div class="formation-card__title">${escapeHtml(f.title)}</div>
               <div class="formation-card__school">${escapeHtml(f.school)}${f.level ? ` · ${escapeHtml(f.level)}` : ''}</div>
-              ${f.skills?.length ? `<div class="formation-card__sep"></div>${
-                f.skills.length >= SKILLS_GROUP_THRESHOLD
-                  ? chipsGroupedByCategory(f.skills)
-                  : chips(f.skills)
-              }` : ''}
+              ${f.skills?.length ? `<div class="formation-card__sep"></div>${renderSkillChips(f.skills)}` : ''}
             </div>
           </div>`;
         }).join('')}
@@ -583,12 +585,7 @@ async function renderFormations() {
           ${Object.entries(byCategory).map(([cat, items]) => `
             <div class="skills-sidebar__category">
               <div class="skills-sidebar__category-name">${cat}</div>
-              <div class="chips-list">${items.map(s => {
-                const raw = s?.category_color ?? null;
-                const color = (typeof raw === 'string' && /^#[0-9a-fA-F]{6}$/.test(raw)) ? raw : null;
-                const colorAttr = color ? ` chip--colored" style="--chip-color:${color}` : '';
-                return `<span class="chip${colorAttr}">${escapeHtml(s.name)}</span>`;
-              }).join('')}</div>
+              ${chips(items)}
             </div>
           `).join('')}
         </div>
@@ -607,57 +604,10 @@ async function renderFormations() {
       </div>
     </div>
 
-    <!-- Modal skill / catégorie -->
-    <div class="modal-overlay hidden" id="skill-modal" onclick="closeSkillModal(event)">
-      <div class="modal" id="skill-modal-body"></div>
-    </div>
   `;
   applyI18n();
 
-  // Attacher tooltip + modal sur les chips de skills individuels
-  panel.querySelectorAll('.chip--hoverable:not(.chip--category)').forEach(chip => {
-    chip.addEventListener('mouseenter', showSkillTooltip);
-    chip.addEventListener('mouseleave', hideSkillTooltip);
-    chip.addEventListener('click', () => {
-      hideSkillTooltip();
-      openSkillModal('skill', {
-        skill:       chip.dataset.skill,
-        category:    chip.dataset.category,
-        description: chip.dataset.description,
-      });
-    });
-  });
-
-  // Catégories : hover → dévoiler les skills ; clic → épingler ouvert/fermé
-  panel.querySelectorAll('.chip--category').forEach(btn => {
-    const group = btn.closest('.skill-group');
-
-    // Tooltip + ouverture au hover (desktop)
-    btn.addEventListener('mouseenter', e => {
-      showSkillTooltip(e);
-      group.classList.add('skill-group--open');
-    });
-    btn.addEventListener('mouseleave', hideSkillTooltip);
-
-    // Fermer au départ de la zone groupe (sauf si épinglé)
-    group.addEventListener('mouseleave', () => {
-      if (!group.classList.contains('skill-group--pinned')) {
-        group.classList.remove('skill-group--open');
-      }
-    });
-
-    // Clic : épingler/désépingler (toggle persistant — utile mobile + desktop)
-    btn.addEventListener('click', () => {
-      hideSkillTooltip();
-      const wasPinned = group.classList.contains('skill-group--pinned');
-      // Fermer les autres groupes épinglés
-      panel.querySelectorAll('.skill-group--pinned').forEach(g => {
-        if (g !== group) g.classList.remove('skill-group--pinned', 'skill-group--open');
-      });
-      group.classList.toggle('skill-group--pinned', !wasPinned);
-      group.classList.toggle('skill-group--open',   !wasPinned);
-    });
-  });
+  attachSkillChipEvents(panel);
 }
 
 /* ── CONTACT — rendu d'un lien en rangée ────────────────────── */
@@ -801,14 +751,30 @@ async function sendContact(e) {
 async function renderAbout() {
   const [profile, skillsData] = await Promise.all([
     get('profile.php'),
-    get('skills.php'),
+    get(`skills.php?lang=${lang}`),
   ]);
   const panel = document.getElementById('tab-about');
 
   const bio      = escapeHtml(profile?.bio      ?? '');
   const location = escapeHtml(profile?.location ?? '');
   const status   = escapeHtml(profile?.status   ?? '');
-  const topSkills = (skillsData ?? []).slice(0, 6);
+
+  // Grouper par catégorie, compter les skills, garder le top 5
+  const catMap = {};
+  for (const s of (skillsData ?? [])) {
+    const cat = s.category ?? '';
+    if (!cat) continue;
+    if (!catMap[cat]) {
+      catMap[cat] = { category_description: s.category_description ?? '', category_color: s.category_color ?? null, items: [] };
+    }
+    catMap[cat].items.push(s);
+  }
+  const categories = Object.entries(catMap)
+    .sort(([, a], [, b]) => b.items.length - a.items.length)
+    .slice(0, 5)
+    .map(([cat, { category_description, category_color, items }]) => ({
+      name: cat, description: category_description, color: category_color, items,
+    }));
 
   panel.innerHTML = `
     <div class="about">
@@ -831,15 +797,17 @@ async function renderAbout() {
           : `<p class="about__bio--empty">${t('about.no_bio')}</p>`}
       </div>
 
-      ${topSkills.length > 0 ? `
+      ${categories.length > 0 ? `
         <div class="about__skills">
           <h2 class="about__section-title">${t('about.skills_label')}</h2>
-          <div class="chips-list">${topSkills.map(s => `<span class="chip">${escapeHtml(s.name ?? s)}</span>`).join('')}</div>
+          <div class="chips-list">${categories.map(c => _chipCategory(c.name, c.description, c.color, c.items)).join('')}</div>
         </div>` : ''}
 
     </div>
   `;
   applyI18n();
+
+  attachSkillChipEvents(panel);
 }
 
 /* ── HELPERS ───────────────────────────────────────────────── */
@@ -847,71 +815,128 @@ async function renderAbout() {
 /** Délègue à AppUtils pour garder la logique centralisée et testable. */
 function escapeHtml(str) { return AppUtils.escapeHtml(str); }
 
-function chips(items) {
-  if (!items?.length) return '';
-  return `<div class="chips-list">${items.map(s => {
-    // Compatibilité usage legacy (tableau de chaînes)
-    if (typeof s === 'string') return `<span class="chip">${escapeHtml(s)}</span>`;
+/* ── CHIP PRIMITIVES ───────────────────────────────────────── */
 
-    // Objet skill : lire category_color (champ API) — fallback sur color
-    const raw   = s?.category_color ?? s?.color ?? null;
-    const color = (typeof raw === 'string' && /^#[0-9a-fA-F]{6}$/.test(raw)) ? raw : null;
-
-    // Construire la liste de classes proprement (sans hack de fermeture de guillemet)
-    const classes = ['chip'];
-    if (s.category || s.category_description) classes.push('chip--hoverable');
-    if (color) classes.push('chip--colored');
-
-    const style = color ? ` style="--chip-color:${color}"` : '';
-
-    return `<span class="${classes.join(' ')}"${style}
-                  data-skill="${escapeHtml(s.name ?? '')}"
-                  data-category="${escapeHtml(s.category ?? '')}"
-                  data-description="${escapeHtml(s.category_description ?? '')}"
-                  data-color="${escapeHtml(raw ?? '')}">${escapeHtml(s.name ?? '')}</span>`;
-  }).join('')}</div>`;
+/** Rend un chip skill individuel avec toutes les données interactives. */
+function _chipSkill(s) {
+  if (typeof s === 'string') return `<span class="chip">${escapeHtml(s)}</span>`;
+  const raw        = s?.category_color ?? s?.color ?? null;
+  const color      = (typeof raw === 'string' && /^#[0-9a-fA-F]{6}$/.test(raw)) ? raw : null;
+  const classes    = ['chip'];
+  const hasDetail  = s.category || s.category_description || s.skill_description || Array.isArray(s.skills_list);
+  if (hasDetail) classes.push('chip--hoverable');
+  if (color)     classes.push('chip--colored');
+  const style      = color ? ` style="--chip-color:${color}"` : '';
+  const dataSkills = Array.isArray(s.skills_list) && s.skills_list.length
+    ? ` data-skills="${escapeHtml(s.skills_list.join('|'))}"` : '';
+  return `<span class="${classes.join(' ')}"${style}
+    data-skill="${escapeHtml(s.name ?? '')}"
+    data-category="${escapeHtml(s.category ?? '')}"
+    data-description="${escapeHtml(s.category_description ?? '')}"
+    data-skill-description="${escapeHtml(s.skill_description ?? '')}"
+    data-color="${escapeHtml(raw ?? '')}"${dataSkills}>${escapeHtml(s.name ?? '')}</span>`;
 }
 
-function chipsGroupedByCategory(skills) {
+/** Rend un chip de catégorie (groupé) avec tooltip + données modal JSON. */
+function _chipCategory(cat, description, color, items) {
+  const safeColor  = (typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color)) ? color : null;
+  const colorStyle = safeColor ? ` style="--chip-color:${safeColor}"` : '';
+  const colorClass = safeColor ? ' chip--colored' : '';
+  const skillsJson = escapeHtml(JSON.stringify(
+    items.map(s => ({
+      name:              s.name,
+      category:          s.category ?? cat,
+      category_color:    safeColor ?? '',
+      skill_description: s.skill_description ?? '',
+    }))
+  ));
+  return `<button class="chip chip--category chip--hoverable${colorClass}"
+    data-category="${escapeHtml(cat)}"
+    data-description="${escapeHtml(description)}"
+    data-color="${escapeHtml(color ?? '')}"
+    data-skills="${escapeHtml(items.map(s => s.name).join('|'))}"
+    data-skills-json="${skillsJson}"
+    ${colorStyle}>${escapeHtml(cat)}<span class="chip__count">${items.length}</span></button>`;
+}
+
+/* ── CHIP COMPOSANTS ───────────────────────────────────────── */
+
+/** Rend une liste plate de chips individuels (usage générique). */
+function chips(items) {
+  if (!items?.length) return '';
+  return `<div class="chips-list">${items.map(s => _chipSkill(s)).join('')}</div>`;
+}
+
+/**
+ * Rend un ensemble de skills avec regroupement par catégorie adaptatif :
+ * - catégorie avec ≥ SKILLS_GROUP_THRESHOLD skills → puce de catégorie
+ * - catégorie avec < SKILLS_GROUP_THRESHOLD skills → chips individuels
+ * Utilisé dans les expériences et les formations.
+ */
+function renderSkillChips(skills) {
   if (!skills?.length) return '';
-  // Grouper par catégorie en préservant l'ordre retourné par l'API (sort_order)
   const groups = {};
+  const order  = [];
   skills.forEach(s => {
     const key = s.category ?? '';
     if (!groups[key]) {
       groups[key] = { description: s.category_description ?? '', color: s.category_color ?? null, items: [] };
+      order.push(key);
     }
     groups[key].items.push(s);
   });
+  const html = order.map(cat => {
+    const { description, color, items } = groups[cat];
+    return items.length >= SKILLS_GROUP_THRESHOLD
+      ? _chipCategory(cat, description, color, items)
+      : items.map(s => _chipSkill(s)).join('');
+  }).join('');
+  return `<div class="chips-list">${html}</div>`;
+}
 
-  return `<div class="skill-groups">${
-    Object.entries(groups).map(([cat, { description, color, items }]) => {
-      const safeColor = (typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color)) ? color : null;
-      const colorStyle = safeColor ? ` style="--chip-color:${safeColor}"` : '';
-      const colorClass = safeColor ? ' chip--colored' : '';
-      return `
-      <div class="skill-group">
-        <button class="chip chip--category chip--hoverable${colorClass}"
-                data-category="${escapeHtml(cat)}"
-                data-description="${escapeHtml(description)}"
-                data-color="${escapeHtml(color ?? '')}"
-                ${colorStyle}>
-          ${escapeHtml(cat)}<span class="chip__count">${items.length}</span><span class="chip__caret">▾</span>
-        </button>
-        <div class="chips-list chips-list--sub">
-          ${items.map(s => `
-            <span class="chip chip--hoverable${colorClass}"
-                  data-skill="${escapeHtml(s.name)}"
-                  data-category="${escapeHtml(cat)}"
-                  data-description="${escapeHtml(description)}"
-                  data-color="${escapeHtml(color ?? '')}"
-                  ${colorStyle}>
-              ${escapeHtml(s.name)}
-            </span>`).join('')}
-        </div>
-      </div>`;
-    }).join('')
-  }</div>`;
+/* ── SKILL CHIP EVENTS (composant réutilisable) ────────────── */
+/**
+ * Attache tooltip + modal sur tous les chips hoverable d'un container.
+ *  - .chip--hoverable:not(.chip--category) → modal skill
+ *  - .chip--category.chip--hoverable       → modal catégorie
+ * @param {Element} container
+ * @param {Object}  [opts]
+ * @param {boolean} [opts.stopProp=false]  stopPropagation au clic
+ *                                          (chips imbriqués dans une modale parente)
+ */
+function attachSkillChipEvents(container, { stopProp = false } = {}) {
+  container.querySelectorAll('.chip--hoverable:not(.chip--category)').forEach(chip => {
+    chip.addEventListener('mouseenter', showSkillTooltip);
+    chip.addEventListener('mouseleave', hideSkillTooltip);
+    chip.addEventListener('click', e => {
+      if (stopProp) e.stopPropagation();
+      hideSkillTooltip();
+      openSkillModal('skill', {
+        skill:            chip.dataset.skill,
+        category:         chip.dataset.category,
+        skillDescription: chip.dataset.skillDescription,
+      });
+    });
+  });
+  container.querySelectorAll('.chip--category.chip--hoverable').forEach(btn => {
+    btn.addEventListener('mouseenter', showSkillTooltip);
+    btn.addEventListener('mouseleave', hideSkillTooltip);
+    btn.addEventListener('click', e => {
+      if (stopProp) e.stopPropagation();
+      hideSkillTooltip();
+      let skills;
+      try { skills = JSON.parse(btn.dataset.skillsJson ?? ''); } catch { skills = null; }
+      if (!Array.isArray(skills)) {
+        skills = (btn.dataset.skills ?? '').split('|').filter(Boolean)
+          .map(n => ({ name: n, category_color: btn.dataset.color ?? '' }));
+      }
+      openSkillModal('category', {
+        category:    btn.dataset.category,
+        description: btn.dataset.description,
+        skills,
+      });
+    });
+  });
 }
 
 /* ── SKILL TOOLTIP (singleton) ─────────────────────────────── */
@@ -927,12 +952,30 @@ function _getSkillTooltip() {
 }
 
 function showSkillTooltip(e) {
-  const target = e.currentTarget;
-  const cat    = target.dataset.category || target.dataset.skill || '';
-  const desc   = target.dataset.description || '';
-  if (!cat) return;
+  const target     = e.currentTarget;
+  const skillsRaw  = target.dataset.skills || '';        // présent sur chip catégorie
+  const skillDesc  = target.dataset.skillDescription || ''; // présent sur chip skill individuel
+  const cat        = target.dataset.category || target.dataset.skill || '';
+  const catDesc    = target.dataset.description || '';
+
   const tip = _getSkillTooltip();
-  tip.innerHTML = `<strong>${escapeHtml(cat)}</strong>${desc ? `<br><span>${escapeHtml(desc)}</span>` : ''}`;
+  let content = '';
+
+  if (skillsRaw) {
+    // Chip catégorie → nom catégorie + liste de skills
+    if (cat) content += `<strong>${escapeHtml(cat)}</strong>`;
+    const names = skillsRaw.split('|').filter(Boolean);
+    content += `<div class="skill-tooltip__skills">${
+      names.map(n => `<span>${escapeHtml(n)}</span>`).join('')
+    }</div>`;
+  } else {
+    // Chip skill individuel → catégorie en header + description de la techno
+    if (cat) content += `<strong>${escapeHtml(cat)}</strong>`;
+    if (skillDesc) content += `<br><span>${escapeHtml(skillDesc)}</span>`;
+  }
+
+  if (!content) return;
+  tip.innerHTML = content;
   tip.classList.remove('hidden');
   const rect = target.getBoundingClientRect();
   tip.style.left = `${rect.left}px`;
@@ -943,16 +986,32 @@ function hideSkillTooltip() {
   _getSkillTooltip().classList.add('hidden');
 }
 
-/* ── SKILL MODAL ───────────────────────────────────────────── */
+/* ── SKILL MODAL (singleton global, indépendant du panel) ─── */
+function _getSkillModal() {
+  let overlay = document.getElementById('skill-modal');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id        = 'skill-modal';
+    overlay.className = 'modal-overlay hidden';
+    overlay.addEventListener('click', closeSkillModal);
+    const body    = document.createElement('div');
+    body.id        = 'skill-modal-body';
+    body.className = 'modal';
+    overlay.appendChild(body);
+    document.body.appendChild(overlay);
+  }
+  return overlay;
+}
+
 function openSkillModal(type, data) {
-  const body = document.getElementById('skill-modal-body');
-  if (!body) return;
+  const overlay  = _getSkillModal();
+  const body     = overlay.querySelector('#skill-modal-body');
   const closeBtn = `<button class="modal__close-btn" onclick="document.getElementById('skill-modal').classList.add('hidden')">${t('formations.skill_modal_close')}</button>`;
   if (type === 'skill') {
     body.innerHTML = `
       <div class="modal__category">${escapeHtml(data.category ?? '')}</div>
       <h2 class="modal__title">${escapeHtml(data.skill ?? '')}</h2>
-      ${data.description ? `<p class="modal__description">${escapeHtml(data.description)}</p>` : ''}
+      ${data.skillDescription ? `<p class="modal__description">${escapeHtml(data.skillDescription)}</p>` : ''}
       ${closeBtn}`;
   } else {
     // type === 'category'
@@ -960,12 +1019,11 @@ function openSkillModal(type, data) {
       <div class="modal__category">${t('formations.category_skills')}</div>
       <h2 class="modal__title">${escapeHtml(data.category ?? '')}</h2>
       ${data.description ? `<p class="modal__description">${escapeHtml(data.description)}</p>` : ''}
-      <div class="chips-list skill-modal__chips">${
-        (data.skills ?? []).map(s => `<span class="chip">${escapeHtml(s.name ?? s)}</span>`).join('')
-      }</div>
+      <div class="skill-modal__chips">${chips(data.skills ?? [])}</div>
       ${closeBtn}`;
+    attachSkillChipEvents(body);
   }
-  document.getElementById('skill-modal').classList.remove('hidden');
+  overlay.classList.remove('hidden');
 }
 
 function closeSkillModal(e) {
