@@ -230,7 +230,6 @@ function _projCardSmall(p) {
     <div class="proj-card" data-cat="${(p.category ?? '').toLowerCase()}" onclick="openModal(${p.id})">
       <div class="proj-card__media proj-card__media--hatch proj-card__media--ratio">
         ${p.photo_url ? `<img src="${p.photo_url}" alt="${p.name}" class="proj-card__img">` : ''}
-        <span class="proj-card__media-label">IMG · 16:9</span>
         ${yr ? `<span class="proj-card__year">${yr}</span>` : ''}
       </div>
       <div class="proj-card__body">
@@ -290,7 +289,6 @@ function _renderProjPage() {
       <div class="proj-card proj-card--side" data-cat="${(p.category ?? '').toLowerCase()}" onclick="openModal(${p.id})">
         <div class="proj-card__media proj-card__media--hatch proj-card__media--sm">
           ${p.photo_url ? `<img src="${p.photo_url}" alt="${p.name}" class="proj-card__img">` : ''}
-          <span class="proj-card__media-label">IMG · 16:9</span>
           <span class="proj-card__year">${yr(p.date)}</span>
         </div>
         <div class="proj-card__body">
@@ -303,7 +301,6 @@ function _renderProjPage() {
       <div class="proj-card" data-cat="${(p.category ?? '').toLowerCase()}" onclick="openModal(${p.id})">
         <div class="proj-card__media proj-card__media--hatch proj-card__media--ratio">
           ${p.photo_url ? `<img src="${p.photo_url}" alt="${p.name}" class="proj-card__img">` : ''}
-          <span class="proj-card__media-label">IMG · 16:9</span>
           <span class="proj-card__year">${yr(p.date)}</span>
         </div>
         <div class="proj-card__body">

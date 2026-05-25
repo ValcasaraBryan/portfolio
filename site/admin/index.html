@@ -41,7 +41,7 @@
       TextField, Alert, Snackbar, CircularProgress, Chip, Autocomplete,
       MenuItem, Divider, createTheme, ThemeProvider, CssBaseline,
     } from '@mui/material';
-    import { Star, StarBorder, Delete, ExpandMore } from '@mui/icons-material';
+    import { Star, StarBorder, Delete, ExpandMore, Visibility } from '@mui/icons-material';
 
     const API = '../api';
     const DRAWER_WIDTH = 220;
@@ -132,9 +132,10 @@
         ],
       },
       { id: 'contact', label: 'Messages', endpoint: 'contact.php',
-        columns: ['name','email','sent_at'],
+        columns: ['name','email','subject','sent_at','message'],
         fields: [],
         readonly: true,
+        deletable: true,
       },
       { id: 'links', label: 'Liens sociaux', endpoint: 'links.php',
         bilingual: false,
@@ -818,6 +819,7 @@
       const [form,              setForm]              = useState({});
       const [snack,             setSnack]             = useState(null);
       const [editCertifications, setEditCertifications] = useState([]);
+      const [viewMsg,            setViewMsg]            = useState(null);
 
       const load = useCallback(async () => {
         setLoading(true);
@@ -953,7 +955,7 @@
                         c.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
                       )
                 ),
-                !section.readonly && React.createElement(TableCell, { align: 'right' }, 'Actions'),
+                (!section.readonly || section.deletable) && React.createElement(TableCell, { align: 'right' }, 'Actions'),
               )
             ),
             React.createElement(TableBody, null,
@@ -1005,13 +1007,30 @@
                         )
                       );
                     }
+                    if (c === 'message') {
+                      const preview = (row.message ?? '').replace(/\n/g, ' ');
+                      const truncated = preview.length > 60 ? preview.slice(0, 60) + '…' : (preview || '—');
+                      return React.createElement(TableCell, { key: c, sx: { fontSize: '0.8rem', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#aaa', fontStyle: 'italic' } },
+                        truncated
+                      );
+                    }
                     return React.createElement(TableCell, { key: c, sx: { fontSize: '0.8rem', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
                       String(row[c] ?? '—')
                     );
                   }),
-                  !section.readonly && React.createElement(TableCell, { align: 'right' },
-                    React.createElement(Button, { size: 'small', onClick: () => openEdit(row), sx: { mr: 1 } }, 'Edit'),
-                    React.createElement(Button, { size: 'small', color: 'error', onClick: () => remove(row.id) }, 'Delete'),
+                  (!section.readonly || section.deletable) && React.createElement(TableCell, { align: 'right', sx: { whiteSpace: 'nowrap' } },
+                    section.deletable && React.createElement(IconButton, {
+                      size: 'small', title: 'Voir le message',
+                      onClick: () => setViewMsg(row),
+                      sx: { color: '#7ED9B1' },
+                    }, React.createElement(Visibility, { fontSize: 'small' })),
+                    section.deletable && React.createElement(IconButton, {
+                      size: 'small', title: 'Supprimer',
+                      onClick: () => remove(row.id),
+                      sx: { color: '#e57373', ml: 0.5 },
+                    }, React.createElement(Delete, { fontSize: 'small' })),
+                    !section.readonly && !section.deletable && React.createElement(Button, { size: 'small', onClick: () => openEdit(row), sx: { mr: 1 } }, 'Edit'),
+                    !section.readonly && !section.deletable && React.createElement(Button, { size: 'small', color: 'error', onClick: () => remove(row.id) }, 'Delete'),
                   ),
                 )
               )
@@ -1084,6 +1103,43 @@
           React.createElement(DialogActions, null,
             React.createElement(Button, { onClick: closeDialog }, 'Cancel'),
             React.createElement(Button, { variant: 'contained', onClick: save }, 'Save'),
+          )
+        ),
+
+        /* Dialog — détail message contact */
+        React.createElement(Dialog, { open: !!viewMsg, onClose: () => setViewMsg(null), maxWidth: 'sm', fullWidth: true },
+          React.createElement(DialogTitle, { sx: { borderBottom: '1px solid #333', pb: 1.5 } },
+            React.createElement(Typography, { variant: 'h6' }, 'Message reçu'),
+          ),
+          React.createElement(DialogContent, { sx: { pt: 2, pb: 1 } },
+            React.createElement(Box, { sx: { display: 'flex', flexDirection: 'column', gap: 1.5 } },
+              React.createElement(Box, { sx: { display: 'flex', gap: 1 } },
+                React.createElement(Typography, { variant: 'caption', sx: { color: '#7ED9B1', fontWeight: 700, minWidth: 60 } }, 'De :'),
+                React.createElement(Typography, { variant: 'body2' }, `${viewMsg?.name ?? ''} <${viewMsg?.email ?? ''}>`),
+              ),
+              viewMsg?.subject && React.createElement(Box, { sx: { display: 'flex', gap: 1 } },
+                React.createElement(Typography, { variant: 'caption', sx: { color: '#7ED9B1', fontWeight: 700, minWidth: 60 } }, 'Sujet :'),
+                React.createElement(Typography, { variant: 'body2' }, viewMsg.subject),
+              ),
+              React.createElement(Box, { sx: { display: 'flex', gap: 1 } },
+                React.createElement(Typography, { variant: 'caption', sx: { color: '#7ED9B1', fontWeight: 700, minWidth: 60 } }, 'Date :'),
+                React.createElement(Typography, { variant: 'body2', sx: { color: '#aaa' } }, viewMsg?.sent_at ?? ''),
+              ),
+              React.createElement(Divider, { sx: { my: 0.5 } }),
+              React.createElement(Box, null,
+                React.createElement(Typography, { variant: 'caption', sx: { color: '#7ED9B1', fontWeight: 700, display: 'block', mb: 1 } }, 'Message :'),
+                React.createElement(Typography, { variant: 'body2', sx: { whiteSpace: 'pre-wrap', lineHeight: 1.7, color: '#e0e0e0' } },
+                  viewMsg?.message ?? ''
+                ),
+              ),
+            )
+          ),
+          React.createElement(DialogActions, { sx: { borderTop: '1px solid #333', pt: 1 } },
+            React.createElement(Button, {
+              color: 'error', size: 'small',
+              onClick: () => { const id = viewMsg?.id; setViewMsg(null); remove(id); },
+            }, 'Supprimer'),
+            React.createElement(Button, { onClick: () => setViewMsg(null) }, 'Fermer'),
           )
         ),
 
