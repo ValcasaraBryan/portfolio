@@ -49,6 +49,10 @@ async function loadLang(newLang) {
 
   // Mise à jour du lien CV pour la nouvelle langue
   updateCvLink(lang);
+
+  // Re-fetch du profil pour mettre à jour le titre traduit dans le drawer
+  const profileOnLangChange = await get('profile.php');
+  if (profileOnLangChange) updateDrawerProfile(profileOnLangChange);
 }
 
 /* ── TAB NAVIGATION ────────────────────────────────────────── */
@@ -843,6 +847,15 @@ function _syncThemeButtons() {
 
 /* ── CV LINK ───────────────────────────────────────────────── */
 /**
+ * Met à jour le titre du profil dans le drawer selon la langue active.
+ * Appelé à l'init et à chaque changement de langue.
+ */
+function updateDrawerProfile(profile) {
+  document.querySelectorAll('.profile-title')
+    .forEach(el => { el.textContent = profile.title ?? ''; });
+}
+
+/**
  * Met à jour les liens de téléchargement du CV selon la langue active.
  * Désactive le bouton (aria-disabled + classe) si aucun CV n'est disponible.
  */
@@ -923,8 +936,7 @@ async function init() {
   if (profile) {
     document.querySelectorAll('.profile-name')
       .forEach(el => { el.textContent = profile.name ?? ''; });
-    document.querySelectorAll('.profile-title')
-      .forEach(el => { el.textContent = profile.title ?? ''; });
+    updateDrawerProfile(profile);
     document.querySelectorAll('.profile-avatar').forEach(img => {
       if (profile.photo_url) img.src = profile.photo_url;
     });
