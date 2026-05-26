@@ -44,6 +44,25 @@ function get_projects(PDO $pdo, string $locale): array
     return $projects;
 }
 
+/* ── Upsert d'une traduction projet (locale = 'fr' ou 'en') ─── */
+function upsert_project_translation(PDO $pdo, int $projectId, string $locale,
+                                    string $name, ?string $description): void
+{
+    $pdo->prepare(
+        'INSERT INTO `project_translations`
+             (`project_id`, `locale`, `name`, `description`)
+         VALUES (:id, :locale, :name, :desc)
+         ON DUPLICATE KEY UPDATE
+             `name`        = VALUES(`name`),
+             `description` = VALUES(`description`)'
+    )->execute([
+        ':id'     => $projectId,
+        ':locale' => $locale,
+        ':name'   => $name,
+        ':desc'   => $description,
+    ]);
+}
+
 switch (method()) {
     case 'GET':
         $locale = in_array($_GET['lang'] ?? 'fr', ['fr', 'en']) ? ($_GET['lang'] ?? 'fr') : 'fr';
@@ -70,6 +89,21 @@ switch (method()) {
             ':category'   => $category,
         ]);
         $projectId = (int) $pdo->lastInsertId();
+
+        /* Upsert traduction FR */
+        upsert_project_translation(
+            $pdo, $projectId, 'fr',
+            $d['name']        ?? '',
+            $d['description'] ?? null
+        );
+
+        /* Upsert traduction EN */
+        upsert_project_translation(
+            $pdo, $projectId, 'en',
+            $d['name_en']        ?? ($d['name']        ?? ''),
+            $d['description_en'] ?? ($d['description'] ?? null)
+        );
+
         if (!empty($d['skill_ids']) && is_array($d['skill_ids'])) {
             $sk = $pdo->prepare('INSERT INTO `project_skills` (`project_id`, `skill_id`) VALUES (?, ?)');
             foreach ($d['skill_ids'] as $sid) {
@@ -101,15 +135,20 @@ switch (method()) {
             ':github_url' => $d['github_url'] ?? null,
             ':category'   => $category,
         ]);
-        $pdo->prepare(
-            'UPDATE `project_translations`
-             SET `name`=:name,`description`=:description
-             WHERE `project_id`=:id'
-        )->execute([
-            ':id'         => $d['id'],
-            ':name'       => $d['name']       ?? '',
-            ':description'=> $d['description']?? null,
-        ]);
+        /* Upsert traduction FR */
+        upsert_project_translation(
+            $pdo, (int) $d['id'], 'fr',
+            $d['name']        ?? '',
+            $d['description'] ?? null
+        );
+
+        /* Upsert traduction EN */
+        upsert_project_translation(
+            $pdo, (int) $d['id'], 'en',
+            $d['name_en']        ?? ($d['name']        ?? ''),
+            $d['description_en'] ?? ($d['description'] ?? null)
+        );
+
         $pdo->prepare('DELETE FROM `project_skills` WHERE `project_id` = ?')->execute([$d['id']]);
         if (!empty($d['skill_ids']) && is_array($d['skill_ids'])) {
             $sk = $pdo->prepare('INSERT INTO `project_skills` (`project_id`, `skill_id`) VALUES (?, ?)');

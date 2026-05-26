@@ -51,6 +51,27 @@ function get_formations(PDO $pdo, string $locale): array
     return $formations;
 }
 
+/* ── Upsert d'une traduction formation (locale = 'fr' ou 'en') ── */
+function upsert_formation_translation(PDO $pdo, int $formId, string $locale,
+                                      string $title, ?string $level, ?string $description): void
+{
+    $pdo->prepare(
+        'INSERT INTO `formation_translations`
+             (`formation_id`, `locale`, `title`, `level`, `description`)
+         VALUES (:id, :locale, :title, :level, :desc)
+         ON DUPLICATE KEY UPDATE
+             `title`       = VALUES(`title`),
+             `level`       = VALUES(`level`),
+             `description` = VALUES(`description`)'
+    )->execute([
+        ':id'     => $formId,
+        ':locale' => $locale,
+        ':title'  => $title,
+        ':level'  => $level,
+        ':desc'   => $description,
+    ]);
+}
+
 switch (method()) {
     case 'GET':
         $locale = in_array($_GET['lang'] ?? 'fr', ['fr', 'en']) ? ($_GET['lang'] ?? 'fr') : 'fr';
@@ -74,6 +95,23 @@ switch (method()) {
             ':mention'     => $d['mention']     ?? null,
         ]);
         $formId = (int) $pdo->lastInsertId();
+
+        /* Upsert traduction FR */
+        upsert_formation_translation(
+            $pdo, $formId, 'fr',
+            $d['title']       ?? '',
+            $d['level']       ?? null,
+            $d['description'] ?? null
+        );
+
+        /* Upsert traduction EN */
+        upsert_formation_translation(
+            $pdo, $formId, 'en',
+            $d['title_en']       ?? ($d['title']       ?? ''),
+            $d['level_en']       ?? ($d['level']       ?? null),
+            $d['description_en'] ?? ($d['description'] ?? null)
+        );
+
         if (!empty($d['skill_ids']) && is_array($d['skill_ids'])) {
             $sk = $pdo->prepare('INSERT INTO `formation_skills` (`formation_id`, `skill_id`) VALUES (?, ?)');
             foreach ($d['skill_ids'] as $sid) {
@@ -102,6 +140,22 @@ switch (method()) {
             ':description' => $d['description'] ?? null,
             ':mention'     => $d['mention']     ?? null,
         ]);
+        /* Upsert traduction FR */
+        upsert_formation_translation(
+            $pdo, (int) $d['id'], 'fr',
+            $d['title']       ?? '',
+            $d['level']       ?? null,
+            $d['description'] ?? null
+        );
+
+        /* Upsert traduction EN */
+        upsert_formation_translation(
+            $pdo, (int) $d['id'], 'en',
+            $d['title_en']       ?? ($d['title']       ?? ''),
+            $d['level_en']       ?? ($d['level']       ?? null),
+            $d['description_en'] ?? ($d['description'] ?? null)
+        );
+
         $pdo->prepare('DELETE FROM `formation_skills` WHERE `formation_id` = ?')->execute([$d['id']]);
         if (!empty($d['skill_ids']) && is_array($d['skill_ids'])) {
             $sk = $pdo->prepare('INSERT INTO `formation_skills` (`formation_id`, `skill_id`) VALUES (?, ?)');

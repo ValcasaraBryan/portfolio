@@ -97,11 +97,16 @@
         ],
       },
       { id: 'projects', label: 'Projects', endpoint: 'projects.php',
+        bilingual: true,
         columns: ['is_favorite','name','category','url','github_url','skills'],
         fields: [
-          { key: 'name' },
+          { key: '_sep_fr',        type: 'separator', label: '🇫🇷 Français' },
+          { key: 'name',           label: 'Nom (FR)' },
+          { key: 'description',    label: 'Description (FR)' },
+          { key: '_sep_en',        type: 'separator', label: '🇬🇧 English' },
+          { key: 'name_en',        label: 'Name (EN)' },
+          { key: 'description_en', label: 'Description (EN)' },
           { key: 'photo_url', type: 'image_upload', uploadType: 'project', label: 'Photo' },
-          { key: 'description' },
           { key: 'date' },
           { key: 'url' },
           { key: 'github_url' },
@@ -110,15 +115,21 @@
         ],
       },
       { id: 'formations', label: 'Education', endpoint: 'formations.php',
+        bilingual: true,
         columns: ['school','title','level','city','skills','certifications'],
         fields: [
           { key: 'school',   suggestions: rows => [...new Set(rows.map(r => r.school).filter(Boolean))] },
+          { key: '_sep_fr',  type: 'separator', label: '🇫🇷 Français' },
           { key: 'title' },
           { key: 'level',    suggestions: rows => [...new Set(rows.map(r => r.level).filter(Boolean))] },
+          { key: 'description' },
+          { key: '_sep_en',  type: 'separator', label: '🇬🇧 English' },
+          { key: 'title_en',       label: 'Title (EN)' },
+          { key: 'level_en',       label: 'Level (EN)' },
+          { key: 'description_en', label: 'Description (EN)' },
           { key: 'city',     suggestions: rows => [...new Set(rows.map(r => r.city).filter(Boolean))] },
           { key: 'start_date' },
           { key: 'end_date' },
-          { key: 'description' },
           { key: 'mention' },
           { key: 'skill_ids', type: 'skills', label: 'Skills' },
         ],
@@ -904,6 +915,9 @@
           base.type_fr        = row.type       ?? '';   // label FR (row vient de ?lang=fr)
           base.type_en        = en.type        ?? '';   // label EN
           base.role_en        = en.role        ?? '';
+          base.name_en        = en.name        ?? '';
+          base.title_en       = en.title       ?? '';
+          base.level_en       = en.level       ?? '';
           base.description_en = en.description ?? '';
           /* Fallback : dériver les labels depuis EXP_TYPE_MAP si absents */
           if (base.type) {

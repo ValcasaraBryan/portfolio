@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests traductions projets — Portfolio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0d0d0d;
+      color: #e2e2e2;
+      padding: 32px;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: .15em; color: #fff; margin-bottom: 6px; }
+    .hint { color: #555; font-size: 0.78rem; margin-bottom: 32px; }
+
+    .summary {
+      display: flex; gap: 20px; align-items: center;
+      padding: 12px 18px; border: 1px solid #2a2a2a;
+      border-radius: 4px; margin-bottom: 32px; font-size: 0.85rem;
+    }
+    .summary__pass  { color: #4ade80; font-weight: 700; }
+    .summary__fail  { color: #f87171; font-weight: 700; }
+    .summary__total { color: #888; }
+    .summary__time  { color: #444; margin-left: auto; font-size: 0.75rem; }
+    .summary--all-pass { border-color: #14532d; background: #052e16; }
+    .summary--has-fail { border-color: #7f1d1d; background: #2d0e0e; }
+
+    .section { margin-bottom: 32px; }
+    .section__title {
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: .12em;
+      color: #555; margin-bottom: 12px; border-bottom: 1px solid #1a1a1a; padding-bottom: 6px;
+    }
+
+    .test {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 7px 0; border-bottom: 1px solid #141414;
+    }
+    .test:last-child { border-bottom: none; }
+    .badge {
+      flex-shrink: 0; width: 52px; text-align: center;
+      font-size: 0.7rem; font-weight: 700; padding: 2px 6px;
+      border-radius: 3px; text-transform: uppercase; margin-top: 2px;
+    }
+    .badge--pass { background: #14532d; color: #4ade80; }
+    .badge--fail { background: #7f1d1d; color: #f87171; }
+    .badge--skip { background: #1c1c1c; color: #555; }
+    .test__name  { font-size: 0.82rem; flex: 1; }
+    .test__detail {
+      font-size: 0.72rem; color: #666; margin-top: 3px;
+      font-style: italic;
+    }
+    .test__error { color: #f87171; font-size: 0.72rem; margin-top: 3px; }
+
+    .api-response {
+      background: #111; border: 1px solid #222; border-radius: 4px;
+      padding: 12px 16px; font-size: 0.75rem; color: #aaa;
+      margin-top: 8px; white-space: pre-wrap; word-break: break-all;
+      max-height: 200px; overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Traductions projets — Tests</h1>
+<p class="hint">Vérifie que l'API <code>projects.php</code> retourne la bonne description selon <code>?lang=</code>.</p>
+
+<div id="summary" class="summary">
+  <span class="summary__pass">✓ <span id="pass-count">0</span> passé(s)</span>
+  <span class="summary__fail">✗ <span id="fail-count">0</span> échoué(s)</span>
+  <span class="summary__total">sur <span id="total-count">0</span> test(s)</span>
+  <span class="summary__time" id="elapsed"></span>
+</div>
+
+<div id="results"></div>
+
+<script>
+  const API = '../api';
+  const results = document.getElementById('results');
+  let pass = 0, fail = 0, total = 0;
+  const t0 = performance.now();
+
+  function addSection(title) {
+    const s = document.createElement('div');
+    s.className = 'section';
+    s.innerHTML = `<div class="section__title">${title}</div>`;
+    results.appendChild(s);
+    return s;
+  }
+
+  function addTest(section, name, status, detail = '', error = '') {
+    total++;
+    if (status === 'pass') pass++;
+    else if (status === 'fail') fail++;
+    const cls = status === 'pass' ? 'pass' : status === 'fail' ? 'fail' : 'skip';
+    const icon = status === 'pass' ? 'PASS' : status === 'fail' ? 'FAIL' : 'SKIP';
+    section.innerHTML += `
+      <div class="test">
+        <span class="badge badge--${cls}">${icon}</span>
+        <div>
+          <div class="test__name">${name}</div>
+          ${detail ? `<div class="test__detail">${detail}</div>` : ''}
+          ${error  ? `<div class="test__error">${error}</div>` : ''}
+        </div>
+      </div>`;
+    updateSummary();
+  }
+
+  function updateSummary() {
+    document.getElementById('pass-count').textContent  = pass;
+    document.getElementById('fail-count').textContent  = fail;
+    document.getElementById('total-count').textContent = total;
+    document.getElementById('elapsed').textContent = `${((performance.now() - t0) / 1000).toFixed(2)}s`;
+    const el = document.getElementById('summary');
+    el.className = 'summary ' + (fail === 0 ? 'summary--all-pass' : 'summary--has-fail');
+  }
+
+  async function run() {
+    /* ── Section 1 : Structure de la réponse API ── */
+    const s1 = addSection('Structure API projects.php');
+
+    let fr_projects, en_projects;
+    try {
+      const [resFr, resEn] = await Promise.all([
+        fetch(`${API}/projects.php?lang=fr`),
+        fetch(`${API}/projects.php?lang=en`),
+      ]);
+      fr_projects = await resFr.json();
+      en_projects = await resEn.json();
+
+      addTest(s1, 'GET ?lang=fr retourne un tableau',
+        Array.isArray(fr_projects) ? 'pass' : 'fail',
+        `${fr_projects?.length ?? 0} projet(s)`);
+
+      addTest(s1, 'GET ?lang=en retourne un tableau',
+        Array.isArray(en_projects) ? 'pass' : 'fail',
+        `${en_projects?.length ?? 0} projet(s)`);
+
+    } catch (e) {
+      addTest(s1, 'Appel API', 'fail', '', e.message);
+      return;
+    }
+
+    /* ── Section 2 : Champs description présents ── */
+    const s2 = addSection('Champ description dans la réponse');
+
+    if (fr_projects.length === 0) {
+      addTest(s2, 'Aucun projet disponible — tests ignorés', 'skip', 'Ajoutez un projet via l\'admin d\'abord.');
+      return;
+    }
+
+    const fr0 = fr_projects[0];
+    const en0 = en_projects.find(p => p.id === fr0.id) ?? {};
+
+    addTest(s2, 'Projet FR : champ "name" présent',
+      'name' in fr0 ? 'pass' : 'fail',
+      fr0.name ? `"${fr0.name}"` : '(null)');
+
+    addTest(s2, 'Projet FR : champ "description" présent',
+      'description' in fr0 ? 'pass' : 'fail',
+      fr0.description ? `"${fr0.description.slice(0, 60)}…"` : '(null)');
+
+    addTest(s2, 'Projet EN : champ "name" présent',
+      'name' in en0 ? 'pass' : 'fail',
+      en0.name ? `"${en0.name}"` : '(null)');
+
+    addTest(s2, 'Projet EN : champ "description" présent',
+      'description' in en0 ? 'pass' : 'fail',
+      en0.description ? `"${en0.description.slice(0, 60)}…"` : '(null)');
+
+    /* ── Section 3 : FR ≠ EN si traduction saisie ── */
+    const s3 = addSection('Différenciation FR / EN');
+
+    const hasEnName = en0.name && en0.name !== fr0.name;
+    const hasEnDesc = en0.description && en0.description !== fr0.description;
+
+    addTest(s3, 'Nom EN différent du nom FR (si traduit)',
+      hasEnName ? 'pass' : 'skip',
+      hasEnName
+        ? `FR: "${fr0.name}" / EN: "${en0.name}"`
+        : 'Traduction identique ou absente — saisir une traduction EN dans l\'admin pour valider.');
+
+    addTest(s3, 'Description EN différente de la description FR (si traduite)',
+      hasEnDesc ? 'pass' : 'skip',
+      hasEnDesc
+        ? `OK — les deux descriptions sont différentes`
+        : 'Traduction identique ou absente — saisir une traduction EN dans l\'admin pour valider.');
+
+    /* ── Section 4 : Fallback COALESCE ── */
+    const s4 = addSection('Fallback COALESCE (EN → FR si pas de traduction)');
+
+    // Un projet sans traduction EN doit fallback sur la valeur FR
+    const noEnTrans = en_projects.find(p => {
+      const frP = fr_projects.find(f => f.id === p.id);
+      return frP && p.name === frP.name; // même nom = pas de traduction EN différente
+    });
+
+    addTest(s4, 'COALESCE : EN retourne au moins la valeur FR si pas de traduction',
+      noEnTrans ? 'pass' : 'skip',
+      noEnTrans
+        ? `Projet id=${noEnTrans.id} : name="${noEnTrans.name}" (identique FR/EN → fallback OK)`
+        : 'Tous les projets ont une traduction EN (ou aucun projet disponible).');
+  }
+
+  run();
+</script>
+</body>
+</html>

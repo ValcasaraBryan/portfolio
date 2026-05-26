@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests description formations — Portfolio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0d0d0d;
+      color: #e2e2e2;
+      padding: 32px;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: .15em; color: #fff; margin-bottom: 6px; }
+    .hint { color: #555; font-size: 0.78rem; margin-bottom: 32px; }
+
+    .summary {
+      display: flex; gap: 20px; align-items: center;
+      padding: 12px 18px; border: 1px solid #2a2a2a;
+      border-radius: 4px; margin-bottom: 32px; font-size: 0.85rem;
+    }
+    .summary__pass  { color: #4ade80; font-weight: 700; }
+    .summary__fail  { color: #f87171; font-weight: 700; }
+    .summary__total { color: #888; }
+    .summary__time  { color: #444; margin-left: auto; font-size: 0.75rem; }
+    .summary--all-pass { border-color: #14532d; background: #052e16; }
+    .summary--has-fail { border-color: #7f1d1d; background: #2d0e0e; }
+
+    .section { margin-bottom: 32px; }
+    .section__title {
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: .12em;
+      color: #555; margin-bottom: 12px; border-bottom: 1px solid #1a1a1a; padding-bottom: 6px;
+    }
+
+    .test {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 7px 0; border-bottom: 1px solid #141414;
+    }
+    .test:last-child { border-bottom: none; }
+    .badge {
+      flex-shrink: 0; width: 52px; text-align: center;
+      font-size: 0.7rem; font-weight: 700; padding: 2px 6px;
+      border-radius: 3px; text-transform: uppercase; margin-top: 2px;
+    }
+    .badge--pass { background: #14532d; color: #4ade80; }
+    .badge--fail { background: #7f1d1d; color: #f87171; }
+    .badge--skip { background: #1c1c1c; color: #555; }
+    .test__name  { font-size: 0.82rem; flex: 1; }
+    .test__detail { font-size: 0.72rem; color: #666; margin-top: 3px; font-style: italic; }
+    .test__error  { color: #f87171; font-size: 0.72rem; margin-top: 3px; }
+
+    /* Rendu de carte formation pour le test visuel */
+    .card-preview {
+      border: 1px solid #222; border-radius: 4px; padding: 16px;
+      background: #111; margin-top: 12px; font-family: 'Inter', sans-serif;
+    }
+    .card-preview .title { font-weight: 700; font-size: 0.9rem; color: #fff; }
+    .card-preview .school { font-size: 0.75rem; color: #666; margin-top: 4px; }
+    .card-preview .description { font-size: 0.82rem; color: #888; margin-top: 8px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+
+<h1>Description formations — Tests</h1>
+<p class="hint">
+  Vérifie que l'API <code>formations.php</code> retourne la description selon <code>?lang=</code>,
+  et que le rendu HTML inclut le paragraphe <code>.formation-card__description</code>.
+</p>
+
+<div id="summary" class="summary">
+  <span class="summary__pass">✓ <span id="pass-count">0</span> passé(s)</span>
+  <span class="summary__fail">✗ <span id="fail-count">0</span> échoué(s)</span>
+  <span class="summary__total">sur <span id="total-count">0</span> test(s)</span>
+  <span class="summary__time" id="elapsed"></span>
+</div>
+
+<div id="results"></div>
+
+<script>
+  const API = '../api';
+  const results = document.getElementById('results');
+  let pass = 0, fail = 0, total = 0;
+  const t0 = performance.now();
+
+  function addSection(title) {
+    const s = document.createElement('div');
+    s.className = 'section';
+    s.innerHTML = `<div class="section__title">${title}</div>`;
+    results.appendChild(s);
+    return s;
+  }
+
+  function addTest(section, name, status, detail = '', error = '') {
+    total++;
+    if (status === 'pass') pass++;
+    else if (status === 'fail') fail++;
+    const cls = status === 'pass' ? 'pass' : status === 'fail' ? 'fail' : 'skip';
+    const icon = status === 'pass' ? 'PASS' : status === 'fail' ? 'FAIL' : 'SKIP';
+    section.innerHTML += `
+      <div class="test">
+        <span class="badge badge--${cls}">${icon}</span>
+        <div>
+          <div class="test__name">${name}</div>
+          ${detail ? `<div class="test__detail">${detail}</div>` : ''}
+          ${error  ? `<div class="test__error">${error}</div>` : ''}
+        </div>
+      </div>`;
+    updateSummary();
+  }
+
+  function updateSummary() {
+    document.getElementById('pass-count').textContent  = pass;
+    document.getElementById('fail-count').textContent  = fail;
+    document.getElementById('total-count').textContent = total;
+    document.getElementById('elapsed').textContent = `${((performance.now() - t0) / 1000).toFixed(2)}s`;
+    const el = document.getElementById('summary');
+    el.className = 'summary ' + (fail === 0 ? 'summary--all-pass' : 'summary--has-fail');
+  }
+
+  function escapeHtml(str) {
+    return (str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  async function run() {
+    /* ── Section 1 : Structure API ── */
+    const s1 = addSection('Structure API formations.php');
+
+    let fr_data, en_data;
+    try {
+      const [resFr, resEn] = await Promise.all([
+        fetch(`${API}/formations.php?lang=fr`),
+        fetch(`${API}/formations.php?lang=en`),
+      ]);
+      fr_data = await resFr.json();
+      en_data = await resEn.json();
+
+      addTest(s1, 'GET ?lang=fr retourne un tableau',
+        Array.isArray(fr_data) ? 'pass' : 'fail',
+        `${fr_data?.length ?? 0} formation(s)`);
+
+      addTest(s1, 'GET ?lang=en retourne un tableau',
+        Array.isArray(en_data) ? 'pass' : 'fail',
+        `${en_data?.length ?? 0} formation(s)`);
+
+    } catch (e) {
+      addTest(s1, 'Appel API', 'fail', '', e.message);
+      return;
+    }
+
+    /* ── Section 2 : Champ description dans la réponse ── */
+    const s2 = addSection('Champ description dans la réponse API');
+
+    if (!fr_data.length) {
+      addTest(s2, 'Aucune formation disponible — tests ignorés', 'skip',
+        'Ajoutez une formation via l\'admin d\'abord.');
+      return;
+    }
+
+    const fr0 = fr_data[0];
+    const en0 = en_data.find(f => f.id === fr0.id) ?? {};
+
+    addTest(s2, 'Formation FR : champ "description" présent',
+      'description' in fr0 ? 'pass' : 'fail',
+      fr0.description ? `"${fr0.description.slice(0, 80)}…"` : '(null — saisir une description via l\'admin)');
+
+    addTest(s2, 'Formation EN : champ "description" présent',
+      'description' in en0 ? 'pass' : 'fail',
+      en0.description ? `"${en0.description.slice(0, 80)}…"` : '(null — saisir une description EN via l\'admin)');
+
+    addTest(s2, 'Formation FR : champ "title" présent',
+      'title' in fr0 ? 'pass' : 'fail',
+      fr0.title ?? '(null)');
+
+    /* ── Section 3 : Rendu HTML ── */
+    const s3 = addSection('Rendu HTML (.formation-card__description)');
+
+    // Simuler le rendu de la carte comme dans app.js
+    const container = document.createElement('div');
+    container.innerHTML = fr0.description
+      ? `<p class="formation-card__description">${escapeHtml(fr0.description)}</p>`
+      : '';
+
+    const descEl = container.querySelector('.formation-card__description');
+
+    addTest(s3, 'Élément .formation-card__description présent si description non nulle',
+      fr0.description
+        ? (descEl ? 'pass' : 'fail')
+        : 'skip',
+      fr0.description
+        ? (descEl ? 'Élément créé correctement' : 'Élément absent du rendu')
+        : 'Description nulle — ajouter une description via l\'admin pour valider ce test');
+
+    if (descEl) {
+      addTest(s3, 'Contenu de .formation-card__description = description FR',
+        descEl.textContent === fr0.description ? 'pass' : 'fail',
+        `"${descEl.textContent.slice(0, 60)}"`);
+    }
+
+    /* ── Section 4 : Différenciation FR / EN ── */
+    const s4 = addSection('Différenciation FR / EN');
+
+    const hasEnDesc = en0.description && en0.description !== fr0.description;
+    addTest(s4, 'Description EN différente de FR (si traduite)',
+      hasEnDesc ? 'pass' : 'skip',
+      hasEnDesc
+        ? 'OK — les deux descriptions sont différentes'
+        : 'Saisir une description EN dans l\'admin pour valider ce test');
+
+    const hasEnTitle = en0.title && en0.title !== fr0.title;
+    addTest(s4, 'Titre EN différent du titre FR (si traduit)',
+      hasEnTitle ? 'pass' : 'skip',
+      hasEnTitle
+        ? `FR: "${fr0.title}" / EN: "${en0.title}"`
+        : 'Saisir un titre EN dans l\'admin pour valider ce test');
+
+    /* ── Aperçu visuel ── */
+    const s5 = addSection('Aperçu visuel d\'une carte formation');
+    if (fr0.description) {
+      s5.innerHTML += `
+        <div class="card-preview">
+          <div class="title">${escapeHtml(fr0.title)}</div>
+          <div class="school">${escapeHtml(fr0.school)}${fr0.level ? ` · ${escapeHtml(fr0.level)}` : ''}</div>
+          <div class="description">${escapeHtml(fr0.description)}</div>
+        </div>`;
+    } else {
+      s5.innerHTML += `<div class="test__detail">Aucune description disponible pour l'aperçu.</div>`;
+    }
+  }
+
+  run();
+</script>
+</body>
+</html>

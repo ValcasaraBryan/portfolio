@@ -1137,6 +1137,12 @@ button.chip {
   font-size: var(--fs-xs);
   color:     var(--text-muted);
 }
+.formation-card__description {
+  font-size:   var(--fs-sm);   /* 14px */
+  color:       var(--text-muted);
+  line-height: 1.5;
+  margin-top:  var(--space-1); /* 8px */
+}
 .formation-card__sep {
   height:     1px;
   background: var(--border);
@@ -1509,7 +1515,6 @@ button.chip {
     min-width:        var(--drawer-width);
     height:           100vh;
     background-color: var(--bg-surface);
-    border-right:     1px dashed var(--border-dim);
     padding:          var(--space-6) var(--space-4) var(--space-2);
     overflow-y:       auto;
     position:         sticky;
@@ -1551,8 +1556,6 @@ button.chip {
     align-items:   center;
     gap:           var(--space-1);
     padding:       var(--space-1) 0;
-    border-top:    1px dashed var(--border-dim);
-    border-bottom: 1px dashed var(--border-dim);
     min-height:    55px;
     transition:    border-color 0.25s ease;
   }
@@ -1574,10 +1577,7 @@ button.chip {
   .drawer__nav {
     display:        flex;
     flex-direction: column;
-    border:         1px dashed var(--border-dim);
-    border-radius:  var(--radius);
     overflow:       hidden;
-    transition:     border-color 0.25s ease;
   }
 
   .drawer__nav-item {
@@ -1614,7 +1614,6 @@ button.chip {
     justify-content: center;
     height:          40px;
     background:      var(--green);
-    border:          1px dashed var(--border-dim);
     border-radius:   var(--radius);
     color:           #000;
     text-decoration: none;
@@ -1641,13 +1640,10 @@ button.chip {
     display:         flex;
     align-items:     center;
     justify-content: space-between;
-    border:          1px dashed var(--border-dim);
-    border-radius:   var(--radius);
     padding:         0 var(--space-1);
     height:          50px;
     margin-top:      auto;
     flex-shrink:     0;
-    transition:      border-color 0.25s ease;
   }
 
   .drawer__copy { font-size: var(--fs-xs); color: var(--text-muted); }
@@ -1782,4 +1778,25 @@ button.chip {
   .about__hero            { flex-direction: row; text-align: left; gap: var(--space-3); }
   .about__photo           { width: 96px; height: 96px; }
   .about__photo--large    { width: 150px; height: 150px; }
+}
+
+/* ── Tablette : drawer compact + nav scrollable ──────────── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  :root { --drawer-width: 240px; }
+
+  .drawer {
+    padding: var(--space-4) var(--space-3) var(--space-2); /* 32 24 16 */
+    gap:     var(--space-2);
+  }
+
+  /* Nom plus compact */
+  .drawer__name   { font-size: var(--fs-h2); }  /* 32px au lieu de 40px */
+  .drawer__avatar { width: 100px; height: 100px; }
+
+  /* Nav scrollable : prend l'espace dispo, scroll si écran court */
+  .drawer__nav {
+    flex:       1;
+    overflow-y: auto;
+    min-height: 0; /* indispensable : flex + overflow nécessite min-height:0 */
+  }
 }

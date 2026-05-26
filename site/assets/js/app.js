@@ -567,6 +567,7 @@ async function renderFormations() {
             <div class="formation-card__content">
               <div class="formation-card__title">${escapeHtml(f.title)}</div>
               <div class="formation-card__school">${escapeHtml(f.school)}${f.level ? ` · ${escapeHtml(f.level)}` : ''}</div>
+              ${f.description ? `<p class="formation-card__description">${escapeHtml(f.description)}</p>` : ''}
               ${f.skills?.length ? `<div class="formation-card__sep"></div>${renderSkillChips(f.skills)}` : ''}
             </div>
           </div>`;
