@@ -467,7 +467,7 @@ function openModal(id) {
       <h3 class="modal__title">[ ${p.name} ]</h3>
       ${year ? `<span class="modal__meta">${year}</span>` : ''}
     </div>
-    ${p.category ? `<p class="modal__category">${p.category}</p>` : ''}
+    ${p.category ? `<p class="modal__category">${t('creations.filter_' + p.category)}</p>` : ''}
     <p class="modal__description">${p.description ?? ''}</p>
     ${renderSkillChips(p.skills)}
     <div class="modal__actions">
@@ -605,9 +605,11 @@ function renderContactLink(link) {
   const display = escapeHtml(safeUrl.replace('mailto:', ''));
 
   // Même logique que le drawer : image si URL/chemin, sinon emoji/texte
-  const iconHtml = _isIconUrl(link.icon)
-    ? `<img src="${escapeHtml(link.icon)}" alt="${escapeHtml(link.platform ?? '')}" width="24" height="24" style="object-fit:contain">`
-    : escapeHtml(link.icon ?? '');
+  // _pickIcon sélectionne icon_dark ou icon selon le thème actif
+  const activeIcon = _pickIcon(link);
+  const iconHtml = _isIconUrl(activeIcon)
+    ? `<img src="${escapeHtml(activeIcon)}" alt="${escapeHtml(link.platform ?? '')}" width="24" height="24" style="object-fit:contain">`
+    : escapeHtml(activeIcon);
 
   return `
     <a class="contact-link-row" href="${escapeHtml(safeUrl)}"
@@ -628,13 +630,13 @@ async function renderContact() {
 
   /* Liens : depuis profile.links ou fallback email/phone */
   const links = profile?.links ?? [];
-  const linksHtml = (links.length
+  _contactLinksCache = links.length
     ? links
     : [
         profile?.email ? { url: `mailto:${profile.email}`, icon: '@',  platform: 'Email' }     : null,
         profile?.phone ? { url: `tel:${profile.phone}`,    icon: '☎', platform: 'Téléphone' } : null,
-      ].filter(Boolean)
-  ).map(renderContactLink).join('');
+      ].filter(Boolean);
+  const linksHtml = _contactLinksCache.map(renderContactLink).join('');
 
   panel.innerHTML = `
     <!-- Breadcrumb header -->
@@ -653,7 +655,7 @@ async function renderContact() {
 
       <!-- Gauche row 2 : liens + open to work -->
       <div class="contact-links-area">
-        ${linksHtml}
+        <div id="contact-links-rows">${linksHtml}</div>
         <div class="open-to-work">
           <div class="open-to-work__status">
             <span class="open-to-work__dot"></span>
@@ -1093,6 +1095,7 @@ function toggleTheme() {
   document.documentElement.dataset.theme = next;
   localStorage.setItem('theme', next);
   _syncThemeButtons();
+  _refreshLinkIcons();
 }
 
 function _syncThemeButtons() {
@@ -1148,11 +1151,39 @@ function _isIconUrl(v) {
   return typeof v === 'string' && (v.startsWith('http') || v.startsWith('/'));
 }
 
+/**
+ * Retourne l'icône adaptée au thème courant.
+ * Si le thème est sombre ET que `icon_dark` est défini, on l'utilise.
+ * Sinon, repli sur `icon` (thème clair ou fallback).
+ */
+function _pickIcon(link) {
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  return (isDark && link.icon_dark) ? link.icon_dark : (link.icon ?? '');
+}
+
+/* Caches pour pouvoir re-sélectionner les icônes au changement de thème sans refetch */
+let _socialLinksCache   = null;
+let _contactLinksCache  = null;
+
+/**
+ * Re-sélectionne les icônes dans les deux zones (drawer + onglet Contact)
+ * selon le thème actif, sans refaire d'appel réseau.
+ * Appelé par toggleTheme().
+ */
+function _refreshLinkIcons() {
+  if (_socialLinksCache)  renderSocialLinks(_socialLinksCache);
+  const rows = document.getElementById('contact-links-rows');
+  if (rows && _contactLinksCache) {
+    rows.innerHTML = _contactLinksCache.map(renderContactLink).join('');
+  }
+}
+
 function renderSocialLinks(links) {
+  _socialLinksCache = links ?? [];
   const container = document.getElementById('social-links');
   if (!container) return;
   container.innerHTML = '';
-  (links ?? []).forEach(link => {
+  (_socialLinksCache).forEach(link => {
     const a = document.createElement('a');
     a.href      = link.url;
     a.className = 'social-link';
@@ -1162,18 +1193,19 @@ function renderSocialLinks(links) {
       a.rel    = 'noopener noreferrer';
     }
 
-    if (_isIconUrl(link.icon)) {
+    const icon = _pickIcon(link);
+    if (_isIconUrl(icon)) {
       /* Icône image (fichier uploadé ou URL externe) */
       const img = document.createElement('img');
-      img.src              = link.icon;
+      img.src              = icon;
       img.alt              = link.platform;
       img.width            = 24;
       img.height           = 24;
       img.style.objectFit  = 'contain';
       a.appendChild(img);
-    } else if (link.icon) {
+    } else if (icon) {
       /* Emoji ou texte court — textContent, jamais innerHTML */
-      a.textContent = link.icon;
+      a.textContent = icon;
     }
 
     container.appendChild(a);

@@ -12,7 +12,7 @@ require_once __DIR__ . '/db.php';
 switch (method()) {
     case 'GET':
         try {
-            $rows = $pdo->query('SELECT `id`, `platform`, `url`, `icon` FROM `links` ORDER BY `id`')->fetchAll();
+            $rows = $pdo->query('SELECT `id`, `platform`, `url`, `icon`, `icon_dark` FROM `links` ORDER BY `id`')->fetchAll();
             json_response($rows);
         } catch (Exception $e) {
             json_response(['error' => 'Erreur serveur'], 500);
@@ -34,12 +34,13 @@ switch (method()) {
             }
 
             $stmt = $pdo->prepare(
-                'INSERT INTO `links` (`platform`, `url`, `icon`) VALUES (:platform, :url, :icon)'
+                'INSERT INTO `links` (`platform`, `url`, `icon`, `icon_dark`) VALUES (:platform, :url, :icon, :icon_dark)'
             );
             $stmt->execute([
-                ':platform' => $platform,
-                ':url'      => $url,
-                ':icon'     => $data['icon'] ?? null,
+                ':platform'  => $platform,
+                ':url'       => $url,
+                ':icon'      => $data['icon']      ?? null,
+                ':icon_dark' => $data['icon_dark'] ?? null,
             ]);
             json_response(['success' => true, 'id' => (int) $pdo->lastInsertId()], 201);
         } catch (Exception $e) {
@@ -68,13 +69,14 @@ switch (method()) {
             }
 
             $stmt = $pdo->prepare(
-                'UPDATE `links` SET `platform` = :platform, `url` = :url, `icon` = :icon WHERE `id` = :id'
+                'UPDATE `links` SET `platform` = :platform, `url` = :url, `icon` = :icon, `icon_dark` = :icon_dark WHERE `id` = :id'
             );
             $stmt->execute([
-                ':platform' => $platform,
-                ':url'      => $url,
-                ':icon'     => $data['icon'] ?? null,
-                ':id'       => $id,
+                ':platform'  => $platform,
+                ':url'       => $url,
+                ':icon'      => $data['icon']      ?? null,
+                ':icon_dark' => $data['icon_dark'] ?? null,
+                ':id'        => $id,
             ]);
 
             if ($stmt->rowCount() === 0) {

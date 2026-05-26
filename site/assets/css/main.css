@@ -938,6 +938,10 @@ button.chip {
 .proj-card__stack-line { font-size: var(--fs-xs); color: var(--text-muted); }
 .proj-card__cat-line   { font-size: var(--fs-xs); color: var(--green); margin-top: 2px; }
 
+/* Overrides light mode : vert néon illisible sur fond clair */
+[data-theme="light"] .proj-card__cat-line { color: var(--text); }
+[data-theme="light"] .proj-card__pitch    { color: var(--text); }
+
 /* Footer de section */
 .proj-footer {
   display:         flex;

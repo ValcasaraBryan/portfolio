@@ -30,7 +30,7 @@ switch (method()) {
             }
             // Cast booléen pour le toggle (évite d'exposer "0"/"1" en JSON)
             $profile['about_use_drawer_photo'] = (bool) $profile['about_use_drawer_photo'];
-            $links = $pdo->query('SELECT `id`, `platform`, `url`, `icon` FROM `links` ORDER BY `id`')->fetchAll();
+            $links = $pdo->query('SELECT `id`, `platform`, `url`, `icon`, `icon_dark` FROM `links` ORDER BY `id`')->fetchAll();
             $profile['links'] = $links;
             json_response($profile);
         } catch (Exception $e) {
