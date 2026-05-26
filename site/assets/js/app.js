@@ -463,6 +463,7 @@ function openModal(id) {
   const year = p.date ? new Date(p.date).getFullYear() : null;
 
   document.getElementById('proj-modal-body').innerHTML = `
+    ${p.photo_url ? `<img src="${escapeHtml(p.photo_url)}" alt="${escapeHtml(p.name)}" class="modal__cover-img">` : ''}
     <div class="modal-header">
       <h3 class="modal__title">[ ${p.name} ]</h3>
       ${year ? `<span class="modal__meta">${year}</span>` : ''}

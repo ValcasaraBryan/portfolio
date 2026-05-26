@@ -1036,6 +1036,15 @@ button.chip {
 .modal__description { font-size: var(--fs-sm); line-height: 1.65; color: var(--text-muted); margin: var(--space-1) 0 var(--space-2); }
 .modal__actions     { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-2); }
 
+.modal__cover-img {
+  display:       block;
+  width:         calc(100% + var(--space-3) * 2);
+  margin:        calc(-1 * var(--space-3)) calc(-1 * var(--space-3)) var(--space-3);
+  height:        200px;
+  object-fit:    cover;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
 /* ════════════════════════════════════════════════════════════
    FORMATIONS TAB
    ════════════════════════════════════════════════════════════ */
