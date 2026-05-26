@@ -936,10 +936,11 @@ button.chip {
 
 .proj-card__pitch      { font-size: var(--fs-sm); color: var(--text-muted); font-style: italic; line-height: 1.5; margin-bottom: var(--space-1); }
 .proj-card__stack-line { font-size: var(--fs-xs); color: var(--text-muted); }
-.proj-card__cat-line   { font-size: var(--fs-xs); color: var(--green); margin-top: 2px; }
+.proj-card__cat-line   { font-size: var(--fs-xs); color: var(--text-muted); margin-top: 2px; }
 
 /* Overrides light mode : vert néon illisible sur fond clair */
-[data-theme="light"] .proj-card__cat-line { color: var(--text); }
+[data-theme="dark"] .proj-card__stack-line { color: var(--green); }
+[data-theme="dark"] .proj-card__cat-line { color: var(--green); }
 [data-theme="light"] .proj-card__pitch    { color: var(--text); }
 
 /* Footer de section */
@@ -1029,7 +1030,7 @@ button.chip {
   font-weight:    700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color:          var(--text-muted);
+  color:          var(--text);
   margin-bottom:  var(--space-2);
 }
 .modal__description { font-size: var(--fs-sm); line-height: 1.65; color: var(--text-muted); margin: var(--space-1) 0 var(--space-2); }
@@ -1514,6 +1515,7 @@ button.chip {
     width:            var(--drawer-width);
     min-width:        var(--drawer-width);
     height:           100vh;
+    min-height:       600px;
     background-color: var(--bg-surface);
     padding:          var(--space-6) var(--space-4) var(--space-2);
     overflow-y:       auto;
@@ -1573,11 +1575,16 @@ button.chip {
   /* theme-toggle dans le drawer : margin-left auto géré via flex */
   .drawer__lang-row .theme-toggle { margin-left: auto; flex-shrink: 0; }
 
-  /* Nav */
+  /* Nav
+     flex-shrink:0  → la nav ne rétrécit jamais (écrans courts)
+     overflow-y:auto → scroll interne si les items débordent
+     min-height:0   → requis pour que flex + overflow-y fonctionnent */
   .drawer__nav {
     display:        flex;
     flex-direction: column;
-    overflow:       hidden;
+    flex-shrink:    0;
+    overflow-y:     auto;
+    min-height:     0;
   }
 
   .drawer__nav-item {
@@ -1793,10 +1800,4 @@ button.chip {
   .drawer__name   { font-size: var(--fs-h2); }  /* 32px au lieu de 40px */
   .drawer__avatar { width: 100px; height: 100px; }
 
-  /* Nav scrollable : prend l'espace dispo, scroll si écran court */
-  .drawer__nav {
-    flex:       1;
-    overflow-y: auto;
-    min-height: 0; /* indispensable : flex + overflow nécessite min-height:0 */
-  }
 }

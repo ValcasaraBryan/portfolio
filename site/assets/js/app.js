@@ -286,7 +286,7 @@ function _renderProjPage() {
         <div class="proj-card__body proj-card__body--featured">
           <div class="proj-card__name proj-card__name--lg">[ ${featured.name} ]</div>
           ${featured.description ? `<p class="proj-card__pitch">${featured.description.slice(0, 140)}${featured.description.length > 140 ? '…' : ''}</p>` : ''}
-          ${featured.skills?.length ? `<p class="proj-card__stack-line">Stack: ${stack(featured.skills)}.</p>` : ''}
+          ${featured.skills?.length ? `<p class="proj-card__stack-line">${stack(featured.skills)}.</p>` : ''}
         </div>
       </div>` : '';
 
