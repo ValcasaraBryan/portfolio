@@ -29,6 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/auth_guard.php';
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/image_utils.php';
 
 const MAX_SIZE   = 2 * 1024 * 1024; // 2 Mo
 const ALLOWED_MIME = [
@@ -100,6 +101,20 @@ $filepath = $folder . $filename;
 
 if (!move_uploaded_file($file['tmp_name'], $filepath)) {
     json_response(['error' => 'Impossible de stocker le fichier.'], 500);
+}
+
+// Optimisation : redimensionnement + conversion WebP (si GD le supporte)
+// SVG / GIF / ICO sont ignorés par optimizeImage (retourne false silencieusement).
+if (in_array($mime, ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'], true)) {
+    $maxDim  = ($type === 'profile') ? 800 : 1200;
+    $result  = optimizeImage($filepath, $mime, $maxDim, 85);
+
+    if ($result !== false && $result !== $filepath) {
+        // Le format a changé (ex: JPEG → WebP) — supprimer l'original
+        @unlink($filepath);
+        $filename = basename($result);
+        $filepath = $result;
+    }
 }
 
 json_response([

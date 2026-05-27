@@ -1,0 +1,17 @@
+{
+  "name": "portefolio",
+  "version": "1.0.0",
+  "description": "Personal portfolio website built with vanilla HTML/CSS/JS on the frontend and a PHP REST API backend, backed by MySQL.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "clean-css-cli": "^5.6.3",
+    "javascript-obfuscator": "^5.4.3",
+    "terser": "^5.48.0"
+  }
+}

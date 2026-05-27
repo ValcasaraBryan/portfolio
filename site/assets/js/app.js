@@ -234,7 +234,7 @@ function _projCardSmall(p) {
   return `
     <div class="proj-card" data-cat="${(p.category ?? '').toLowerCase()}" onclick="openModal(${p.id})">
       <div class="proj-card__media proj-card__media--hatch proj-card__media--ratio">
-        ${p.photo_url ? `<img src="${p.photo_url}" alt="${p.name}" class="proj-card__img">` : ''}
+        ${p.photo_url ? `<img src="${p.photo_url}" alt="${p.name}" class="proj-card__img" loading="lazy">` : ''}
         ${yr ? `<span class="proj-card__year">${yr}</span>` : ''}
       </div>
       <div class="proj-card__body">
@@ -280,7 +280,7 @@ function _renderProjPage() {
     const featuredHtml = featured ? `
       <div class="proj-card proj-card--featured" data-cat="${(featured.category ?? '').toLowerCase()}" onclick="openModal(${featured.id})">
         <div class="proj-card__media proj-card__media--hatch">
-          ${featured.photo_url ? `<img src="${featured.photo_url}" alt="${featured.name}" class="proj-card__img">` : ''}
+          ${featured.photo_url ? `<img src="${featured.photo_url}" alt="${featured.name}" class="proj-card__img" loading="lazy">` : ''}
           <span class="proj-card__tag">FEATURED</span>
         </div>
         <div class="proj-card__body proj-card__body--featured">
@@ -293,7 +293,7 @@ function _renderProjPage() {
     const sideHtml = sideCards.map(p => `
       <div class="proj-card proj-card--side" data-cat="${(p.category ?? '').toLowerCase()}" onclick="openModal(${p.id})">
         <div class="proj-card__media proj-card__media--hatch proj-card__media--sm">
-          ${p.photo_url ? `<img src="${p.photo_url}" alt="${p.name}" class="proj-card__img">` : ''}
+          ${p.photo_url ? `<img src="${p.photo_url}" alt="${p.name}" class="proj-card__img" loading="lazy">` : ''}
           <span class="proj-card__year">${yr(p.date)}</span>
         </div>
         <div class="proj-card__body">
@@ -305,7 +305,7 @@ function _renderProjPage() {
     const bottomHtml = bottomCards.map(p => `
       <div class="proj-card" data-cat="${(p.category ?? '').toLowerCase()}" onclick="openModal(${p.id})">
         <div class="proj-card__media proj-card__media--hatch proj-card__media--ratio">
-          ${p.photo_url ? `<img src="${p.photo_url}" alt="${p.name}" class="proj-card__img">` : ''}
+          ${p.photo_url ? `<img src="${p.photo_url}" alt="${p.name}" class="proj-card__img" loading="lazy">` : ''}
           <span class="proj-card__year">${yr(p.date)}</span>
         </div>
         <div class="proj-card__body">
@@ -463,7 +463,7 @@ function openModal(id) {
   const year = p.date ? new Date(p.date).getFullYear() : null;
 
   document.getElementById('proj-modal-body').innerHTML = `
-    ${p.photo_url ? `<img src="${escapeHtml(p.photo_url)}" alt="${escapeHtml(p.name)}" class="modal__cover-img">` : ''}
+    ${p.photo_url ? `<img src="${escapeHtml(p.photo_url)}" alt="${escapeHtml(p.name)}" class="modal__cover-img" loading="lazy">` : ''}
     <div class="modal-header">
       <h3 class="modal__title">[ ${p.name} ]</h3>
       ${year ? `<span class="modal__meta">${year}</span>` : ''}
@@ -610,7 +610,7 @@ function renderContactLink(link) {
   // _pickIcon sélectionne icon_dark ou icon selon le thème actif
   const activeIcon = _pickIcon(link);
   const iconHtml = _isIconUrl(activeIcon)
-    ? `<img src="${escapeHtml(activeIcon)}" alt="${escapeHtml(link.platform ?? '')}" width="24" height="24" style="object-fit:contain">`
+    ? `<img src="${escapeHtml(activeIcon)}" alt="${escapeHtml(link.platform ?? '')}" width="24" height="24" style="object-fit:contain" loading="lazy">`
     : escapeHtml(activeIcon);
 
   return `
@@ -777,7 +777,7 @@ async function renderAbout() {
     ? `<div class="about__cover" style="background-image:url('${escapeHtml(profile.cover_url)}')"></div>`
     : '';
   const photoHtml = aboutPhoto
-    ? `<img src="${escapeHtml(aboutPhoto)}" alt="${escapeHtml(profile?.name ?? '')}" class="about__photo${isLarge ? ' about__photo--large' : ''}">`
+    ? `<img src="${escapeHtml(aboutPhoto)}" alt="${escapeHtml(profile?.name ?? '')}" class="about__photo${isLarge ? ' about__photo--large' : ''}" loading="eager">`
     : '';
 
   panel.innerHTML = `

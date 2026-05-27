@@ -29,5 +29,13 @@ site/uploads/**/*.jpeg
 site/uploads/**/*.png
 site/uploads/**/*.webp
 site/uploads/**/*.gif
+site/uploads/**/*.orig
 !site/uploads/**/.htaccess
+
+# Node.js
+node_modules/
+
+# Build artifacts (minifiés/obfusqués — régénérables via build.sh)
+site/assets/js/bundle.*.min.js
+site/assets/css/main.min.css
 

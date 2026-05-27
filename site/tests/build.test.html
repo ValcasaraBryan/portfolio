@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests build — Portfolio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0d0d0d;
+      color: #e2e2e2;
+      padding: 32px;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: .15em; color: #fff; margin-bottom: 6px; }
+    .hint { color: #555; font-size: 0.78rem; margin-bottom: 32px; }
+    .hint code { color: #888; }
+
+    .summary {
+      display: flex; gap: 20px; align-items: center;
+      padding: 12px 18px; border: 1px solid #2a2a2a;
+      border-radius: 4px; margin-bottom: 32px; font-size: 0.85rem;
+    }
+    .summary__pass  { color: #4ade80; font-weight: 700; }
+    .summary__fail  { color: #f87171; font-weight: 700; }
+    .summary__total { color: #888; }
+    .summary__time  { color: #444; margin-left: auto; font-size: 0.75rem; }
+    .summary--all-pass { border-color: #14532d; background: #052e16; }
+    .summary--has-fail { border-color: #7f1d1d; background: #2d0e0e; }
+
+    .group { margin-bottom: 26px; }
+    .group__title {
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: .2em;
+      color: #444; border-bottom: 1px solid #1c1c1c;
+      padding-bottom: 5px; margin-bottom: 8px;
+    }
+    .test { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 0.81rem; }
+    .test__icon  { flex-shrink: 0; width: 14px; }
+    .test--pass .test__label { color: #c8c8c8; }
+    .test--fail .test__label { color: #fca5a5; }
+    .test__detail { color: #f87171; font-size: 0.73rem; }
+  </style>
+</head>
+<body>
+
+  <h1>Tests · Pipeline Build (minification + obfuscation)</h1>
+  <p class="hint">
+    Pré-requis : avoir lancé <code>bash build.sh</code> depuis la racine du projet.<br>
+    Servir depuis le serveur PHP : <code>http://localhost/tests/build.test.html</code>
+  </p>
+
+  <div id="app">
+    <div class="summary" id="summary"></div>
+    <div id="groups"></div>
+  </div>
+
+  <script>
+  (async () => {
+    /* ══════════════════════════════════════════════════════════
+       Mini test runner (même pattern que i18n.test.html)
+    ══════════════════════════════════════════════════════════ */
+    const _groups  = [];
+    const _results = [];
+    let   _current = null;
+    const t0 = performance.now();
+
+    function group(name) {
+      _current = { name, tests: [] };
+      _groups.push(_current);
+    }
+
+    function _record(label, pass, detail = '') {
+      _current.tests.push({ label, pass, detail });
+      _results.push(pass);
+    }
+
+    function test(label, fn) {
+      try   { fn(); _record(label, true); }
+      catch (e) { _record(label, false, e.message); }
+    }
+
+    async function testAsync(label, fn) {
+      try   { await fn(); _record(label, true); }
+      catch (e) { _record(label, false, e.message); }
+    }
+
+    function expect(received) {
+      return {
+        toBe(exp) {
+          if (received !== exp)
+            throw new Error(`reçu "${received}" · attendu "${exp}"`);
+        },
+        toBeTruthy() {
+          if (!received)
+            throw new Error(`valeur falsy : "${received}"`);
+        },
+        toContain(str) {
+          if (typeof received === 'string' && !received.includes(str))
+            throw new Error(`"${received.slice(0,80)}" ne contient pas "${str}"`);
+          if (received instanceof Set && !received.has(str))
+            throw new Error(`La collection ne contient pas "${str}"`);
+        },
+        toMatch(re) {
+          if (!re.test(received))
+            throw new Error(`"${String(received).slice(0,80)}" ne correspond pas à ${re}`);
+        },
+        toBeGreaterThan(n) {
+          if (!(received > n))
+            throw new Error(`${received} n'est pas > ${n}`);
+        },
+        toBeLessThan(n) {
+          if (!(received < n))
+            throw new Error(`${received} n'est pas < ${n}`);
+        },
+      };
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       Helpers
+    ══════════════════════════════════════════════════════════ */
+
+    // Détecte le nom du bundle depuis index.html
+    async function getBundleName() {
+      const html = await fetch('../index.html').then(r => r.text());
+      const m = html.match(/assets\/js\/(bundle\.[a-f0-9]{8}\.min\.js)/);
+      return m ? m[1] : null;
+    }
+
+    async function fetchText(url) {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`HTTP ${r.status} sur ${url}`);
+      return r.text();
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       Récupération du nom du bundle
+    ══════════════════════════════════════════════════════════ */
+    let bundleName = null;
+    let bundleContent = '';
+    let cssContent = '';
+    let htmlContent = '';
+
+    try {
+      htmlContent = await fetchText('../index.html');
+      bundleName = await getBundleName();
+      if (bundleName) {
+        bundleContent = await fetchText('../assets/js/' + bundleName);
+      }
+      cssContent = await fetchText('../assets/css/main.min.css');
+    } catch (e) {
+      document.getElementById('app').innerHTML =
+        `<p style="color:#f87171">❌ Erreur de chargement : ${e.message}<br>Le build a-t-il été lancé ?</p>`;
+      return;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       Tests
+    ══════════════════════════════════════════════════════════ */
+
+    // ─── 1. Structure du bundle ──────────────────────────────
+    group('Bundle JS — présence et format');
+
+    test('Le bundle est référencé dans index.html', () => {
+      expect(bundleName).toBeTruthy();
+    });
+
+    test('Le nom du bundle contient un hash 8 chars (cache-busting)', () => {
+      expect(bundleName).toMatch(/^bundle\.[a-f0-9]{8}\.min\.js$/);
+    });
+
+    test('Le bundle est chargeable (HTTP 200)', () => {
+      expect(bundleContent.length).toBeGreaterThan(0);
+    });
+
+    test('Le bundle est minifié (pas de commentaires // ni /* */)', () => {
+      // Vérifie l'absence de commentaires de développement courants
+      const hasDevComments = /\/\/ ---/.test(bundleContent) ||
+                             /\/\*[\s\S]{0,200}Copyright/i.test(bundleContent);
+      if (hasDevComments) throw new Error('Des commentaires de développement semblent présents');
+    });
+
+    test('Le bundle est obfusqué (présence de _0x ou tableau de strings)', () => {
+      // javascript-obfuscator génère des variables _0x… ou un tableau de strings rotatif
+      const obfuscated = /_0x[a-f0-9]{4,}/.test(bundleContent) ||
+                         /\['\\x/.test(bundleContent) ||
+                         bundleContent.includes('_0x');
+      if (!obfuscated) throw new Error('Aucun marqueur d\'obfuscation trouvé — le bundle est-il obfusqué ?');
+    });
+
+    test('Le bundle est sur une seule ligne (compact)', () => {
+      const lines = bundleContent.trim().split('\n').filter(l => l.trim());
+      expect(lines.length).toBeLessThan(10); // max 10 lignes (généralement 1)
+    });
+
+    // ─── 2. CSS minifié ──────────────────────────────────────
+    group('CSS minifié');
+
+    test('main.min.css est référencé dans index.html', () => {
+      expect(htmlContent).toContain('main.min.css');
+    });
+
+    test('main.min.css est chargeable (HTTP 200)', () => {
+      expect(cssContent.length).toBeGreaterThan(0);
+    });
+
+    test('main.min.css est minifié (pas de sauts de ligne entre règles)', () => {
+      // Un CSS minifié a peu de lignes par rapport à sa taille
+      const lines = cssContent.split('\n').length;
+      const chars = cssContent.length;
+      const ratio = chars / lines;
+      // Un CSS non-minifié a ~30-50 chars/ligne, minifié > 500 chars/ligne
+      if (ratio < 200) {
+        throw new Error(`Ratio chars/ligne trop bas (${Math.round(ratio)}) — CSS peut-être non minifié`);
+      }
+    });
+
+    test('main.min.css contient les sélecteurs principaux', () => {
+      expect(cssContent).toContain('.drawer');
+      expect(cssContent).toContain('.tab-panel');
+    });
+
+    // ─── 3. index.html — références correctes ────────────────
+    group('index.html — références aux assets');
+
+    test('index.html ne référence plus les sources séparées (i18n.js)', () => {
+      if (htmlContent.includes('assets/js/i18n.js'))
+        throw new Error('i18n.js est encore référencé dans index.html');
+    });
+
+    test('index.html ne référence plus app.js source', () => {
+      if (htmlContent.includes('assets/js/app.js'))
+        throw new Error('app.js source est encore référencé dans index.html');
+    });
+
+    test('index.html ne référence plus app-utils.js source', () => {
+      if (htmlContent.includes('assets/js/app-utils.js'))
+        throw new Error('app-utils.js est encore référencé dans index.html');
+    });
+
+    test('index.html ne référence plus main.css (non-minifié)', () => {
+      // La balise <link> ne doit pas pointer vers main.css
+      if (/href="[^"]*main\.css"/.test(htmlContent))
+        throw new Error('main.css (non-minifié) est encore référencé dans index.html');
+    });
+
+    // ─── 4. Lazy loading ─────────────────────────────────────
+    group('Lazy loading — attributs dans le bundle');
+
+    test('Le source app.js contient loading="lazy" sur les images projet', async () => {
+      const src = await fetchText('../assets/js/app.js');
+      if (!src.includes('loading="lazy"'))
+        throw new Error('loading="lazy" absent de app.js source');
+    });
+
+    test('Le source app.js contient loading="eager" sur la photo de profil', async () => {
+      const src = await fetchText('../assets/js/app.js');
+      if (!src.includes('loading="eager"'))
+        throw new Error('loading="eager" absent de app.js source (photo profil above-the-fold)');
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       Rendu des résultats
+    ══════════════════════════════════════════════════════════ */
+    const elapsed = Math.round(performance.now() - t0);
+    const pass  = _results.filter(Boolean).length;
+    const fail  = _results.length - pass;
+
+    const summaryEl = document.getElementById('summary');
+    summaryEl.innerHTML =
+      `<span class="summary__pass">✓ ${pass} passés</span>` +
+      (fail ? `<span class="summary__fail">✗ ${fail} échoués</span>` : '') +
+      `<span class="summary__total">${_results.length} au total</span>` +
+      `<span class="summary__time">${elapsed} ms</span>`;
+    summaryEl.className = 'summary ' + (fail ? 'summary--has-fail' : 'summary--all-pass');
+
+    const groupsEl = document.getElementById('groups');
+    for (const g of _groups) {
+      const div = document.createElement('div');
+      div.className = 'group';
+      div.innerHTML = `<div class="group__title">${g.name}</div>` +
+        g.tests.map(t =>
+          `<div class="test test--${t.pass ? 'pass' : 'fail'}">
+            <span class="test__icon">${t.pass ? '✓' : '✗'}</span>
+            <span class="test__label">${t.label}</span>
+            ${t.detail ? `<span class="test__detail">→ ${t.detail}</span>` : ''}
+          </div>`
+        ).join('');
+      groupsEl.appendChild(div);
+    }
+  })();
+  </script>
+</body>
+</html>
