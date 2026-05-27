@@ -71,6 +71,15 @@ switch (method()) {
                 json_response(['error' => 'Invalid cover_url'], 400);
             }
 
+            // Validation favicon_url
+            $favicon_url = isset($data['favicon_url']) && $data['favicon_url'] !== ''
+                ? $data['favicon_url'] : null;
+            if ($favicon_url !== null
+                && !filter_var($favicon_url, FILTER_VALIDATE_URL)
+                && !str_starts_with($favicon_url, '/uploads/')) {
+                json_response(['error' => 'Invalid favicon_url'], 400);
+            }
+
             // about_use_drawer_photo — whitelist stricte : 0 ou 1
             $about_use_drawer_photo = isset($data['about_use_drawer_photo'])
                 ? (int)(bool)$data['about_use_drawer_photo'] : 1;
@@ -98,6 +107,7 @@ switch (method()) {
                     `about_photo_url`        = :about_photo_url,
                     `cover_url`              = :cover_url,
                     `about_use_drawer_photo` = :about_use_drawer_photo,
+                    `favicon_url`            = :favicon_url,
                     `location`               = :location,
                     `status`                 = :status,
                     `bio`                    = :bio,
@@ -112,6 +122,7 @@ switch (method()) {
                 ':about_photo_url'        => $about_photo_url,
                 ':cover_url'              => $cover_url,
                 ':about_use_drawer_photo' => $about_use_drawer_photo,
+                ':favicon_url'            => $favicon_url,
                 ':location'               => $data['location'] ?? null,
                 ':status'                 => $status_fr,
                 ':bio'                    => $bio_fr,

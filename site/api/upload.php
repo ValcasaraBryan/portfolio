@@ -38,9 +38,11 @@ const ALLOWED_MIME = [
     'image/x-png'  => 'png',   // variante Windows/XAMPP
     'image/webp'   => 'webp',
     'image/gif'    => 'gif',
-    'image/svg+xml'=> 'svg',
-    'text/xml'     => 'svg',   // SVG parfois détecté comme XML
-    'application/xml' => 'svg',
+    'image/svg+xml'              => 'svg',
+    'text/xml'                   => 'svg',   // SVG parfois détecté comme XML
+    'application/xml'            => 'svg',
+    'image/x-icon'               => 'ico',   // ICO (favicon)
+    'image/vnd.microsoft.icon'   => 'ico',   // ICO variante IANA
 ];
 
 // Seule méthode acceptée : POST

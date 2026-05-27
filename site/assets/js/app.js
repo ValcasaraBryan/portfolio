@@ -1120,6 +1120,17 @@ function updateDrawerProfile(profile) {
 }
 
 /**
+ * Met à jour le favicon du site dynamiquement.
+ * Si url est vide ou null, le favicon reste inchangé.
+ * @param {string|null} url
+ */
+function setFavicon(url) {
+  if (!url) return;
+  const el = document.getElementById('site-favicon');
+  if (el) el.href = url;
+}
+
+/**
  * Met à jour les liens de téléchargement du CV selon la langue active.
  * Désactive le bouton (aria-disabled + classe) si aucun CV n'est disponible.
  */
@@ -1264,6 +1275,7 @@ async function init() {
     document.querySelectorAll('.profile-name')
       .forEach(el => { el.textContent = profile.name ?? ''; });
     updateDrawerProfile(profile);
+    setFavicon(profile.favicon_url);
     document.querySelectorAll('.profile-avatar').forEach(img => {
       if (profile.photo_url) img.src = profile.photo_url;
     });

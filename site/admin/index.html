@@ -422,6 +422,7 @@
         ]).then(([fr, en]) => {
           setForm({
             name:                   fr.name                   ?? '',
+            favicon_url:            fr.favicon_url            ?? '',
             photo_url:              fr.photo_url              ?? '',
             about_use_drawer_photo: fr.about_use_drawer_photo ?? true,
             about_photo_url:        fr.about_photo_url        ?? '',
@@ -482,6 +483,13 @@
 
         React.createElement(Box, { sx: { display: 'flex', flexDirection: 'column', gap: 2 } },
           field('name',      'Nom'),
+          React.createElement(ImagePickerField, {
+            key:        'favicon_url',
+            label:      'Favicon (PNG, SVG, ICO, WebP — 32×32 px recommandé)',
+            value:      form.favicon_url ?? null,
+            uploadType: 'profile',
+            onChange:   url => setForm(prev => ({ ...prev, favicon_url: url ?? '' })),
+          }),
           React.createElement(ImagePickerField, {
             key:        'photo_url',
             label:      'Photo de profil (avatar drawer)',

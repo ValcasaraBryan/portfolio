@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests — setFavicon</title>
+  <!-- Favicon cible pour les tests -->
+  <link rel="icon" id="site-favicon" href="" type="image/png">
+  <style>
+    body { font-family: monospace; padding: 2rem; background: #111; color: #eee; }
+    h1   { color: #7ED9B1; }
+    .suite { margin: 1.5rem 0; }
+    .suite h2 { font-size: 1rem; color: #aaa; margin-bottom: .5rem; }
+    .pass { color: #7ED9B1; }
+    .fail { color: #ff6b6b; }
+    #summary { margin-top: 2rem; font-size: 1.1rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+<h1>favicon.test.html</h1>
+<div id="results"></div>
+<div id="summary"></div>
+
+<script>
+  /* ── Inline de la fonction testée (copie fidèle de app.js) ── */
+  function setFavicon(url) {
+    if (!url) return;
+    const el = document.getElementById('site-favicon');
+    if (el) el.href = url;
+  }
+
+  /* ── Mini-framework de test ── */
+  let passed = 0, failed = 0;
+  const container = document.getElementById('results');
+
+  function suite(name, fn) {
+    const div = document.createElement('div');
+    div.className = 'suite';
+    div.innerHTML = `<h2>${name}</h2>`;
+    container.appendChild(div);
+    fn(div);
+  }
+
+  function assert(label, condition, div) {
+    const p = document.createElement('p');
+    if (condition) {
+      p.className = 'pass';
+      p.textContent = `✅ ${label}`;
+      passed++;
+    } else {
+      p.className = 'fail';
+      p.textContent = `❌ ${label}`;
+      failed++;
+    }
+    div.appendChild(p);
+  }
+
+  /* ── Cas de test ── */
+
+  suite('setFavicon(url) — URL valide', div => {
+    const faviconEl = document.getElementById('site-favicon');
+    faviconEl.href = ''; // reset
+
+    setFavicon('/uploads/profile/test-favicon.png');
+
+    assert(
+      'Le href de #site-favicon contient l\'URL passée',
+      faviconEl.href.endsWith('/uploads/profile/test-favicon.png'),
+      div
+    );
+  });
+
+  suite('setFavicon(null) — valeur null', div => {
+    const faviconEl = document.getElementById('site-favicon');
+    faviconEl.href = '/uploads/profile/existant.png'; // pré-rempli
+
+    setFavicon(null);
+
+    assert(
+      'Le href de #site-favicon reste inchangé quand null',
+      faviconEl.href.endsWith('/uploads/profile/existant.png'),
+      div
+    );
+  });
+
+  suite('setFavicon("") — chaîne vide', div => {
+    const faviconEl = document.getElementById('site-favicon');
+    faviconEl.href = '/uploads/profile/existant.png'; // pré-rempli
+
+    setFavicon('');
+
+    assert(
+      'Le href de #site-favicon reste inchangé quand chaîne vide',
+      faviconEl.href.endsWith('/uploads/profile/existant.png'),
+      div
+    );
+  });
+
+  suite('setFavicon(url) — URL absolue https://', div => {
+    const faviconEl = document.getElementById('site-favicon');
+    faviconEl.href = '';
+
+    setFavicon('https://example.com/favicon.ico');
+
+    assert(
+      'Le href est mis à jour avec une URL absolue',
+      faviconEl.href === 'https://example.com/favicon.ico',
+      div
+    );
+  });
+
+  suite('setFavicon — robustesse sans #site-favicon', div => {
+    // Simuler l'absence de l'élément
+    const faviconEl = document.getElementById('site-favicon');
+    const originalId = faviconEl.id;
+    faviconEl.id = '__hidden__';
+
+    let threw = false;
+    try {
+      setFavicon('/uploads/profile/foo.png');
+    } catch {
+      threw = true;
+    } finally {
+      faviconEl.id = originalId;
+    }
+
+    assert(
+      'Ne lève pas d\'exception si #site-favicon est absent du DOM',
+      !threw,
+      div
+    );
+  });
+
+  /* ── Résumé ── */
+  const summary = document.getElementById('summary');
+  summary.textContent = `${passed + failed} tests — ${passed} ✅ passés, ${failed} ❌ échoués`;
+  summary.style.color = failed === 0 ? '#7ED9B1' : '#ff6b6b';
+</script>
+</body>
+</html>
