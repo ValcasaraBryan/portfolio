@@ -14,7 +14,7 @@
   --bg-surface:    #FFFBF5;   /* blanc crème   (~4% apricot)      — fond des cartes */
   --bg-hover:      #FDEBD5;   /* blanc cassé + (~25% apricot)     — hover / élevé  */
   --text:          #272838;   /* Shadow Grey   — texte principal             */
-  --text-muted:    #53917E;   /* Jungle Teal   — texte secondaire            */
+  --text-muted:    #3D7060;   /* Jungle Teal foncé — texte secondaire — 5:1 WCAG AA */
   --border:        #53917E;   /* Jungle Teal   — bordures solides            */
   --border-dim:    #53917E;   /* Jungle Teal   — bordures tiretées           */
   --separator:     #53917E;   /* Jungle Teal   — séparateurs grille 1px      */
@@ -329,19 +329,27 @@ li:last-child { margin-bottom: 0; }
 /* ── SKELETON ─────────────────────────────────────────────── */
 .skeleton-block {
   border-radius: 6px;
+  background:    var(--skeleton-base);
+  overflow:      hidden;
+  position:      relative;
+}
+
+.skeleton-block::after {
+  content:    '';
+  position:   absolute;
+  inset:      0;
   background: linear-gradient(
     90deg,
-    var(--skeleton-base)  25%,
+    transparent 0%,
     var(--skeleton-shine) 50%,
-    var(--skeleton-base)  75%
+    transparent 100%
   );
-  background-size: 200% 100%;
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }
 
 @keyframes skeleton-shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 .skeleton-line   { height: 14px; margin-bottom: 8px; }
@@ -434,12 +442,12 @@ button.chip {
 /* Light mode : fond plus visible et texte sombre pour les chips colorés */
 [data-theme="light"] .chip--colored {
   background: color-mix(in srgb, var(--chip-color, transparent) 22%, white);
-  color:      color-mix(in srgb, var(--chip-color, #000) 70%, #000);
+  color:      color-mix(in srgb, var(--chip-color, #000) 45%, #000);
 }
 
 [data-theme="light"] .chip--category.chip--colored .chip__count {
   background: white;
-  color:      color-mix(in srgb, var(--chip-color, #000) 80%, #000);
+  color:      color-mix(in srgb, var(--chip-color, #000) 50%, #000);
 }
 
 /* Chips interactifs */
@@ -1609,12 +1617,13 @@ button.chip {
     border:          none;
     background:      transparent;
     color:           var(--text);
-    transition:      background var(--transition);
+    transition:      background-color var(--transition);
     width:           100%;
     white-space:     nowrap;
   }
 
   .drawer__nav-item.active              { background: var(--green); color: #000; }
+  .drawer__nav-item.active .drawer__nav-num { color: #000; }
   .drawer__nav-item:hover:not(.active)  { background: var(--bg-hover); }
 
   .drawer__nav-num {

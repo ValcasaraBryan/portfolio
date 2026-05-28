@@ -63,6 +63,11 @@
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
 
+  # Cache pour toutes les images servies statiquement (dont /uploads/)
+  <FilesMatch "\.(webp|png|jpg|jpeg|gif|svg|ico)$">
+    Header set Cache-Control "public, max-age=15552000"
+  </FilesMatch>
+
   # Sécurité — headers supplémentaires sur les réponses HTML
   <FilesMatch "\.html$">
     Header set X-Content-Type-Options "nosniff"

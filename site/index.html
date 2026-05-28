@@ -8,7 +8,13 @@
   <link rel="icon" id="site-favicon" href="" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="preload"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+        as="style"
+        onload="this.onload=null;this.rel='stylesheet'">
+  <noscript>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  </noscript>
   <!-- Anti-flash : doit précéder le CSS pour éviter le scintillement -->
   <script>
     (function(){
@@ -27,7 +33,9 @@
     <!-- Mobile: profile header -->
     <header class="profile-header">
       <img class="profile-header__avatar profile-avatar"
-           src="./assets/img/avatar.jpg" alt="Bryan VALCASARA">
+           alt="Bryan VALCASARA"
+           width="50" height="50"
+           loading="eager">
       <div class="profile-header__info">
         <div class="profile-header__name profile-name">Bryan VALCASARA</div>
         <div class="profile-header__title profile-title"></div>
@@ -57,7 +65,9 @@
 
       <!-- 2. Portrait -->
       <img class="drawer__avatar profile-avatar"
-           src="./assets/img/avatar.jpg" alt="Bryan VALCASARA">
+           alt="Bryan VALCASARA"
+           width="125" height="125"
+           loading="eager">
 
       <!-- 3. Lang toggle + location + theme -->
       <div class="drawer__lang-row">
