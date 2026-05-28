@@ -280,7 +280,7 @@ li:last-child { margin-bottom: 0; }
   padding:        var(--space-3) var(--space-2);
   padding-bottom: calc(var(--bottom-bar-h) + var(--space-3));
   overflow-y:     auto;
-  overflow-x:     hidden;
+  overflow-x:     auto;
 }
 
 /* ── BOTTOM TAB BAR (mobile only) ─────────────────────────── */
