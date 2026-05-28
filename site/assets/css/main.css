@@ -280,6 +280,7 @@ li:last-child { margin-bottom: 0; }
   padding:        var(--space-3) var(--space-2);
   padding-bottom: calc(var(--bottom-bar-h) + var(--space-3));
   overflow-y:     auto;
+  overflow-x:     hidden;
 }
 
 /* ── BOTTOM TAB BAR (mobile only) ─────────────────────────── */
@@ -620,7 +621,7 @@ button.chip {
   color:          var(--text-muted);
 }
 
-.exp-filters { display: flex; gap: var(--space-1); }
+.exp-filters { display: flex; gap: var(--space-1); flex-wrap: wrap; }
 
 .exp-filter {
   padding:       4px var(--space-2);
@@ -633,7 +634,13 @@ button.chip {
   color:         var(--text);
   transition:    all var(--transition);
   height:        32px;
+  /* Force button text on a single line */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: keep-all;
 }
+
 .exp-filter.active             { background: var(--green); border-color: var(--green); color: #000; }
 .exp-filter:hover:not(.active) { background: var(--bg-hover); }
 
@@ -760,6 +767,7 @@ button.chip {
   flex-direction: column;
   gap:            var(--space-1);
   min-width:      0;
+  overflow-y:     auto;
 }
 
 .timeline-role {
@@ -1112,7 +1120,6 @@ button.chip {
   display:    flex;
   background: var(--bg-surface);
   border:     1px solid var(--border);
-  min-height: 120px;
   transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
@@ -1143,6 +1150,8 @@ button.chip {
   flex-direction: column;
   gap:            4px;
   min-width:      0;
+  overflow-y:     auto;
+
 }
 .formation-card__title {
   font-family: var(--font-display);
@@ -1343,6 +1352,12 @@ button.chip {
   gap:            var(--space-2);
 }
 
+#contact-links-rows {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-2);
+}
+
 /* Liens en rangées — format Figma */
 .contact-link-row {
   display:         flex;
@@ -1369,16 +1384,21 @@ button.chip {
   font-weight:     700;
   flex-shrink:     0;
 }
-.contact-link-row__body  { display: flex; flex-direction: column; flex: 1; gap: 2px; }
+.contact-link-row__body  { display: flex; flex-direction: column; flex: 1; gap: 2px; min-width: 0; }
 .contact-link-row__label {
   font-size:      var(--fs-xs);
-  text-transform: uppercase;
+  text-transform: uppercase; 
   color:          var(--text-muted);
   letter-spacing: 0.08em;
   font-weight:    700;
 }
-.contact-link-row__value { font-size: var(--fs-base); }
-.contact-link-row__arrow { color: var(--text-muted); font-size: var(--fs-base); }
+.contact-link-row__value {
+  font-size:     var(--fs-base);
+  overflow:      hidden;
+  text-overflow: ellipsis;
+  white-space:   nowrap;
+}
+.contact-link-row__arrow { color: var(--text-muted); font-size: var(--fs-base); flex-shrink: 0; }
 
 /* Open to work — rectangle pleine largeur + dashed */
 .open-to-work {
