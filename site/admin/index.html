@@ -622,7 +622,7 @@
 
       const clearCv = async lang => {
         const url      = lang === 'fr' ? externalUrlFr : externalUrlEn;
-        const localUrl = `./uploads/cv/cv-${lang}.pdf`;
+        const localUrl = `/uploads/cv/cv-${lang}.pdf`;
         if (url === localUrl) {
           // Fichier local → suppression physique avec confirmation
           if (!window.confirm(`Supprimer le fichier CV ${lang.toUpperCase()} ?`)) return;
@@ -685,7 +685,7 @@
 
       const saveExternalUrl = async lang => {
         const url      = lang === 'fr' ? externalUrlFr : externalUrlEn;
-        const localUrl = `./uploads/cv/cv-${lang}.pdf`;
+        const localUrl = `/uploads/cv/cv-${lang}.pdf`;
         // Si l'admin remet l'URL locale (ou vide), on efface l'URL externe en DB
         const valueToSend = (url === localUrl || url === '') ? '' : url;
         setSavingExt(true);
@@ -711,7 +711,7 @@
       };
 
       const CvCard = ({ lang, meta, downloadName, setDownloadName, externalUrl, setExternalUrl }) => {
-        const localUrl      = `./uploads/cv/cv-${lang}.pdf`;
+        const localUrl      = `/uploads/cv/cv-${lang}.pdf`;
         const isLocalFile   = externalUrl === localUrl;
         const isUploading   = uploadingLang === lang;
         // Enregistrer URL n'est utile que si l'URL est une URL externe (pas le fichier local)

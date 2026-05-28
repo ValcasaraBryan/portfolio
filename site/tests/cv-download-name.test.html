@@ -128,39 +128,39 @@
 
     test('download_name renseigné → attribut posé avec le nom fourni', () => {
       const a = makeCvLink();
-      applyToLinks([a], { exists: true, url: './uploads/cv/cv-fr.pdf', download_name: 'Bryan_Valcasara_CV.pdf' });
+      applyToLinks([a], { exists: true, url: '/uploads/cv/cv-fr.pdf', download_name: 'Bryan_Valcasara_CV.pdf' });
       expect(a.getAttribute('download')).toBe('Bryan_Valcasara_CV.pdf');
     });
 
     test('download_name vide (falsy) → fallback cv.pdf', () => {
       const a = makeCvLink();
-      applyToLinks([a], { exists: true, url: './uploads/cv/cv-fr.pdf', download_name: '' });
+      applyToLinks([a], { exists: true, url: '/uploads/cv/cv-fr.pdf', download_name: '' });
       expect(a.getAttribute('download')).toBe('cv.pdf');
     });
 
     test('download_name absent (undefined) → fallback cv.pdf', () => {
       const a = makeCvLink();
-      applyToLinks([a], { exists: true, url: './uploads/cv/cv-fr.pdf' });
+      applyToLinks([a], { exists: true, url: '/uploads/cv/cv-fr.pdf' });
       expect(a.getAttribute('download')).toBe('cv.pdf');
     });
 
     test('href mis à jour avec l\'URL du fichier', () => {
       const a = makeCvLink();
-      applyToLinks([a], { exists: true, url: './uploads/cv/cv-en.pdf', download_name: 'Bryan_CV_EN.pdf' });
+      applyToLinks([a], { exists: true, url: '/uploads/cv/cv-en.pdf', download_name: 'Bryan_CV_EN.pdf' });
       expect(a.href).toBeTruthy();
     });
 
     test('aria-disabled retiré quand le CV existe', () => {
       const a = makeCvLink();
       a.setAttribute('aria-disabled', 'true');
-      applyToLinks([a], { exists: true, url: './uploads/cv/cv-fr.pdf', download_name: 'CV.pdf' });
+      applyToLinks([a], { exists: true, url: '/uploads/cv/cv-fr.pdf', download_name: 'CV.pdf' });
       expect(a.getAttribute('aria-disabled')).toBeNull();
     });
 
     test('classe btn--disabled retirée quand le CV existe', () => {
       const a = makeCvLink();
       a.classList.add('btn--disabled');
-      applyToLinks([a], { exists: true, url: './uploads/cv/cv-fr.pdf', download_name: 'CV.pdf' });
+      applyToLinks([a], { exists: true, url: '/uploads/cv/cv-fr.pdf', download_name: 'CV.pdf' });
       expect(a.classList.contains('btn--disabled')).toBeFalsy();
     });
 
@@ -181,7 +181,7 @@
 
     test('exists=false → href reset à #', () => {
       const a = makeCvLink();
-      a.href = './uploads/cv/cv-fr.pdf';
+      a.href = '/uploads/cv/cv-fr.pdf';
       applyToLinks([a], { exists: false });
       expect(a.getAttribute('href')).toBe('#');
     });
@@ -249,7 +249,7 @@
         return { exists: true, url: meta.external_url, updated_at: null };
       }
       if (fileExists) {
-        return { exists: true, url: './uploads/cv/cv-fr.pdf', updated_at: '2026-01-01T00:00:00+00:00' };
+        return { exists: true, url: '/uploads/cv/cv-fr.pdf', updated_at: '2026-01-01T00:00:00+00:00' };
       }
       return { exists: false, url: null };
     }
@@ -267,12 +267,12 @@
 
     test('URL externe vide + fichier présent → fichier utilisé', () => {
       const src = resolveSource({ external_url: '' }, true);
-      expect(src.url).toBe('./uploads/cv/cv-fr.pdf');
+      expect(src.url).toBe('/uploads/cv/cv-fr.pdf');
     });
 
     test('URL externe null + fichier présent → fichier utilisé', () => {
       const src = resolveSource({ external_url: null }, true);
-      expect(src.url).toBe('./uploads/cv/cv-fr.pdf');
+      expect(src.url).toBe('/uploads/cv/cv-fr.pdf');
     });
 
     test('URL externe null + fichier absent → exists false', () => {
@@ -327,7 +327,7 @@
 
     test('tous les liens [data-cv-link] sont mis à jour', () => {
       const links = [makeCvLink(), makeCvLink(), makeCvLink()];
-      applyToLinks(links, { exists: true, url: './uploads/cv/cv-fr.pdf', download_name: 'CV.pdf' });
+      applyToLinks(links, { exists: true, url: '/uploads/cv/cv-fr.pdf', download_name: 'CV.pdf' });
       links.forEach(a => {
         expect(a.getAttribute('download')).toBe('CV.pdf');
       });

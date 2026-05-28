@@ -20,7 +20,7 @@ header('Content-Type: application/json');
 const VALID_LANGS = ['fr', 'en'];
 const MAX_SIZE    = 5 * 1024 * 1024; // 5 Mo
 const CV_DIR      = __DIR__ . '/../uploads/cv/';
-const CV_URL_BASE = './uploads/cv/';
+const CV_URL_BASE = '/uploads/cv/';
 
 // ── Validation de lang ───────────────────────────────────────
 $lang = $_GET['lang'] ?? 'fr';
