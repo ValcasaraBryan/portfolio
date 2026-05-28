@@ -280,6 +280,7 @@ li:last-child { margin-bottom: 0; }
   padding-top:    var(--space-3);
   padding-left:   var(--space-2);
   padding-right:  var(--space-2);
+  padding-bottom:  calc(var(--bottom-bar-h) + var(--space-3));
   overflow-y:     auto;
   overflow-x:     auto;
 }
@@ -1837,6 +1838,17 @@ button.chip {
   }
 }
 
+
+/* ── Cartes projet : taille uniforme sur mobile ──────────── */
+@media (max-width: 767px) {
+  .proj-card {
+    display:        flex;
+    flex-direction: column;
+  }
+  .proj-card .proj-card__media {
+    height:       140px;
+  }
+}
 
 /* ── Tablette : drawer compact + nav scrollable ──────────── */
 @media (min-width: 768px) and (max-width: 1023px) {
