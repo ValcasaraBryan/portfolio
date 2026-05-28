@@ -562,9 +562,13 @@
       const [cvEn,           setCvEn]           = useState(null);
       const [loading,        setLoading]        = useState(true);
       const [snack,          setSnack]          = useState(null);
-      const [downloadNameFr, setDownloadNameFr] = useState('');
-      const [downloadNameEn, setDownloadNameEn] = useState('');
-      const [savingDl,       setSavingDl]       = useState(false);
+      const [downloadNameFr,  setDownloadNameFr]  = useState('');
+      const [downloadNameEn,  setDownloadNameEn]  = useState('');
+      const [externalUrlFr,   setExternalUrlFr]   = useState('');
+      const [externalUrlEn,   setExternalUrlEn]   = useState('');
+      const [savingDl,        setSavingDl]        = useState(false);
+      const [savingExt,       setSavingExt]       = useState(false);
+      const [uploadingLang,   setUploadingLang]   = useState(null);
 
       const loadMeta = async () => {
         setLoading(true);
@@ -577,6 +581,8 @@
           setCvEn(en);
           setDownloadNameFr(fr.download_name ?? '');
           setDownloadNameEn(en.download_name ?? '');
+          setExternalUrlFr(fr.external_url ?? fr.url ?? '');
+          setExternalUrlEn(en.external_url ?? en.url ?? '');
         } catch {
           setSnack({ msg: 'Impossible de charger les métadonnées CV', sev: 'error' });
         } finally {
@@ -586,7 +592,7 @@
 
       useEffect(() => { loadMeta(); }, []);
 
-      const upload = async lang => {
+      const uploadPdf = lang => {
         const input = document.createElement('input');
         input.type   = 'file';
         input.accept = 'application/pdf';
@@ -595,33 +601,64 @@
           if (!file) return;
           const fd = new FormData();
           fd.append('cv', file);
+          setUploadingLang(lang);
           try {
             const res = await fetch(`${API}/cv.php?lang=${lang}`, { method: 'POST', body: fd });
-            if (!res.ok) {
-              const err = await res.json();
-              throw new Error(err.error ?? 'Erreur serveur');
-            }
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error ?? 'Erreur serveur');
+            // Mise à jour immédiate du champ URL avec le chemin local retourné
+            if (lang === 'fr') setExternalUrlFr(data.url);
+            else               setExternalUrlEn(data.url);
             setSnack({ msg: `CV ${lang.toUpperCase()} uploadé avec succès`, sev: 'success' });
             loadMeta();
           } catch (e) {
             setSnack({ msg: e.message, sev: 'error' });
+          } finally {
+            setUploadingLang(null);
           }
         };
         input.click();
       };
 
-      const remove = async lang => {
-        if (!window.confirm(`Supprimer le CV ${lang.toUpperCase()} ?`)) return;
-        try {
-          const res = await fetch(`${API}/cv.php?lang=${lang}`, { method: 'DELETE' });
-          if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error ?? 'Erreur serveur');
+      const clearCv = async lang => {
+        const url      = lang === 'fr' ? externalUrlFr : externalUrlEn;
+        const localUrl = `./uploads/cv/cv-${lang}.pdf`;
+        if (url === localUrl) {
+          // Fichier local → suppression physique avec confirmation
+          if (!window.confirm(`Supprimer le fichier CV ${lang.toUpperCase()} ?`)) return;
+          try {
+            const res = await fetch(`${API}/cv.php?lang=${lang}`, { method: 'DELETE' });
+            if (!res.ok) {
+              const err = await res.json();
+              throw new Error(err.error ?? 'Erreur serveur');
+            }
+            setSnack({ msg: `CV ${lang.toUpperCase()} supprimé`, sev: 'info' });
+            loadMeta();
+          } catch (e) {
+            setSnack({ msg: e.message, sev: 'error' });
           }
-          setSnack({ msg: `CV ${lang.toUpperCase()} supprimé`, sev: 'info' });
-          loadMeta();
-        } catch (e) {
-          setSnack({ msg: e.message, sev: 'error' });
+        } else {
+          // URL externe → effacement en DB
+          setSavingExt(true);
+          try {
+            const res = await fetch(`${API}/cv.php?lang=${lang}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ external_url: '' }),
+            });
+            if (!res.ok) {
+              const err = await res.json();
+              throw new Error(err.error ?? 'Erreur serveur');
+            }
+            if (lang === 'fr') setExternalUrlFr('');
+            else               setExternalUrlEn('');
+            setSnack({ msg: `URL CV ${lang.toUpperCase()} effacée`, sev: 'info' });
+            loadMeta();
+          } catch (e) {
+            setSnack({ msg: e.message, sev: 'error' });
+          } finally {
+            setSavingExt(false);
+          }
         }
       };
 
@@ -646,44 +683,82 @@
         }
       };
 
-      const CvCard = ({ lang, meta, downloadName, setDownloadName }) => {
-        const exists    = meta?.exists ?? false;
-        const updatedAt = exists && meta.updated_at
-          ? new Date(meta.updated_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-          : null;
+      const saveExternalUrl = async lang => {
+        const url      = lang === 'fr' ? externalUrlFr : externalUrlEn;
+        const localUrl = `./uploads/cv/cv-${lang}.pdf`;
+        // Si l'admin remet l'URL locale (ou vide), on efface l'URL externe en DB
+        const valueToSend = (url === localUrl || url === '') ? '' : url;
+        setSavingExt(true);
+        try {
+          const res = await fetch(`${API}/cv.php?lang=${lang}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ external_url: valueToSend }),
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error ?? 'Erreur serveur');
+          }
+          setSnack({ msg: valueToSend
+            ? `URL externe ${lang.toUpperCase()} enregistrée`
+            : `URL externe ${lang.toUpperCase()} supprimée`, sev: 'success' });
+          loadMeta();
+        } catch (e) {
+          setSnack({ msg: e.message, sev: 'error' });
+        } finally {
+          setSavingExt(false);
+        }
+      };
+
+      const CvCard = ({ lang, meta, downloadName, setDownloadName, externalUrl, setExternalUrl }) => {
+        const localUrl      = `./uploads/cv/cv-${lang}.pdf`;
+        const isLocalFile   = externalUrl === localUrl;
+        const isUploading   = uploadingLang === lang;
+        // Enregistrer URL n'est utile que si l'URL est une URL externe (pas le fichier local)
+        const showSaveUrl   = externalUrl !== '' && !isLocalFile;
 
         return React.createElement(Box, {
           sx: { border: '1px solid #333', borderRadius: 2, p: 2.5, mb: 2, background: '#141414' },
         },
+          /* Titre */
           React.createElement(Typography, {
-            variant: 'subtitle1', sx: { fontWeight: 700, mb: 1 },
+            variant: 'subtitle1', sx: { fontWeight: 700, mb: 2 },
           }, lang === 'fr' ? '🇫🇷 CV Français' : '🇬🇧 CV English'),
 
-          exists
-            ? React.createElement(Typography, {
-                variant: 'body2', sx: { color: '#7ED9B1', mb: 2 },
-              }, `✓ Présent — mis à jour le ${updatedAt}`)
-            : React.createElement(Typography, {
-                variant: 'body2', sx: { color: '#888', mb: 2 },
-              }, 'Aucun CV uploadé'),
-
-          React.createElement(Box, { sx: { display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2.5 } },
+          /* ── Champ URL (style ImagePickerField) ── */
+          React.createElement(Typography, {
+            variant: 'caption', sx: { color: 'text.secondary', fontWeight: 500, display: 'block', mb: 0.5 },
+          }, 'Fichier PDF'),
+          React.createElement(Box, { sx: { display: 'flex', gap: 1, alignItems: 'center', mb: 2.5 } },
+            React.createElement(TextField, {
+              size: 'small', value: externalUrl,
+              onChange: e => setExternalUrl(e.target.value),
+              placeholder: 'URL ou chemin…',
+              sx: { flex: 1 },
+              inputProps: { maxLength: 2048 },
+            }),
             React.createElement(Button, {
-              variant: 'contained', size: 'small', onClick: () => upload(lang),
-            }, exists ? 'Remplacer le PDF' : 'Uploader un PDF'),
-
-            exists && React.createElement(Button, {
               variant: 'outlined', size: 'small',
-              href: `../${meta.url}`, target: '_blank', rel: 'noopener',
-            }, 'Télécharger'),
-
-            exists && React.createElement(Button, {
-              variant: 'outlined', size: 'small', color: 'error', onClick: () => remove(lang),
-            }, 'Supprimer'),
+              disabled: isUploading,
+              onClick: () => uploadPdf(lang),
+              sx: { whiteSpace: 'nowrap', minWidth: 130 },
+            }, isUploading ? 'Envoi…' : '📁 Uploader PDF'),
+            showSaveUrl && React.createElement(Button, {
+              variant: 'contained', size: 'small',
+              onClick: () => saveExternalUrl(lang),
+              disabled: savingExt,
+              sx: { whiteSpace: 'nowrap' },
+            }, 'Enregistrer'),
+            externalUrl && React.createElement(Button, {
+              variant: 'outlined', size: 'small', color: 'error',
+              onClick: () => clearCv(lang),
+              sx: { minWidth: 32, px: 0.5 },
+            }, '✕'),
           ),
 
+          /* ── Nom du fichier téléchargé ── */
           React.createElement(Typography, {
-            variant: 'body2', sx: { color: '#aaa', mb: 1 },
+            variant: 'caption', sx: { color: 'text.secondary', fontWeight: 500, display: 'block', mb: 0.5 },
           }, 'Nom du fichier proposé au téléchargement'),
           React.createElement(Box, { sx: { display: 'flex', gap: 1, alignItems: 'center' } },
             React.createElement(TextField, {
@@ -698,7 +773,7 @@
               variant: 'contained', size: 'small',
               onClick: () => saveDownloadName(lang),
               disabled: savingDl || !downloadName,
-              sx: { alignSelf: 'flex-start', mt: '2px' },
+              sx: { alignSelf: 'flex-start', mt: '2px', whiteSpace: 'nowrap' },
             }, 'Enregistrer'),
           ),
         );
@@ -715,10 +790,12 @@
         React.createElement(CvCard, {
           lang: 'fr', meta: cvFr,
           downloadName: downloadNameFr, setDownloadName: setDownloadNameFr,
+          externalUrl: externalUrlFr,   setExternalUrl: setExternalUrlFr,
         }),
         React.createElement(CvCard, {
           lang: 'en', meta: cvEn,
           downloadName: downloadNameEn, setDownloadName: setDownloadNameEn,
+          externalUrl: externalUrlEn,   setExternalUrl: setExternalUrlEn,
         }),
 
         React.createElement(Snackbar, {

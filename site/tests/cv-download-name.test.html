@@ -241,6 +241,88 @@
       expect(isValidDownloadName(name)).toBeFalsy();
     });
 
+    group('URL externe — logique de priorité (GET cv.php)');
+
+    /* Reproduit la logique de sélection d'URL du handleGet PHP */
+    function resolveSource(meta, fileExists) {
+      if (meta.external_url) {
+        return { exists: true, url: meta.external_url, updated_at: null };
+      }
+      if (fileExists) {
+        return { exists: true, url: './uploads/cv/cv-fr.pdf', updated_at: '2026-01-01T00:00:00+00:00' };
+      }
+      return { exists: false, url: null };
+    }
+
+    test('URL externe renseignée → prioritaire sur le fichier uploadé', () => {
+      const src = resolveSource({ external_url: 'https://drive.google.com/file/d/abc/view' }, true);
+      expect(src.url).toBe('https://drive.google.com/file/d/abc/view');
+      expect(src.exists).toBeTruthy();
+    });
+
+    test('URL externe renseignée → updated_at null', () => {
+      const src = resolveSource({ external_url: 'https://example.com/cv.pdf' }, true);
+      expect(src.updated_at).toBeNull();
+    });
+
+    test('URL externe vide + fichier présent → fichier utilisé', () => {
+      const src = resolveSource({ external_url: '' }, true);
+      expect(src.url).toBe('./uploads/cv/cv-fr.pdf');
+    });
+
+    test('URL externe null + fichier présent → fichier utilisé', () => {
+      const src = resolveSource({ external_url: null }, true);
+      expect(src.url).toBe('./uploads/cv/cv-fr.pdf');
+    });
+
+    test('URL externe null + fichier absent → exists false', () => {
+      const src = resolveSource({ external_url: null }, false);
+      expect(src.exists).toBeFalsy();
+    });
+
+    test('URL externe renseignée + fichier absent → exists true (URL externe)', () => {
+      const src = resolveSource({ external_url: 'https://example.com/cv.pdf' }, false);
+      expect(src.exists).toBeTruthy();
+      expect(src.url).toBe('https://example.com/cv.pdf');
+    });
+
+    group('Validation URL externe (filter_var côté serveur)');
+
+    /* Reproduit la validation PHP côté JS */
+    function isValidExternalUrl(url) {
+      if (url === '') return true; // vide = effacement autorisé
+      try {
+        const u = new URL(url);
+        return u.protocol === 'http:' || u.protocol === 'https:';
+      } catch {
+        return false;
+      }
+    }
+
+    test('chaîne vide → valide (effacement)', () => {
+      expect(isValidExternalUrl('')).toBeTruthy();
+    });
+
+    test('URL https valide', () => {
+      expect(isValidExternalUrl('https://drive.google.com/file/d/abc/view')).toBeTruthy();
+    });
+
+    test('URL http valide', () => {
+      expect(isValidExternalUrl('http://example.com/cv.pdf')).toBeTruthy();
+    });
+
+    test('schéma javascript: → invalide', () => {
+      expect(isValidExternalUrl('javascript:alert(1)')).toBeFalsy();
+    });
+
+    test('schéma ftp: → invalide', () => {
+      expect(isValidExternalUrl('ftp://example.com/cv.pdf')).toBeFalsy();
+    });
+
+    test('texte brut sans schéma → invalide', () => {
+      expect(isValidExternalUrl('drive.google.com/cv')).toBeFalsy();
+    });
+
     group('Plusieurs liens simultanés');
 
     test('tous les liens [data-cv-link] sont mis à jour', () => {
