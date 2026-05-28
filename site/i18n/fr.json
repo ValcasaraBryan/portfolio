@@ -59,7 +59,7 @@
     "formations": {
         "title": "Formations",
         "breadcrumb": "FORMATION",
-        "display_title": "Comment j'ai appris",
+        "display_title": "Mes formations",
         "subtitle": "Diplômes + les certifications & cours accumulés en chemin.",
         "diplomas_label": "diplômes",
         "skills_title": "Compétences",
@@ -71,7 +71,7 @@
         "title": "Contact",
         "breadcrumb": "CONTACT",
         "avg_reply": "délai moy. < 24h",
-        "display_title_1": "Parlons-en.",
+        "display_title_1": "Travaillons ensemble.",
         "display_title_2": "",
         "tagline": "Intéressé par mon profil ? N'hésitez pas à me contacter, je serai ravi d'échanger avec vous.",
         "tagline_available": "Je suis disponible pour un poste en CDI.",

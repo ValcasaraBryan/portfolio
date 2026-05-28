@@ -1142,11 +1142,13 @@ async function updateCvLink(currentLang) {
     document.querySelectorAll('[data-cv-link]').forEach(a => {
       if (data.exists) {
         a.href = data.url;
+        a.setAttribute('download', data.download_name || 'cv.pdf');
         a.removeAttribute('aria-disabled');
         a.classList.remove('btn--disabled');
         a.title = '';
       } else {
         a.href = '#';
+        a.removeAttribute('download');
         a.setAttribute('aria-disabled', 'true');
         a.classList.add('btn--disabled');
         a.title = t('common.cv_unavailable');

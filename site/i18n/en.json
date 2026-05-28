@@ -24,7 +24,7 @@
     },
     "experiences": {
         "title": "Experience",
-        "display_title": "Where I've worked",
+        "display_title": "My work experiences",
         "breadcrumb": "EXPERIENCE",
         "positions": "Positions",
         "years": "Years",
@@ -40,7 +40,7 @@
     },
     "creations": {
         "title": "Projects",
-        "display_title": "Things I've built",
+        "display_title": "My projects",
         "breadcrumb": "PROJECTS",
         "projects_label": "PROJECTS",
         "subtitle": "Click on a card to discover the associated skills",
@@ -59,7 +59,7 @@
     "formations": {
         "title": "Education",
         "breadcrumb": "EDUCATION",
-        "display_title": "How I learned",
+        "display_title": "My education",
         "subtitle": "Diplomas + the certifications & courses I've stacked along the way.",
         "diplomas_label": "diplomas",
         "skills_title": "Skills",
@@ -71,7 +71,7 @@
         "title": "Contact",
         "breadcrumb": "CONTACT",
         "avg_reply": "avg. reply < 24h",
-        "display_title_1": "Let's talk.",
+        "display_title_1": "Let's work together.",
         "display_title_2": "",
         "tagline": "Interested in my profile? Feel free to reach out — I'd love to connect.",
         "tagline_available": "I am available for a permanent position.",

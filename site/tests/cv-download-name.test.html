@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests cv-download-name — Portfolio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0d0d0d;
+      color: #e2e2e2;
+      padding: 32px;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: .15em; color: #fff; margin-bottom: 6px; }
+    .hint { color: #555; font-size: 0.78rem; margin-bottom: 32px; }
+    .hint code { color: #888; }
+
+    .summary {
+      display: flex; gap: 20px; align-items: center;
+      padding: 12px 18px; border: 1px solid #2a2a2a;
+      border-radius: 4px; margin-bottom: 32px; font-size: 0.85rem;
+    }
+    .summary__pass  { color: #4ade80; font-weight: 700; }
+    .summary__fail  { color: #f87171; font-weight: 700; }
+    .summary__total { color: #888; }
+    .summary__time  { color: #444; margin-left: auto; font-size: 0.75rem; }
+    .summary--all-pass { border-color: #14532d; background: #052e16; }
+    .summary--has-fail { border-color: #7f1d1d; background: #2d0e0e; }
+
+    .group { margin-bottom: 26px; }
+    .group__title {
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: .2em;
+      color: #444; border-bottom: 1px solid #1c1c1c;
+      padding-bottom: 5px; margin-bottom: 8px;
+    }
+
+    .test { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 0.81rem; }
+    .test__icon  { flex-shrink: 0; width: 14px; }
+    .test--pass .test__label { color: #c8c8c8; }
+    .test--fail .test__label { color: #fca5a5; }
+    .test__detail { color: #f87171; font-size: 0.73rem; }
+  </style>
+</head>
+<body>
+
+  <h1>Tests unitaires · CV — nom de téléchargement</h1>
+  <p class="hint">Servir depuis le serveur PHP : <code>http://localhost/tests/cv-download-name.test.html</code></p>
+
+  <div id="app">
+    <div class="summary" id="summary"></div>
+    <div id="groups"></div>
+  </div>
+
+  <!-- Zone DOM isolée -->
+  <div id="sandbox" style="display:none" aria-hidden="true"></div>
+
+  <script>
+  (() => {
+    /* ── Mini runner ─────────────────────────────────────────── */
+    const _groups  = [];
+    const _results = [];
+    let   _current = null;
+
+    function group(name) {
+      _current = { name, tests: [] };
+      _groups.push(_current);
+    }
+    function _record(label, pass, detail = '') {
+      _current.tests.push({ label, pass, detail });
+      _results.push(pass);
+    }
+    function test(label, fn) {
+      try   { fn(); _record(label, true); }
+      catch (e) { _record(label, false, e.message); }
+    }
+
+    function expect(received) {
+      return {
+        toBe(exp) {
+          if (received !== exp)
+            throw new Error(`reçu "${received}" · attendu "${exp}"`);
+        },
+        toBeNull() {
+          if (received !== null)
+            throw new Error(`reçu "${received}" · attendu null`);
+        },
+        toBeTruthy() {
+          if (!received)
+            throw new Error(`reçu "${received}" · attendu une valeur truthy`);
+        },
+        toBeFalsy() {
+          if (received)
+            throw new Error(`reçu "${received}" · attendu une valeur falsy`);
+        },
+      };
+    }
+
+    /* ── Logique extraite de updateCvLink (app.js) ───────────── */
+    function applyToLinks(links, data) {
+      links.forEach(a => {
+        if (data.exists) {
+          a.href = data.url;
+          a.setAttribute('download', data.download_name || 'cv.pdf');
+          a.removeAttribute('aria-disabled');
+          a.classList.remove('btn--disabled');
+          a.title = '';
+        } else {
+          a.href = '#';
+          a.removeAttribute('download');
+          a.setAttribute('aria-disabled', 'true');
+          a.classList.add('btn--disabled');
+          a.title = 'CV non disponible';
+        }
+      });
+    }
+
+    function makeCvLink() {
+      const a = document.createElement('a');
+      a.setAttribute('data-cv-link', '');
+      a.href = '#';
+      return a;
+    }
+
+    /* ── Tests ───────────────────────────────────────────────── */
+
+    group('Attribut download — CV présent');
+
+    test('download_name renseigné → attribut posé avec le nom fourni', () => {
+      const a = makeCvLink();
+      applyToLinks([a], { exists: true, url: './uploads/cv/cv-fr.pdf', download_name: 'Bryan_Valcasara_CV.pdf' });
+      expect(a.getAttribute('download')).toBe('Bryan_Valcasara_CV.pdf');
+    });
+
+    test('download_name vide (falsy) → fallback cv.pdf', () => {
+      const a = makeCvLink();
+      applyToLinks([a], { exists: true, url: './uploads/cv/cv-fr.pdf', download_name: '' });
+      expect(a.getAttribute('download')).toBe('cv.pdf');
+    });
+
+    test('download_name absent (undefined) → fallback cv.pdf', () => {
+      const a = makeCvLink();
+      applyToLinks([a], { exists: true, url: './uploads/cv/cv-fr.pdf' });
+      expect(a.getAttribute('download')).toBe('cv.pdf');
+    });
+
+    test('href mis à jour avec l\'URL du fichier', () => {
+      const a = makeCvLink();
+      applyToLinks([a], { exists: true, url: './uploads/cv/cv-en.pdf', download_name: 'Bryan_CV_EN.pdf' });
+      expect(a.href).toBeTruthy();
+    });
+
+    test('aria-disabled retiré quand le CV existe', () => {
+      const a = makeCvLink();
+      a.setAttribute('aria-disabled', 'true');
+      applyToLinks([a], { exists: true, url: './uploads/cv/cv-fr.pdf', download_name: 'CV.pdf' });
+      expect(a.getAttribute('aria-disabled')).toBeNull();
+    });
+
+    test('classe btn--disabled retirée quand le CV existe', () => {
+      const a = makeCvLink();
+      a.classList.add('btn--disabled');
+      applyToLinks([a], { exists: true, url: './uploads/cv/cv-fr.pdf', download_name: 'CV.pdf' });
+      expect(a.classList.contains('btn--disabled')).toBeFalsy();
+    });
+
+    group('Attribut download — CV absent');
+
+    test('exists=false → attribut download retiré', () => {
+      const a = makeCvLink();
+      a.setAttribute('download', 'ancien.pdf');
+      applyToLinks([a], { exists: false, download_name: 'Bryan_CV.pdf' });
+      expect(a.getAttribute('download')).toBeNull();
+    });
+
+    test('exists=false → aria-disabled posé', () => {
+      const a = makeCvLink();
+      applyToLinks([a], { exists: false });
+      expect(a.getAttribute('aria-disabled')).toBe('true');
+    });
+
+    test('exists=false → href reset à #', () => {
+      const a = makeCvLink();
+      a.href = './uploads/cv/cv-fr.pdf';
+      applyToLinks([a], { exists: false });
+      expect(a.getAttribute('href')).toBe('#');
+    });
+
+    test('exists=false → classe btn--disabled ajoutée', () => {
+      const a = makeCvLink();
+      applyToLinks([a], { exists: false });
+      expect(a.classList.contains('btn--disabled')).toBeTruthy();
+    });
+
+    group('Validation du nom de téléchargement (regex PHP côté serveur)');
+
+    /* Reproduit côté JS la même regex que PHP : /^[a-zA-Z0-9_\-]{1,200}\.pdf$/ */
+    function isValidDownloadName(name) {
+      return /^[a-zA-Z0-9_\-]{1,200}\.pdf$/.test(name);
+    }
+
+    test('nom valide simple', () => {
+      expect(isValidDownloadName('cv.pdf')).toBeTruthy();
+    });
+
+    test('nom avec underscores et tirets', () => {
+      expect(isValidDownloadName('Bryan_Valcasara-CV.pdf')).toBeTruthy();
+    });
+
+    test('nom avec majuscules', () => {
+      expect(isValidDownloadName('CV_EN.pdf')).toBeTruthy();
+    });
+
+    test('extension absente → invalide', () => {
+      expect(isValidDownloadName('cv')).toBeFalsy();
+    });
+
+    test('extension incorrecte → invalide', () => {
+      expect(isValidDownloadName('cv.exe')).toBeFalsy();
+    });
+
+    test('slash → invalide (path traversal)', () => {
+      expect(isValidDownloadName('../evil.pdf')).toBeFalsy();
+    });
+
+    test('espace → invalide', () => {
+      expect(isValidDownloadName('mon cv.pdf')).toBeFalsy();
+    });
+
+    test('chaîne vide → invalide', () => {
+      expect(isValidDownloadName('')).toBeFalsy();
+    });
+
+    test('200 caractères + .pdf → valide (limite haute)', () => {
+      const name = 'a'.repeat(200) + '.pdf';
+      expect(isValidDownloadName(name)).toBeTruthy();
+    });
+
+    test('201 caractères + .pdf → invalide (dépassement)', () => {
+      const name = 'a'.repeat(201) + '.pdf';
+      expect(isValidDownloadName(name)).toBeFalsy();
+    });
+
+    group('Plusieurs liens simultanés');
+
+    test('tous les liens [data-cv-link] sont mis à jour', () => {
+      const links = [makeCvLink(), makeCvLink(), makeCvLink()];
+      applyToLinks(links, { exists: true, url: './uploads/cv/cv-fr.pdf', download_name: 'CV.pdf' });
+      links.forEach(a => {
+        expect(a.getAttribute('download')).toBe('CV.pdf');
+      });
+    });
+
+    /* ── Rendu ───────────────────────────────────────────────── */
+    const passCount  = _results.filter(Boolean).length;
+    const failCount  = _results.filter(r => !r).length;
+    const allPass    = failCount === 0;
+
+    const summary = document.getElementById('summary');
+    summary.className = `summary ${allPass ? 'summary--all-pass' : 'summary--has-fail'}`;
+    summary.innerHTML = `
+      <span class="summary__pass">✓ ${passCount} passé${passCount > 1 ? 's' : ''}</span>
+      <span class="summary__fail">${failCount > 0 ? `✗ ${failCount} échoué${failCount > 1 ? 's' : ''}` : ''}</span>
+      <span class="summary__total">${_results.length} total</span>
+    `;
+
+    const groupsEl = document.getElementById('groups');
+    _groups.forEach(g => {
+      const div = document.createElement('div');
+      div.className = 'group';
+      div.innerHTML = `<div class="group__title">${g.name}</div>`;
+      g.tests.forEach(t => {
+        const row = document.createElement('div');
+        row.className = `test ${t.pass ? 'test--pass' : 'test--fail'}`;
+        row.innerHTML = `
+          <span class="test__icon">${t.pass ? '✓' : '✗'}</span>
+          <span class="test__label">${t.label}</span>
+          ${t.detail ? `<span class="test__detail">— ${t.detail}</span>` : ''}
+        `;
+        div.appendChild(row);
+      });
+      groupsEl.appendChild(div);
+    });
+  })();
+  </script>
+
+</body>
+</html>

@@ -558,10 +558,13 @@
 
     /* ── CV SECTION ───────────────────────────────────────── */
     function CvSection() {
-      const [cvFr,    setCvFr]    = useState(null);   // { exists, url, updated_at } | null
-      const [cvEn,    setCvEn]    = useState(null);
-      const [loading, setLoading] = useState(true);
-      const [snack,   setSnack]   = useState(null);
+      const [cvFr,           setCvFr]           = useState(null);
+      const [cvEn,           setCvEn]           = useState(null);
+      const [loading,        setLoading]        = useState(true);
+      const [snack,          setSnack]          = useState(null);
+      const [downloadNameFr, setDownloadNameFr] = useState('');
+      const [downloadNameEn, setDownloadNameEn] = useState('');
+      const [savingDl,       setSavingDl]       = useState(false);
 
       const loadMeta = async () => {
         setLoading(true);
@@ -572,6 +575,8 @@
           ]);
           setCvFr(fr);
           setCvEn(en);
+          setDownloadNameFr(fr.download_name ?? '');
+          setDownloadNameEn(en.download_name ?? '');
         } catch {
           setSnack({ msg: 'Impossible de charger les métadonnées CV', sev: 'error' });
         } finally {
@@ -620,17 +625,35 @@
         }
       };
 
-      const CvCard = ({ lang, meta }) => {
-        const exists     = meta?.exists ?? false;
-        const updatedAt  = exists && meta.updated_at
+      const saveDownloadName = async lang => {
+        const name = lang === 'fr' ? downloadNameFr : downloadNameEn;
+        setSavingDl(true);
+        try {
+          const res = await fetch(`${API}/cv.php?lang=${lang}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ download_name: name }),
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error ?? 'Erreur serveur');
+          }
+          setSnack({ msg: `Nom de téléchargement ${lang.toUpperCase()} enregistré`, sev: 'success' });
+        } catch (e) {
+          setSnack({ msg: e.message, sev: 'error' });
+        } finally {
+          setSavingDl(false);
+        }
+      };
+
+      const CvCard = ({ lang, meta, downloadName, setDownloadName }) => {
+        const exists    = meta?.exists ?? false;
+        const updatedAt = exists && meta.updated_at
           ? new Date(meta.updated_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
           : null;
 
         return React.createElement(Box, {
-          sx: {
-            border: '1px solid #333', borderRadius: 2, p: 2.5, mb: 2,
-            background: '#141414',
-          },
+          sx: { border: '1px solid #333', borderRadius: 2, p: 2.5, mb: 2, background: '#141414' },
         },
           React.createElement(Typography, {
             variant: 'subtitle1', sx: { fontWeight: 700, mb: 1 },
@@ -644,28 +667,40 @@
                 variant: 'body2', sx: { color: '#888', mb: 2 },
               }, 'Aucun CV uploadé'),
 
-          React.createElement(Box, { sx: { display: 'flex', gap: 1, flexWrap: 'wrap' } },
+          React.createElement(Box, { sx: { display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2.5 } },
             React.createElement(Button, {
-              variant:  'contained',
-              size:     'small',
-              onClick:  () => upload(lang),
+              variant: 'contained', size: 'small', onClick: () => upload(lang),
             }, exists ? 'Remplacer le PDF' : 'Uploader un PDF'),
 
             exists && React.createElement(Button, {
-              variant:  'outlined',
-              size:     'small',
-              href:     `../${meta.url}`,
-              target:   '_blank',
-              rel:      'noopener',
+              variant: 'outlined', size: 'small',
+              href: `../${meta.url}`, target: '_blank', rel: 'noopener',
             }, 'Télécharger'),
 
             exists && React.createElement(Button, {
-              variant:  'outlined',
-              size:     'small',
-              color:    'error',
-              onClick:  () => remove(lang),
+              variant: 'outlined', size: 'small', color: 'error', onClick: () => remove(lang),
             }, 'Supprimer'),
-          )
+          ),
+
+          React.createElement(Typography, {
+            variant: 'body2', sx: { color: '#aaa', mb: 1 },
+          }, 'Nom du fichier proposé au téléchargement'),
+          React.createElement(Box, { sx: { display: 'flex', gap: 1, alignItems: 'center' } },
+            React.createElement(TextField, {
+              size: 'small', value: downloadName,
+              onChange: e => setDownloadName(e.target.value),
+              placeholder: 'ex: Prenom_Nom_CV.pdf',
+              sx: { flex: 1 },
+              inputProps: { maxLength: 205 },
+              helperText: 'Lettres, chiffres, tirets, underscores — doit se terminer par .pdf',
+            }),
+            React.createElement(Button, {
+              variant: 'contained', size: 'small',
+              onClick: () => saveDownloadName(lang),
+              disabled: savingDl || !downloadName,
+              sx: { alignSelf: 'flex-start', mt: '2px' },
+            }, 'Enregistrer'),
+          ),
         );
       };
 
@@ -677,8 +712,14 @@
         React.createElement(Typography, { variant: 'body2', sx: { color: '#888', mb: 3 } },
           'Uploadez un PDF par langue. Le visiteur téléchargera automatiquement la version correspondant à sa langue active.'),
 
-        React.createElement(CvCard, { lang: 'fr', meta: cvFr }),
-        React.createElement(CvCard, { lang: 'en', meta: cvEn }),
+        React.createElement(CvCard, {
+          lang: 'fr', meta: cvFr,
+          downloadName: downloadNameFr, setDownloadName: setDownloadNameFr,
+        }),
+        React.createElement(CvCard, {
+          lang: 'en', meta: cvEn,
+          downloadName: downloadNameEn, setDownloadName: setDownloadNameEn,
+        }),
 
         React.createElement(Snackbar, {
           open: !!snack, autoHideDuration: 4000,

@@ -2,12 +2,14 @@
 /**
  * cv.php — Gestion des CVs uploadés (FR / EN)
  *
- * GET    /api/cv.php?lang=fr   → métadonnées (exists, url, updated_at)
+ * GET    /api/cv.php?lang=fr   → métadonnées (exists, url, updated_at, download_name)
  * POST   /api/cv.php?lang=fr   → upload d'un PDF (protégé admin)
+ * PATCH  /api/cv.php?lang=fr   → mise à jour du nom de téléchargement (protégé admin)
  * DELETE /api/cv.php?lang=fr   → suppression du PDF (protégé admin)
  */
 
 require_once __DIR__ . '/auth_guard.php';
+require_once __DIR__ . '/db.php';
 
 // ── Headers de sécurité ──────────────────────────────────────
 header('X-Content-Type-Options: nosniff');
@@ -37,10 +39,13 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 try {
     if ($method === 'GET') {
-        handleGet($filepath, $fileurl);
+        handleGet($pdo, $lang, $filepath, $fileurl);
     } elseif ($method === 'POST') {
         require_auth();
         handlePost($filepath, $fileurl);
+    } elseif ($method === 'PATCH') {
+        require_auth();
+        handlePatch($pdo, $lang);
     } elseif ($method === 'DELETE') {
         require_auth();
         handleDelete($filepath);
@@ -58,18 +63,21 @@ try {
 /**
  * GET — Retourne les métadonnées du CV pour la langue demandée.
  */
-function handleGet(string $filepath, string $fileurl): void
+function handleGet(PDO $pdo, string $lang, string $filepath, string $fileurl): void
 {
+    $downloadName = getDownloadName($pdo, $lang);
+
     if (!file_exists($filepath)) {
-        echo json_encode(['exists' => false]);
+        echo json_encode(['exists' => false, 'download_name' => $downloadName]);
         return;
     }
 
     $mtime = filemtime($filepath);
     echo json_encode([
-        'exists'     => true,
-        'url'        => $fileurl,
-        'updated_at' => date('c', $mtime),
+        'exists'        => true,
+        'url'           => $fileurl,
+        'updated_at'    => date('c', $mtime),
+        'download_name' => $downloadName,
     ]);
 }
 
@@ -135,6 +143,46 @@ function handlePost(string $filepath, string $fileurl): void
 }
 
 /**
+ * PATCH — Met à jour le nom de téléchargement du CV pour la langue demandée.
+ *
+ * Body JSON attendu : { "download_name": "Mon_CV.pdf" }
+ * Validation : lettres, chiffres, tirets, underscores, 1–200 chars, extension .pdf
+ */
+function handlePatch(PDO $pdo, string $lang): void
+{
+    $body = json_decode(file_get_contents('php://input'), true);
+    $name = trim($body['download_name'] ?? '');
+
+    if (!preg_match('/^[a-zA-Z0-9_\-]{1,200}\.pdf$/', $name)) {
+        http_response_code(400);
+        echo json_encode([
+            'error' => 'Nom invalide. Utilisez uniquement lettres, chiffres, tirets, underscores, et terminez par .pdf (200 caractères max).',
+        ]);
+        return;
+    }
+
+    // Récupère le titre existant pour l'UPSERT (title est NOT NULL dans profile_translations)
+    $stmt = $pdo->prepare(
+        'SELECT COALESCE(t.title, p.title) AS title
+         FROM profile p
+         LEFT JOIN profile_translations t ON t.locale = :locale
+         WHERE p.id = 1'
+    );
+    $stmt->execute([':locale' => $lang]);
+    $row   = $stmt->fetch();
+    $title = $row['title'] ?? '';
+
+    $upsert = $pdo->prepare(
+        'INSERT INTO profile_translations (locale, title, cv_download_name)
+         VALUES (:locale, :title, :name)
+         ON DUPLICATE KEY UPDATE cv_download_name = VALUES(cv_download_name)'
+    );
+    $upsert->execute([':locale' => $lang, ':title' => $title, ':name' => $name]);
+
+    echo json_encode(['success' => true, 'download_name' => $name]);
+}
+
+/**
  * DELETE — Supprime le CV pour la langue demandée.
  */
 function handleDelete(string $filepath): void
@@ -152,4 +200,23 @@ function handleDelete(string $filepath): void
     }
 
     echo json_encode(['success' => true]);
+}
+
+// ── Helper ───────────────────────────────────────────────────
+
+/**
+ * Retourne le nom de téléchargement pour la locale donnée.
+ * Priorité : profile_translations.cv_download_name > profile.cv_download_name > 'cv.pdf'
+ */
+function getDownloadName(PDO $pdo, string $lang): string
+{
+    $stmt = $pdo->prepare(
+        'SELECT COALESCE(t.cv_download_name, p.cv_download_name, \'cv.pdf\') AS download_name
+         FROM profile p
+         LEFT JOIN profile_translations t ON t.locale = :locale
+         WHERE p.id = 1'
+    );
+    $stmt->execute([':locale' => $lang]);
+    $row = $stmt->fetch();
+    return $row['download_name'] ?? 'cv.pdf';
 }
