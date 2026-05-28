@@ -1710,7 +1710,7 @@ button.chip {
 
   .notification { bottom: var(--space-3); }
 
-  .tab-panel { min-width: 1100px; }
+  .tab-panel { min-width: 1000px; }
 
   /* ── Experience desktop ──────────────────────────────────── */
   .exp-highlights { grid-template-columns: repeat(4, 1fr); }
