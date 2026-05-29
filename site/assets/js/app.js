@@ -993,9 +993,25 @@ function showSkillTooltip(e) {
   if (!content) return;
   tip.innerHTML = content;
   tip.classList.remove('hidden');
-  const rect = target.getBoundingClientRect();
-  tip.style.left = `${rect.left}px`;
-  tip.style.top  = `${rect.bottom + 6}px`;
+
+  const rect   = target.getBoundingClientRect();
+  const vw     = window.innerWidth;
+  const vh     = window.innerHeight;
+  const margin = 8;
+  const tw     = tip.offsetWidth;
+  const th     = tip.offsetHeight;
+
+  let left = rect.left;
+  let top  = rect.bottom + 6;
+
+  if (left + tw > vw - margin) left = Math.max(margin, vw - tw - margin);
+  if (left < margin) left = margin;
+
+  if (top + th > vh - margin) top = rect.top - th - 6;
+  if (top < margin) top = margin;
+
+  tip.style.left = `${left}px`;
+  tip.style.top  = `${top}px`;
 }
 
 function hideSkillTooltip() {
