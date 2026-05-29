@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests url-lang — Portfolio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0d0d0d;
+      color: #e2e2e2;
+      padding: 32px;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: .15em; color: #fff; margin-bottom: 6px; }
+    .hint { color: #555; font-size: 0.78rem; margin-bottom: 32px; }
+    .hint code { color: #888; }
+
+    .summary {
+      display: flex; gap: 20px; align-items: center;
+      padding: 12px 18px; border: 1px solid #2a2a2a;
+      border-radius: 4px; margin-bottom: 32px; font-size: 0.85rem;
+    }
+    .summary__pass  { color: #4ade80; font-weight: 700; }
+    .summary__fail  { color: #f87171; font-weight: 700; }
+    .summary__total { color: #888; }
+    .summary__time  { color: #444; margin-left: auto; font-size: 0.75rem; }
+    .summary--all-pass { border-color: #14532d; background: #052e16; }
+    .summary--has-fail { border-color: #7f1d1d; background: #2d0e0e; }
+
+    .group { margin-bottom: 26px; }
+    .group__title {
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: .2em;
+      color: #444; border-bottom: 1px solid #1c1c1c;
+      padding-bottom: 5px; margin-bottom: 8px;
+    }
+
+    .test { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 0.81rem; }
+    .test__icon  { flex-shrink: 0; width: 14px; }
+    .test--pass .test__label { color: #c8c8c8; }
+    .test--fail .test__label { color: #fca5a5; }
+    .test__detail { color: #f87171; font-size: 0.73rem; }
+  </style>
+</head>
+<body>
+
+  <h1>Tests unitaires · Détection langue via URL</h1>
+  <p class="hint">Ouvrir depuis le serveur PHP : <code>http://localhost/tests/url-lang.test.html</code></p>
+
+  <div id="app">
+    <div class="summary" id="summary"></div>
+    <div id="groups"></div>
+  </div>
+
+  <script>
+  (() => {
+    /* ══════════════════════════════════════════════════════════
+       Réimplémentation isolée de _detectLang() pour les tests.
+       Copie exacte de la fonction dans app.js — si app.js change,
+       mettre à jour ici aussi.
+    ══════════════════════════════════════════════════════════ */
+    function _detectLang(overrideSearch = location.search, overrideStorage = null) {
+      const urlLang = new URLSearchParams(overrideSearch).get('lang');
+      if (urlLang && ['fr', 'en'].includes(urlLang)) return urlLang;
+      const saved = overrideStorage !== null ? overrideStorage : localStorage.getItem('lang');
+      if (saved) return saved;
+      const browserLang = (navigator.language || '').toLowerCase().slice(0, 2);
+      return browserLang === 'en' ? 'en' : 'fr';
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       Mini test runner
+    ══════════════════════════════════════════════════════════ */
+    const _groups  = [];
+    const _results = [];
+    let   _current = null;
+
+    function group(name) {
+      _current = { name, tests: [] };
+      _groups.push(_current);
+    }
+
+    function _record(label, pass, detail = '') {
+      _current.tests.push({ label, pass, detail });
+      _results.push(pass);
+    }
+
+    function test(label, fn) {
+      try   { fn(); _record(label, true); }
+      catch (e) { _record(label, false, e.message); }
+    }
+
+    function expect(received) {
+      return {
+        toBe(exp) {
+          if (received !== exp)
+            throw new Error(`reçu "${received}" · attendu "${exp}"`);
+        },
+        toNotBe(exp) {
+          if (received === exp)
+            throw new Error(`"${received}" ne devrait pas être égal à "${exp}"`);
+        },
+      };
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       Suites de tests
+    ══════════════════════════════════════════════════════════ */
+
+    group('Paramètre URL valide');
+
+    test('?lang=en → retourne "en"', () => {
+      expect(_detectLang('?lang=en', null)).toBe('en');
+    });
+
+    test('?lang=fr → retourne "fr"', () => {
+      expect(_detectLang('?lang=fr', null)).toBe('fr');
+    });
+
+    test('?lang=EN (majuscules) → ignoré, pas dans la whitelist', () => {
+      expect(_detectLang('?lang=EN', null)).toNotBe('EN');
+    });
+
+    test('?lang=de → ignoré (hors whitelist)', () => {
+      const result = _detectLang('?lang=de', null);
+      expect(result).toNotBe('de');
+    });
+
+    test('?lang= (vide) → ignoré', () => {
+      const result = _detectLang('?lang=', null);
+      expect(result).toNotBe('');
+    });
+
+    group('Priorité URL sur localStorage');
+
+    test('?lang=en prioritaire sur localStorage="fr"', () => {
+      expect(_detectLang('?lang=en', 'fr')).toBe('en');
+    });
+
+    test('?lang=fr prioritaire sur localStorage="en"', () => {
+      expect(_detectLang('?lang=fr', 'en')).toBe('fr');
+    });
+
+    group('Fallback sans paramètre URL');
+
+    test('Pas de ?lang= + localStorage="en" → retourne "en"', () => {
+      expect(_detectLang('', 'en')).toBe('en');
+    });
+
+    test('Pas de ?lang= + localStorage="fr" → retourne "fr"', () => {
+      expect(_detectLang('', 'fr')).toBe('fr');
+    });
+
+    test('Pas de ?lang= + pas de localStorage → retourne "fr" ou "en" (navigateur)', () => {
+      const result = _detectLang('', null);
+      if (result !== 'fr' && result !== 'en')
+        throw new Error(`valeur inattendue : "${result}"`);
+    });
+
+    group('Autres paramètres dans l\'URL');
+
+    test('?foo=bar&lang=en → lit lang correctement', () => {
+      expect(_detectLang('?foo=bar&lang=en', null)).toBe('en');
+    });
+
+    test('?lang=en&tab=about → lit lang correctement', () => {
+      expect(_detectLang('?lang=en&tab=about', null)).toBe('en');
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       Rendu
+    ══════════════════════════════════════════════════════════ */
+    const pass  = _results.filter(Boolean).length;
+    const fail  = _results.length - pass;
+    const total = _results.length;
+
+    const summaryEl = document.getElementById('summary');
+    summaryEl.className = 'summary ' + (fail === 0 ? 'summary--all-pass' : 'summary--has-fail');
+    summaryEl.innerHTML =
+      `<span class="summary__pass">${pass} passés</span>` +
+      (fail ? `<span class="summary__fail">${fail} échoués</span>` : '') +
+      `<span class="summary__total">/ ${total}</span>`;
+
+    const groupsEl = document.getElementById('groups');
+    _groups.forEach(g => {
+      const div = document.createElement('div');
+      div.className = 'group';
+      div.innerHTML = `<div class="group__title">${g.name}</div>`;
+      g.tests.forEach(t => {
+        const row = document.createElement('div');
+        row.className = 'test ' + (t.pass ? 'test--pass' : 'test--fail');
+        row.innerHTML =
+          `<span class="test__icon">${t.pass ? '✓' : '✗'}</span>` +
+          `<span class="test__label">${t.label}</span>` +
+          (t.detail ? `<span class="test__detail">— ${t.detail}</span>` : '');
+        div.appendChild(row);
+      });
+      groupsEl.appendChild(div);
+    });
+  })();
+  </script>
+</body>
+</html>

@@ -1275,10 +1275,12 @@ function renderSocialLinks(links) {
 /* ── LANG DETECTION ────────────────────────────────────────── */
 /**
  * Retourne la langue à utiliser à l'initialisation.
- * Priorité : préférence sauvegardée en localStorage → langue du navigateur → 'fr'.
- * Ne persiste rien : l'utilisateur n'a pas encore exprimé de choix explicite.
+ * Priorité : paramètre URL ?lang= → localStorage → langue du navigateur → 'fr'.
+ * overrideSearch permet d'injecter une query string factice en test.
  */
-function _detectLang() {
+function _detectLang(overrideSearch = location.search) {
+  const urlLang = new URLSearchParams(overrideSearch).get('lang');
+  if (urlLang && ['fr', 'en'].includes(urlLang)) return urlLang;
   const saved = localStorage.getItem('lang');
   if (saved) return saved;
   // navigator.language peut valoir 'en-GB', 'fr-FR', 'en', 'fr', …
@@ -1318,6 +1320,8 @@ async function init() {
     .forEach(btn => { btn.dataset.tab = HOME_TAB; });
 
   /* ③ Onglet initial depuis l'URL */
+  // Lire la langue AVANT history.replaceState qui supprime le ?lang= de l'URL
+  const detectedLang = _detectLang();
   const rawPath    = location.pathname;
   let   initialTab;
   if (rawPath === '/' || rawPath === '') {
@@ -1341,7 +1345,7 @@ async function init() {
   }
 
   /* ④ Chargement i18n + pré-render tous les onglets */
-  await loadLang(_detectLang());
+  await loadLang(detectedLang);
 
   /* ⑤ Profil (en séquentiel pour afficher le nom/avatar dès qu'il arrive) */
   const profile = await get('profile.php');
