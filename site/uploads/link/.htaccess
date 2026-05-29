@@ -1,3 +1,4 @@
-Options -Indexes -ExecCGI
-AddHandler cgi-script .php .pl .py .jsp .asp .sh .cgi
-RemoveHandler .php .phtml
+Options -Indexes
+<FilesMatch "\.(php|phtml|pl|py|sh|cgi|jsp|asp)$">
+    Require all denied
+</FilesMatch>

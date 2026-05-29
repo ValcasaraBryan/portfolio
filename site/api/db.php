@@ -13,7 +13,7 @@ if ($env_file !== null) {
             continue;
         }
         [$key, $value] = explode('=', $line, 2);
-        $_ENV[trim($key)] = trim($value);
+        $_ENV[trim($key)] = trim(trim($value), '"\'');
     }
 }
 
