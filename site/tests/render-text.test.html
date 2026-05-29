@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tests renderText — Portfolio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0d0d0d;
+      color: #e2e2e2;
+      padding: 32px;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: .15em; color: #fff; margin-bottom: 6px; }
+    .hint { color: #555; font-size: 0.78rem; margin-bottom: 32px; }
+    .hint code { color: #888; }
+
+    .summary {
+      display: flex; gap: 20px; align-items: center;
+      padding: 12px 18px; border: 1px solid #2a2a2a;
+      border-radius: 4px; margin-bottom: 32px; font-size: 0.85rem;
+    }
+    .summary__pass  { color: #4ade80; font-weight: 700; }
+    .summary__fail  { color: #f87171; font-weight: 700; }
+    .summary__total { color: #888; }
+    .summary__time  { color: #444; margin-left: auto; font-size: 0.75rem; }
+    .summary--all-pass { border-color: #14532d; background: #052e16; }
+    .summary--has-fail { border-color: #7f1d1d; background: #2d0e0e; }
+
+    .group { margin-bottom: 26px; }
+    .group__title {
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: .2em;
+      color: #444; border-bottom: 1px solid #1c1c1c;
+      padding-bottom: 5px; margin-bottom: 8px;
+    }
+
+    .test { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 0.81rem; }
+    .test__icon  { flex-shrink: 0; width: 14px; }
+    .test--pass .test__label { color: #c8c8c8; }
+    .test--fail .test__label { color: #fca5a5; }
+    .test__detail { color: #f87171; font-size: 0.73rem; }
+  </style>
+</head>
+<body>
+
+  <h1>Tests unitaires · AppUtils.renderText</h1>
+  <p class="hint">Ouvrir directement dans le navigateur (pas besoin de serveur PHP).</p>
+
+  <div id="app">
+    <div class="summary" id="summary"></div>
+    <div id="groups"></div>
+  </div>
+
+  <script src="../assets/js/app-utils.js"></script>
+
+  <script>
+  (() => {
+    const _groups  = [];
+    const _results = [];
+    let   _current = null;
+
+    function group(name) {
+      _current = { name, tests: [] };
+      _groups.push(_current);
+    }
+
+    function _record(label, pass, detail = '') {
+      _current.tests.push({ label, pass, detail });
+      _results.push(pass);
+    }
+
+    function test(label, fn) {
+      try   { fn(); _record(label, true); }
+      catch (e) { _record(label, false, e.message); }
+    }
+
+    function expect(received) {
+      return {
+        toBe(exp) {
+          if (received !== exp)
+            throw new Error(`reçu "${received}" · attendu "${exp}"`);
+        },
+        toContain(sub) {
+          if (!received.includes(sub))
+            throw new Error(`"${received}" ne contient pas "${sub}"`);
+        },
+        toNotContain(sub) {
+          if (received.includes(sub))
+            throw new Error(`"${received}" ne devrait pas contenir "${sub}"`);
+        },
+      };
+    }
+
+    const t0 = performance.now();
+    const { escapeHtml, renderText } = AppUtils;
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 1 — Sécurité (XSS)
+    ══════════════════════════════════════════════════════════ */
+    group('1 · Sécurité — XSS');
+
+    test('<script> est échappé', () => {
+      expect(renderText('<script>alert(1)</script>')).toNotContain('<script>');
+    });
+
+    test('<img onerror=...> est échappé', () => {
+      expect(renderText('<img src=x onerror=alert(1)>')).toNotContain('<img');
+    });
+
+    test('guillemets doubles sont échappés', () => {
+      expect(renderText('"hello"')).toContain('&quot;');
+    });
+
+    test('guillemets simples sont échappés', () => {
+      expect(renderText("l'exemple")).toContain('&#39;');
+    });
+
+    test('esperluette est échappée', () => {
+      expect(renderText('rock & roll')).toContain('&amp;');
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 2 — Retours à la ligne
+    ══════════════════════════════════════════════════════════ */
+    group('2 · Retours à la ligne');
+
+    test('\\n converti en <br>', () => {
+      expect(renderText('ligne1\nligne2')).toBe('ligne1<br>ligne2');
+    });
+
+    test('\\n multiples convertis en <br> multiples', () => {
+      expect(renderText('a\nb\nc')).toBe('a<br>b<br>c');
+    });
+
+    test('texte sans \\n inchangé (hors échappement)', () => {
+      expect(renderText('bonjour')).toBe('bonjour');
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 3 — Balise <br> explicite
+    ══════════════════════════════════════════════════════════ */
+    group('3 · Balise <br> tapée explicitement');
+
+    test('<br> tapé devient <br>', () => {
+      expect(renderText('avant<br>après')).toBe('avant<br>après');
+    });
+
+    test('<BR> (majuscules) tapé devient <br>', () => {
+      expect(renderText('avant<BR>après')).toBe('avant<br>après');
+    });
+
+    test('<br/> tapé devient <br>', () => {
+      expect(renderText('avant<br/>après')).toBe('avant<br>après');
+    });
+
+    test('<br /> (avec espace) tapé devient <br>', () => {
+      expect(renderText('avant<br />après')).toBe('avant<br>après');
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       GROUPE 4 — Cas limites
+    ══════════════════════════════════════════════════════════ */
+    group('4 · Cas limites');
+
+    test('chaîne vide → chaîne vide', () => {
+      expect(renderText('')).toBe('');
+    });
+
+    test('null → chaîne vide', () => {
+      expect(renderText(null)).toBe('');
+    });
+
+    test('undefined → chaîne vide', () => {
+      expect(renderText(undefined)).toBe('');
+    });
+
+    test('texte avec <br> ET \\n combinés', () => {
+      const result = renderText('para1<br>suite\npara2');
+      expect(result).toContain('<br>');
+      expect(result).toNotContain('<script>');
+    });
+
+    test('<script> après <br> reste échappé', () => {
+      expect(renderText('texte<br><script>alert(1)</script>')).toNotContain('<script>');
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       Rendu
+    ══════════════════════════════════════════════════════════ */
+    const elapsed = (performance.now() - t0).toFixed(1);
+    const pass    = _results.filter(Boolean).length;
+    const fail    = _results.length - pass;
+
+    const sum = document.getElementById('summary');
+    sum.className = 'summary ' + (fail === 0 ? 'summary--all-pass' : 'summary--has-fail');
+    sum.innerHTML = `
+      <span class="summary__pass">${pass} ✓</span>
+      <span class="summary__fail">${fail} ✗</span>
+      <span class="summary__total">${_results.length} tests</span>
+      <span class="summary__time">${elapsed} ms</span>`;
+
+    const groupsEl = document.getElementById('groups');
+    for (const g of _groups) {
+      const div = document.createElement('div');
+      div.className = 'group';
+      div.innerHTML = `<div class="group__title">${g.name}</div>`;
+      for (const t of g.tests) {
+        const row = document.createElement('div');
+        row.className = `test test--${t.pass ? 'pass' : 'fail'}`;
+        row.innerHTML = `
+          <span class="test__icon">${t.pass ? '✓' : '✗'}</span>
+          <span class="test__label">${t.label}</span>
+          ${t.detail ? `<span class="test__detail">→ ${t.detail}</span>` : ''}`;
+        div.appendChild(row);
+      }
+      groupsEl.appendChild(div);
+    }
+  })();
+  </script>
+</body>
+</html>

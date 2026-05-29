@@ -121,6 +121,19 @@ const AppUtils = {
   },
 
   /**
+   * Échappe le HTML (XSS) puis convertit les retours à la ligne en <br>.
+   * Accepte aussi les balises <br> explicitement tapées dans l'admin.
+   * À utiliser pour les champs texte long (description, bio…).
+   * @param {string} str
+   * @returns {string}
+   */
+  renderText(str) {
+    return AppUtils.escapeHtml(str)
+      .replace(/\n/g, '<br>')
+      .replace(/&lt;br\s*\/?&gt;/gi, '<br>');
+  },
+
+  /**
    * Formate une période (années uniquement, ex: "2022 — 2024" ou "2024 — Présent").
    * @param {string}      start        — date ISO
    * @param {string|null} end          — date ISO ou null/undefined

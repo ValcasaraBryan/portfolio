@@ -74,8 +74,8 @@
         "display_title_1": "Let's work together.",
         "display_title_2": "",
         "tagline": "Interested in my profile? Feel free to reach out — I'd love to connect.",
-        "tagline_available": "I am available for a permanent position.",
-        "tagline_suffix": " The fastest way to reach me is through email — LinkedIn works too.",
+        "tagline_available": "I am available for a permanent position.<br>",
+        "tagline_suffix": "The fastest way to reach me is through email — LinkedIn works too.",
         "open_to_work": "Open to work",
         "availability_info": "Full-time · Paris / remote",
         "form_subtitle": "I'll reply within a day 👌🏼",
@@ -94,10 +94,5 @@
             "error": "Something went wrong.",
             "captcha_wait": "Verification in progress, please wait..."
         }
-    },
-    "notFound": {
-        "title": "Page not found",
-        "message": "This path does not exist.",
-        "cta": "Back to home"
     }
 }

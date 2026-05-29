@@ -74,8 +74,8 @@
         "display_title_1": "Travaillons ensemble.",
         "display_title_2": "",
         "tagline": "Intéressé par mon profil ? N'hésitez pas à me contacter, je serai ravi d'échanger avec vous.",
-        "tagline_available": "Je suis disponible pour un poste en CDI.",
-        "tagline_suffix": " La meilleure façon de me joindre est par email — LinkedIn fonctionne aussi.",
+        "tagline_available": "Je suis disponible pour un poste en CDI.<br>",
+        "tagline_suffix": "La meilleure façon de me joindre est par email — LinkedIn fonctionne aussi.",
         "open_to_work": "Disponible",
         "availability_info": "CDI · Paris / remote",
         "form_subtitle": "Je réponds sous 24h 👌🏼",
@@ -94,10 +94,5 @@
             "error": "Une erreur est survenue.",
             "captcha_wait": "Vérification en cours, veuillez patienter..."
         }
-    },
-    "notFound": {
-        "title": "Page introuvable",
-        "message": "Ce chemin n'existe pas.",
-        "cta": "Retour à l'accueil"
     }
 }

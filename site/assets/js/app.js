@@ -222,7 +222,7 @@ async function renderExperiences() {
             <div class="timeline-detail">
               <div class="timeline-role ${isCurrent ? 'current' : ''}">${exp.role}</div>
               <div class="timeline-company">${co}${loc}${typ}</div>
-              ${exp.description ? `<p class="timeline-desc">${exp.description}</p>` : ''}
+              ${exp.description ? `<p class="timeline-desc">${renderText(exp.description)}</p>` : ''}
               ${exp.skills?.length ? renderSkillChips(exp.skills) : ''}
             </div>
           </div>`;
@@ -314,7 +314,7 @@ function _renderProjPage() {
         </div>
         <div class="proj-card__body proj-card__body--featured">
           <div class="proj-card__name proj-card__name--lg">[ ${featured.name} ]</div>
-          ${featured.description ? `<p class="proj-card__pitch">${featured.description.slice(0, 140)}${featured.description.length > 140 ? '…' : ''}</p>` : ''}
+          ${featured.description ? `<p class="proj-card__pitch">${escapeHtml(featured.description.replace(/\n/g, ' ').slice(0, 140))}${featured.description.length > 140 ? '…' : ''}</p>` : ''}
           ${featured.skills?.length ? `<p class="proj-card__stack-line">${stack(featured.skills)}.</p>` : ''}
         </div>
       </div>` : '';
@@ -498,7 +498,7 @@ function openModal(id) {
       ${year ? `<span class="modal__meta">${year}</span>` : ''}
     </div>
     ${p.category ? `<p class="modal__category">${t('creations.filter_' + p.category)}</p>` : ''}
-    <p class="modal__description">${p.description ?? ''}</p>
+    <p class="modal__description">${renderText(p.description ?? '')}</p>
     ${renderSkillChips(p.skills)}
     <div class="modal__actions">
       ${p.url
@@ -597,7 +597,7 @@ async function renderFormations() {
             <div class="formation-card__content">
               <div class="formation-card__title">${escapeHtml(f.title)}</div>
               <div class="formation-card__school">${escapeHtml(f.school)}${f.level ? ` · ${escapeHtml(f.level)}` : ''}</div>
-              ${f.description ? `<p class="formation-card__description">${escapeHtml(f.description)}</p>` : ''}
+              ${f.description ? `<p class="formation-card__description">${renderText(f.description)}</p>` : ''}
               ${f.skills?.length ? `<div class="formation-card__sep"></div>${renderSkillChips(f.skills)}` : ''}
             </div>
           </div>`;
@@ -775,7 +775,7 @@ async function renderAbout() {
   ]);
   const panel = document.getElementById('tab-about');
 
-  const bio      = escapeHtml(profile?.bio      ?? '');
+  const bio      = renderText(profile?.bio      ?? '');
   const location = escapeHtml(profile?.location ?? '');
   const status   = escapeHtml(profile?.status   ?? '');
 
@@ -858,7 +858,8 @@ async function renderAbout() {
 /* ── HELPERS ───────────────────────────────────────────────── */
 
 /** Délègue à AppUtils pour garder la logique centralisée et testable. */
-function escapeHtml(str) { return AppUtils.escapeHtml(str); }
+function escapeHtml(str)  { return AppUtils.escapeHtml(str); }
+function renderText(str)  { return AppUtils.renderText(str); }
 
 /* ── CHIP PRIMITIVES ───────────────────────────────────────── */
 
@@ -1072,14 +1073,14 @@ function openSkillModal(type, data) {
     body.innerHTML = `
       <div class="modal__category">${escapeHtml(data.category ?? '')}</div>
       <h2 class="modal__title">${escapeHtml(data.skill ?? '')}</h2>
-      ${data.skillDescription ? `<p class="modal__description">${escapeHtml(data.skillDescription)}</p>` : ''}
+      ${data.skillDescription ? `<p class="modal__description">${renderText(data.skillDescription)}</p>` : ''}
       ${closeBtn}`;
   } else {
     // type === 'category'
     body.innerHTML = `
       <div class="modal__category">${t('formations.category_skills')}</div>
       <h2 class="modal__title">${escapeHtml(data.category ?? '')}</h2>
-      ${data.description ? `<p class="modal__description">${escapeHtml(data.description)}</p>` : ''}
+      ${data.description ? `<p class="modal__description">${renderText(data.description)}</p>` : ''}
       <div class="skill-modal__chips">${chips(data.skills ?? [])}</div>
       ${closeBtn}`;
     attachSkillChipEvents(body);
