@@ -83,7 +83,7 @@ $FIX \
 # ---------------------------------------------------------------------------
 section "Racine du projet"
 # ---------------------------------------------------------------------------
-check "$ROOT"                 750 "$OWNER" "$OWNER"
+check "$ROOT"                 751 "$OWNER" "$OWNER"   # 751 : www-data peut traverser (x) mais pas lister (pas r)
 check "$ROOT/.env"            640 "$OWNER" "$WEB_USER"   # lisible par www-data, personne d'autre
 check "$ROOT/build.sh"        750 "$OWNER" "$OWNER"
 check "$ROOT/securite.sh"     750 "$OWNER" "$OWNER"
