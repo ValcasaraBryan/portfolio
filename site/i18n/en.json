@@ -1,9 +1,9 @@
 {
     "nav": {
         "about": "About",
-        "experiences": "Experience",
+        "experiences": "Experiences",
         "creations": "Projects",
-        "formations": "Education",
+        "formations": "Educations",
         "contact": "Contact"
     },
     "about": {
@@ -23,9 +23,9 @@
         "load_error": "Failed to load content. Please try again."
     },
     "experiences": {
-        "title": "Experience",
+        "title": "Experiences",
         "display_title": "My work experiences",
-        "breadcrumb": "EXPERIENCE",
+        "breadcrumb": "EXPERIENCES",
         "positions": "Positions",
         "years": "Years",
         "top_skills": "Top skills",
