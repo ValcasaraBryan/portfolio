@@ -59,22 +59,34 @@ try {
             $lastmod = (new DateTimeImmutable($row[0]))->format('Y-m-d');
         }
     }
+
+    $routes = $pdo->query(
+        'SELECT url_path FROM tab_routes ORDER BY order_index ASC'
+    )->fetchAll(PDO::FETCH_COLUMN);
 } catch (Throwable) {
-    // Fallback: use today's date — no error details exposed
+    // Fallback: use today's date and no dynamic routes — no error details exposed
+    $routes = [];
 }
 
 echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+
+$allRoutes = array_merge(['/'], $routes ?? []);
 ?>
 <urlset
   xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
+<?php foreach ($allRoutes as $path):
+    $loc    = htmlspecialchars($siteUrl . $path, ENT_XML1);
+    $locEn  = htmlspecialchars($siteUrl . $path . '?lang=en', ENT_XML1);
+?>
   <url>
-    <loc><?= htmlspecialchars($siteUrl . '/', ENT_XML1) ?></loc>
-    <xhtml:link rel="alternate" hreflang="fr"      href="<?= htmlspecialchars($siteUrl . '/', ENT_XML1) ?>"/>
-    <xhtml:link rel="alternate" hreflang="en"      href="<?= htmlspecialchars($siteUrl . '/?lang=en', ENT_XML1) ?>"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="<?= htmlspecialchars($siteUrl . '/', ENT_XML1) ?>"/>
+    <loc><?= $loc ?></loc>
+    <xhtml:link rel="alternate" hreflang="fr"        href="<?= $loc ?>"/>
+    <xhtml:link rel="alternate" hreflang="en"        href="<?= $locEn ?>"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="<?= $loc ?>"/>
     <lastmod><?= htmlspecialchars($lastmod, ENT_XML1) ?></lastmod>
     <changefreq>monthly</changefreq>
-    <priority>1.0</priority>
+    <priority><?= $path === '/' ? '1.0' : '0.8' ?></priority>
   </url>
+<?php endforeach ?>
 </urlset>
