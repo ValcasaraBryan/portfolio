@@ -105,9 +105,10 @@ if (!move_uploaded_file($file['tmp_name'], $filepath)) {
 
 // Optimisation : redimensionnement + conversion WebP (si GD le supporte)
 // SVG / GIF / ICO sont ignorés par optimizeImage (retourne false silencieusement).
-if (in_array($mime, ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'], true)) {
-    $maxDim  = ($type === 'profile') ? 800 : 1200;
-    $result  = optimizeImage($filepath, $mime, $maxDim, 85);
+if (in_array($mime, ['image/jpeg', 'image/jpg', 'image/png', 'image/x-png', 'image/webp'], true)) {
+    $maxDim    = ($type === 'profile') ? 800 : 1200;
+    $mimeFinal = ($mime === 'image/x-png') ? 'image/png' : $mime;
+    $result    = optimizeImage($filepath, $mimeFinal, $maxDim, 85);
 
     if ($result !== false && $result !== $filepath) {
         // Le format a changé (ex: JPEG → WebP) — supprimer l'original

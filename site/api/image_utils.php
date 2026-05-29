@@ -36,6 +36,9 @@ function optimizeImage(
     ?string $outputPath = null
 ): string|false {
 
+    // Normaliser les alias MIME non-standard (ex: Windows/XAMPP)
+    if ($mime === 'image/x-png') $mime = 'image/png';
+
     // Types supportés par GD pour lecture + écriture
     $supported = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (!in_array($mime, $supported, true)) {
