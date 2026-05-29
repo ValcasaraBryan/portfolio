@@ -1661,13 +1661,120 @@
       );
     }
 
+    /* ── TAB ROUTES SECTION ────────────────────────────────── */
+    function TabRoutesSection() {
+      const [routes,    setRoutes]    = useState([]);
+      const [edits,     setEdits]     = useState({});
+      const [config,    setConfig]    = useState({ default_tab: 'about', home_tab: 'about' });
+      const [tabLabels, setTabLabels] = useState({});
+      const [loading,   setLoading]   = useState(true);
+      const [saving,    setSaving]    = useState(false);
+      const [snack,     setSnack]     = useState(null);
+
+      useEffect(() => {
+        Promise.all([
+          apiFetch('tab_routes.php'),
+          fetch('../i18n/fr.json').then(r => r.json()),
+        ]).then(([data, i18n]) => {
+          const routes = data.routes ?? data;
+          const cfg    = data.config ?? {};
+          const labels = {};
+          routes.forEach(r => { labels[r.tab_name] = i18n?.nav?.[r.tab_name] ?? r.tab_name; });
+          setTabLabels(labels);
+          setRoutes(routes);
+          setConfig({ default_tab: cfg.default_tab ?? 'about', home_tab: cfg.home_tab ?? 'about' });
+          const e = {};
+          routes.forEach(r => { e[r.tab_name] = r.url_path; });
+          setEdits(e);
+          setLoading(false);
+        }).catch(() => setLoading(false));
+      }, []);
+
+      const handleChange = (tab, val) =>
+        setEdits(prev => ({ ...prev, [tab]: val }));
+
+      const handleSave = async () => {
+        setSaving(true);
+        try {
+          const res = await fetch('../api/tab_routes.php', {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              routes: routes.map(r => ({ tab_name: r.tab_name, url_path: edits[r.tab_name] ?? r.url_path })),
+              config,
+            }),
+          });
+          if (!res.ok) throw new Error();
+          setSnack('Configuration mise à jour');
+        } catch {
+          setSnack('Erreur lors de la sauvegarde');
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      if (loading) return React.createElement(Box, { sx: { p: 4, display: 'flex', justifyContent: 'center' } },
+        React.createElement(CircularProgress)
+      );
+
+      return React.createElement(Box, { sx: { maxWidth: 480, p: 3 } },
+        React.createElement(Typography, { variant: 'h6', sx: { mb: 3 } }, 'URLs des onglets'),
+        ...routes.map(r =>
+          React.createElement(TextField, {
+            key:      r.tab_name,
+            label:      tabLabels[r.tab_name] ?? r.tab_name,
+            value:      edits[r.tab_name] ?? r.url_path,
+            onChange:   e => handleChange(r.tab_name, e.target.value),
+            fullWidth:  true,
+            sx:         { mb: 2 },
+            helperText: 'Format : /slug (minuscules, chiffres, tirets)',
+            inputProps: { pattern: '^/[a-z0-9][a-z0-9-]*$' },
+          })
+        ),
+        React.createElement(Divider, { sx: { my: 2 } }),
+        React.createElement(Typography, { variant: 'subtitle2', sx: { mb: 1 } }, 'Navigation'),
+        React.createElement(TextField, {
+          select: true, fullWidth: true, sx: { mb: 2 },
+          label: "Onglet par défaut (/)",
+          value: config.default_tab,
+          onChange: e => setConfig(prev => ({ ...prev, default_tab: e.target.value })),
+          helperText: "Onglet affiché à l'arrivée sur /",
+          children: routes.map(r =>
+            React.createElement(MenuItem, { key: r.tab_name, value: r.tab_name },
+              tabLabels[r.tab_name] ?? r.tab_name
+            )
+          ),
+        }),
+        React.createElement(TextField, {
+          select: true, fullWidth: true, sx: { mb: 2 },
+          label: "Retour à l'accueil (bouton 404)",
+          value: config.home_tab,
+          onChange: e => setConfig(prev => ({ ...prev, home_tab: e.target.value })),
+          helperText: "Onglet du bouton \"Retour à l'accueil\" sur la page 404",
+          children: routes.map(r =>
+            React.createElement(MenuItem, { key: r.tab_name, value: r.tab_name },
+              tabLabels[r.tab_name] ?? r.tab_name
+            )
+          ),
+        }),
+        React.createElement(Button, {
+          variant: 'contained', onClick: handleSave, disabled: saving,
+        }, saving ? React.createElement(CircularProgress, { size: 20 }) : 'Enregistrer'),
+        React.createElement(Snackbar, {
+          open: !!snack, autoHideDuration: 3000, onClose: () => setSnack(null), message: snack,
+        })
+      );
+    }
+
     /* ── ADMIN APP ─────────────────────────────────────────── */
     const PROFILE_NAV        = { id: 'profile',          label: 'Profil' };
     const CV_NAV             = { id: 'cv',               label: 'CV' };
     const I18N_NAV           = { id: 'translations',     label: 'Traductions' };
     const SKILLS_NAV         = { id: 'skills',           label: 'Skills' };
     const SKILL_CAT_NAV      = { id: 'skill_categories', label: 'Catégories skills' };
-    const ALL_NAV            = [...SECTIONS, SKILLS_NAV, SKILL_CAT_NAV, PROFILE_NAV, CV_NAV, I18N_NAV];
+    const TAB_ROUTES_NAV     = { id: 'tab_routes',       label: 'URLs des onglets' };
+    const ALL_NAV            = [...SECTIONS, SKILLS_NAV, SKILL_CAT_NAV, PROFILE_NAV, CV_NAV, TAB_ROUTES_NAV, I18N_NAV];
 
     function AdminApp() {
       const [active, setActive] = useState('experiences');
@@ -1746,6 +1853,8 @@
               ? React.createElement(SkillsSection,         { key: 'skills' })
               : active === 'skill_categories'
               ? React.createElement(SkillCategoriesSection,{ key: 'skill_categories' })
+              : active === 'tab_routes'
+              ? React.createElement(TabRoutesSection,      { key: 'tab_routes' })
               : section && React.createElement(CrudTable,  { key: active, section }),
           )
         )

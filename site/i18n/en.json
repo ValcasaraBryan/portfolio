@@ -94,5 +94,10 @@
             "error": "Something went wrong.",
             "captcha_wait": "Verification in progress, please wait..."
         }
+    },
+    "notFound": {
+        "title": "Page not found",
+        "message": "This path does not exist.",
+        "cta": "Back to home"
     }
 }

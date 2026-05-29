@@ -5,6 +5,30 @@ let _altchaPayload = '';
 
 const SKILLS_GROUP_THRESHOLD = 5;
 
+/* ── ROUTING ────────────────────────────────────────────────── */
+const ROUTES = {
+  about:       '/about',
+  experiences: '/experiences',
+  creations:   '/projets',
+  formations:  '/formations',
+  contact:     '/contact',
+};
+let DEFAULT_TAB = 'about';
+let HOME_TAB    = 'about';
+
+function tabFromPath(path) {
+  const entry = Object.entries(ROUTES).find(([, p]) => p === path);
+  return entry ? entry[0] : null;
+}
+
+function show404() {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('[data-tab]').forEach(b => b.classList.remove('active'));
+  const panel = document.getElementById('tab-404');
+  if (panel) panel.classList.add('active');
+  history.replaceState({ tab: '404' }, '', location.pathname);
+}
+
 /* ── I18N — délègue au module i18n.js ──────────────────────── */
 function t(key)      { return I18n.t(key); }
 function applyI18n() { I18n.applyI18n(); }
@@ -23,7 +47,7 @@ async function loadLang(newLang) {
   // — l'onglet actif avec fondu (visible)
   // — les autres en arrière-plan (cachés) → prêts sans flash au prochain switch
   const activeTab = document.querySelector('[data-tab].active')?.dataset.tab;
-  const allTabs   = ['about', 'experiences', 'creations', 'formations', 'contact'];
+  const allTabs   = Object.keys(ROUTES);
 
   for (const tab of allTabs) {
     tabLoaded[tab] = true;
@@ -67,6 +91,11 @@ function switchTab(name) {
     .forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   const panel = document.getElementById(`tab-${name}`);
   if (panel) panel.classList.add('active');
+
+  const targetPath = ROUTES[name] ?? ROUTES[DEFAULT_TAB];
+  if (location.pathname !== targetPath) {
+    history.pushState({ tab: name }, '', targetPath);
+  }
 
   if (!tabLoaded[name]) {
     tabLoaded[name] = true;
@@ -1270,24 +1299,51 @@ async function init() {
   document.querySelectorAll('[data-tab]')
     .forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 
-  /* ② Onglet initial actif dans le DOM + skeleton visible AVANT le premier await
-   *   → loadLang détectera '[data-tab].active' = 'experiences' et lui appliquera le bon flow
-   *   → L'utilisateur voit le skeleton dès le premier paint (skeleton = HTML statique, pas besoin d'i18n) */
-  const initialTab   = 'experiences';
-  const initialPanel = document.getElementById(`tab-${initialTab}`);
-  document.querySelectorAll('[data-tab]')
-    .forEach(b => b.classList.toggle('active', b.dataset.tab === initialTab));
-  if (initialPanel) {
-    initialPanel.classList.add('active');
-    initialPanel.innerHTML = getSkeletonHtml(initialTab);
+  window.addEventListener('popstate', (e) => {
+    if (e.state?.tab === '404') { show404(); return; }
+    const tab = e.state?.tab ?? tabFromPath(location.pathname);
+    if (tab) switchTab(tab);
+    else show404();
+  });
+
+  /* ② Routes + config depuis l'API (override des valeurs par défaut) */
+  const routeData = await get('tab_routes.php');
+  if (routeData && Array.isArray(routeData.routes)) {
+    routeData.routes.forEach(r => { if (r.tab_name in ROUTES) ROUTES[r.tab_name] = r.url_path; });
+  }
+  if (routeData?.config?.default_tab in ROUTES) DEFAULT_TAB = routeData.config.default_tab;
+  if (routeData?.config?.home_tab    in ROUTES) HOME_TAB    = routeData.config.home_tab;
+
+  document.querySelectorAll('#tab-404 [data-tab]')
+    .forEach(btn => { btn.dataset.tab = HOME_TAB; });
+
+  /* ③ Onglet initial depuis l'URL */
+  const rawPath    = location.pathname;
+  let   initialTab;
+  if (rawPath === '/' || rawPath === '') {
+    initialTab = DEFAULT_TAB;
+    history.replaceState({ tab: initialTab }, '', ROUTES[initialTab]);
+  } else {
+    initialTab = tabFromPath(rawPath);
+    history.replaceState({ tab: initialTab ?? '404' }, '', rawPath);
   }
 
-  /* ③ Chargement i18n + pré-render tous les onglets
-   *   loadLang voit 'experiences' comme onglet actif → skeleton + loadTab pour lui,
-   *   loadTab silencieux pour les autres */
+  if (!initialTab) {
+    show404();
+  } else {
+    const initialPanel = document.getElementById(`tab-${initialTab}`);
+    document.querySelectorAll('[data-tab]')
+      .forEach(b => b.classList.toggle('active', b.dataset.tab === initialTab));
+    if (initialPanel) {
+      initialPanel.classList.add('active');
+      initialPanel.innerHTML = getSkeletonHtml(initialTab);
+    }
+  }
+
+  /* ④ Chargement i18n + pré-render tous les onglets */
   await loadLang(_detectLang());
 
-  /* ④ Profil (en séquentiel pour afficher le nom/avatar dès qu'il arrive) */
+  /* ⑤ Profil (en séquentiel pour afficher le nom/avatar dès qu'il arrive) */
   const profile = await get('profile.php');
   if (profile) {
     document.querySelectorAll('.profile-name')
@@ -1301,7 +1357,6 @@ async function init() {
   }
 
   updateCvLink(lang);
-  /* switchTab('experiences') supprimé : loadLang s'en charge via la détection de l'onglet actif */
 }
 
 document.addEventListener('DOMContentLoaded', init);

@@ -82,6 +82,13 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteRule ^sitemap\.xml$ sitemap.php [L]
+
+  # SPA fallback — sert index.html pour tout chemin qui n'est pas :
+  #   un fichier réel, un répertoire réel, ou une route /api/
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_URI} !^/api/
+  RewriteRule ^ index.html [L]
 </IfModule>
 
 # ---------------------------------------------------------------------------

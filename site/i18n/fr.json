@@ -94,5 +94,10 @@
             "error": "Une erreur est survenue.",
             "captcha_wait": "Vérification en cours, veuillez patienter..."
         }
+    },
+    "notFound": {
+        "title": "Page introuvable",
+        "message": "Ce chemin n'existe pas.",
+        "cta": "Retour à l'accueil"
     }
 }
