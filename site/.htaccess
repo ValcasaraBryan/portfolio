@@ -77,6 +77,14 @@
 </IfModule>
 
 # ---------------------------------------------------------------------------
+# Réécriture d'URL — sitemap.xml → sitemap.php
+# ---------------------------------------------------------------------------
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^sitemap\.xml$ sitemap.php [L]
+</IfModule>
+
+# ---------------------------------------------------------------------------
 # Ne pas lister le contenu des répertoires
 # ---------------------------------------------------------------------------
 Options -Indexes
