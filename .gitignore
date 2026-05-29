@@ -15,6 +15,7 @@ Thumbs.db
 !README.md
 
 *.sh
+!build.sh
 
 bdd/*
 !bdd/*.php
