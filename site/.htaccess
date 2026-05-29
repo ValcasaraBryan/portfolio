@@ -68,12 +68,15 @@
     Header set Cache-Control "public, max-age=15552000"
   </FilesMatch>
 
+  # HSTS — force HTTPS pour 1 an (à activer uniquement après SSL validé)
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
   # Sécurité — toutes les réponses (pas seulement HTML)
   Header always set X-Content-Type-Options "nosniff"
   Header always set X-Frame-Options "DENY"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
-  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://esm.sh; frame-ancestors 'none';"
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://esm.sh https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://esm.sh; worker-src 'self' blob:; frame-ancestors 'none';"
 </IfModule>
 
 # ---------------------------------------------------------------------------
