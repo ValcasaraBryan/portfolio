@@ -17,6 +17,7 @@ Thumbs.db
 *.sh
 
 bdd/*
+!bdd/*.php
 !bdd/*.sh
 
 
