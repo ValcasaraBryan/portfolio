@@ -15,6 +15,11 @@ Thumbs.db
 !README.md
 
 *.sh
+!deploy/certbot-renew.sh
+!deploy.sh
+!cron-ssl.sh
+!backup.sh
+!setup-backup.sh
 !securite.sh
 !build.sh
 
