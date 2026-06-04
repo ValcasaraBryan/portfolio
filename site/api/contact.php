@@ -66,7 +66,7 @@ switch (method()) {
             $mail->CharSet    = 'UTF-8';
 
             // Notification to admin
-            $mail->setFrom($smtp_from, 'Portefolio Contact');
+            $mail->setFrom($smtp_from, 'Portfolio Contact');
             $mail->addAddress($smtp_from);
             $mail->addReplyTo($email, $name);
             $mail->Subject = "Nouveau message de contact de $name";

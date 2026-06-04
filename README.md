@@ -16,7 +16,7 @@ Personal portfolio website built with vanilla HTML/CSS/JS on the frontend and a 
 ## Project structure
 
 ```
-portefolio/
+portfolio/
 ├── bdd/                  # Database scripts
 │   ├── schema.sql        # Table definitions
 │   ├── seed.sql          # Initial data
@@ -58,7 +58,7 @@ DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_USER=your_db_user
 DB_PASSWORD=your_db_password
-DB_NAME=portefolio
+DB_NAME=portfolio
 
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587

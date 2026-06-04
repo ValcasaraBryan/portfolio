@@ -19,7 +19,7 @@ if ($env_file !== null) {
 
 $host   = $_ENV['DB_HOST']     ?? getenv('DB_HOST')     ?: 'localhost';
 $port   = $_ENV['DB_PORT']     ?? getenv('DB_PORT')     ?: '3306';
-$dbname = $_ENV['DB_NAME']     ?? getenv('DB_NAME')     ?: 'portefolio';
+$dbname = $_ENV['DB_NAME']     ?? getenv('DB_NAME')     ?: 'portfolio';
 $user   = $_ENV['DB_USER']     ?? getenv('DB_USER')     ?: 'root';
 $pass   = $_ENV['DB_PASSWORD'] ?? getenv('DB_PASSWORD') ?: '';
 

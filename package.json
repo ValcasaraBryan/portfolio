@@ -1,5 +1,5 @@
 {
-  "name": "portefolio",
+  "name": "portfolio",
   "version": "1.0.0",
   "description": "Personal portfolio website built with vanilla HTML/CSS/JS on the frontend and a PHP REST API backend, backed by MySQL.",
   "main": "index.js",
