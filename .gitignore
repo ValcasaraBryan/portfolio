@@ -17,6 +17,7 @@ Thumbs.db
 *.sh
 !deploy/certbot-renew.sh
 !deploy.sh
+!deploy-preprod.sh
 !cron-ssl.sh
 !backup.sh
 !setup-backup.sh
