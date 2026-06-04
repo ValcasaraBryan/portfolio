@@ -49,9 +49,10 @@ check() {
 
     if ! $FIX; then return; fi
 
-    # Fichiers appartenant (ou devant appartenir) à www-data → sudo requis
+    # Fichiers dont le groupe cible est www-data ou appartenant à www-data → sudo requis
+    # (ubuntu n'est pas dans le groupe www-data, donc chown de groupe nécessite sudo)
     local need_sudo=false
-    [[ "$want_owner" == "$WEB_USER" || "$cur_owner" == "$WEB_USER" ]] && need_sudo=true
+    [[ "$want_owner" == "$WEB_USER" || "$cur_owner" == "$WEB_USER" || "$want_group" == "$WEB_USER" ]] && need_sudo=true
 
     if $need_sudo && ! $CAN_SUDO; then
         echo -e "     ${YLW}→ sudo requis — ignoré${RST}"
