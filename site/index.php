@@ -1,10 +1,87 @@
+<?php
+/* ── Open Graph / SEO meta tags dynamiques ────────────────────────────────
+ * Détermine la route depuis l'URL et charge les textes depuis les fichiers
+ * i18n/{lang}.json pour injecter des balises OG/Twitter spécifiques par page.
+ * Langue : ?lang= (whitelist fr/en, défaut fr).
+ */
+
+$base_url  = 'https://bryanvalcasara.com';
+$og_image  = $base_url . '/assets/img/og-cover.jpg';
+
+// Langue — whitelist stricte
+$lang = isset($_GET['lang']) && $_GET['lang'] === 'en' ? 'en' : 'fr';
+$og_locale     = $lang === 'en' ? 'en_GB' : 'fr_FR';
+$og_locale_alt = $lang === 'en' ? 'fr_FR' : 'en_GB';
+
+// Route — whitelist stricte
+$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+$path = '/' . trim($path, '/');
+$allowed_routes = ['about', 'experiences', 'projets', 'formations', 'contact'];
+$route_key = ltrim($path, '/');
+if (!in_array($route_key, $allowed_routes, true)) {
+    $route_key = 'default';
+}
+
+// Chargement du fichier i18n
+$i18n_file = __DIR__ . '/i18n/' . $lang . '.json';
+$i18n = [];
+if (is_readable($i18n_file)) {
+    $decoded = json_decode(file_get_contents($i18n_file), true);
+    if (is_array($decoded)) {
+        $i18n = $decoded;
+    }
+}
+
+// Extraction des meta tags pour la route courante
+$meta_section = $i18n['meta'] ?? [];
+$meta = $meta_section[$route_key] ?? $meta_section['default'] ?? [
+    'title'       => 'Bryan VALCASARA',
+    'description' => 'Portfolio de Bryan VALCASARA.',
+];
+$site_name = $meta_section['site_name'] ?? 'Bryan VALCASARA';
+
+// URL canonique (sans ?lang= pour éviter la duplication de contenu)
+$canonical = $base_url . ($path === '/' ? '' : $path);
+
+// Échappement HTML strict
+$esc = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES, 'UTF-8');
+$title       = $esc($meta['title']       ?? 'Bryan VALCASARA');
+$description = $esc($meta['description'] ?? '');
+$og_url      = $esc($canonical);
+$og_img      = $esc($og_image);
+$og_loc      = $esc($og_locale);
+$og_loc_alt  = $esc($og_locale_alt);
+$site_name_e = $esc($site_name);
+?>
 <!DOCTYPE html>
 <html lang="fr" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Bryan VALCASARA — Full-Stack Developer & Web Security Expert">
-  <title>Bryan VALCASARA</title>
+
+  <!-- SEO -->
+  <title><?= $title ?></title>
+  <meta name="description" content="<?= $description ?>">
+  <link rel="canonical" href="<?= $og_url ?>">
+
+  <!-- Open Graph -->
+  <meta property="og:type"              content="website">
+  <meta property="og:site_name"         content="<?= $site_name_e ?>">
+  <meta property="og:title"             content="<?= $title ?>">
+  <meta property="og:description"       content="<?= $description ?>">
+  <meta property="og:url"               content="<?= $og_url ?>">
+  <meta property="og:image"             content="<?= $og_img ?>">
+  <meta property="og:image:width"       content="1200">
+  <meta property="og:image:height"      content="630">
+  <meta property="og:locale"            content="<?= $og_loc ?>">
+  <meta property="og:locale:alternate"  content="<?= $og_loc_alt ?>">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card"        content="summary_large_image">
+  <meta name="twitter:title"       content="<?= $title ?>">
+  <meta name="twitter:description" content="<?= $description ?>">
+  <meta name="twitter:image"       content="<?= $og_img ?>">
+
   <link rel="icon" id="site-favicon" href="" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

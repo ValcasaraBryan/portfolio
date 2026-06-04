@@ -67,6 +67,33 @@
         "skill_modal_close": "Fermer",
         "category_skills": "Compétences de la catégorie"
     },
+    "meta": {
+        "site_name": "Bryan VALCASARA",
+        "default": {
+            "title": "Bryan VALCASARA — Développeur Full-Stack",
+            "description": "Portfolio de Bryan VALCASARA, développeur full-stack et expert en sécurité web."
+        },
+        "about": {
+            "title": "À propos — Bryan VALCASARA",
+            "description": "Qui est Bryan VALCASARA ? Développeur full-stack passionné par la sécurité web. Parcours, bio et certifications."
+        },
+        "experiences": {
+            "title": "Expériences — Bryan VALCASARA",
+            "description": "Parcours professionnel de Bryan VALCASARA : alternances, stages et expériences en développement web et sécurité."
+        },
+        "projets": {
+            "title": "Projets & Créations — Bryan VALCASARA",
+            "description": "Projets et créations de Bryan VALCASARA : applications web, outils open-source et expérimentations techniques."
+        },
+        "formations": {
+            "title": "Formations & Compétences — Bryan VALCASARA",
+            "description": "Formations, certifications et compétences techniques de Bryan VALCASARA en développement web et sécurité."
+        },
+        "contact": {
+            "title": "Contact — Bryan VALCASARA",
+            "description": "Contactez Bryan VALCASARA, développeur full-stack disponible pour des missions et collaborations."
+        }
+    },
     "contact": {
         "title": "Contact",
         "breadcrumb": "CONTACT",
