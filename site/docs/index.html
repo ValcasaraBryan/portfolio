@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portfolio API — Documentation</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui.css">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #fafafa; }
+
+    #swagger-header {
+      background: #000;
+      color: #fff;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    #swagger-header h1 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    #swagger-header .badge {
+      background: #7ED9B1;
+      color: #000;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    #swagger-header a {
+      margin-left: auto;
+      color: #7ED9B1;
+      font-size: 0.85rem;
+      text-decoration: none;
+    }
+    #swagger-header a:hover { text-decoration: underline; }
+
+    /* Swagger UI overrides */
+    .swagger-ui .topbar { display: none; }
+    .swagger-ui .info .title { color: #000; }
+    .swagger-ui .opblock.opblock-get    .opblock-summary-method { background: #1a7f4b; }
+    .swagger-ui .opblock.opblock-post   .opblock-summary-method { background: #0061aa; }
+    .swagger-ui .opblock.opblock-put    .opblock-summary-method { background: #9b6200; }
+    .swagger-ui .opblock.opblock-patch  .opblock-summary-method { background: #6b3fa0; }
+    .swagger-ui .opblock.opblock-delete .opblock-summary-method { background: #c0132c; }
+    .swagger-ui .btn.authorize { border-color: #7ED9B1; color: #1a7f4b; }
+    .swagger-ui .btn.authorize svg { fill: #1a7f4b; }
+  </style>
+</head>
+<body>
+
+<div id="swagger-header">
+  <h1>Portfolio API</h1>
+  <span class="badge">OpenAPI 3.0</span>
+  <a href="/">← Retour au portfolio</a>
+</div>
+
+<div id="swagger-ui"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui-standalone-preset.js"></script>
+<script>
+  window.onload = function () {
+    SwaggerUIBundle({
+      url: '/api/openapi.yaml',
+      dom_id: '#swagger-ui',
+      deepLinking: true,
+      presets: [
+        SwaggerUIBundle.presets.apis,
+        SwaggerUIStandalonePreset
+      ],
+      layout: 'StandaloneLayout',
+      persistAuthorization: true,
+      filter: true,
+      tryItOutEnabled: true,
+      tagsSorter: 'alpha',
+      operationsSorter: 'alpha',
+      defaultModelsExpandDepth: 0,
+      docExpansion: 'none',
+    });
+  };
+</script>
+
+</body>
+</html>
