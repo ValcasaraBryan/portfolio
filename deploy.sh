@@ -179,8 +179,8 @@ bash "$ROOT/securite.sh" --fix 2>&1 \
 section "Rechargement Apache"
 
 sudo apache2ctl configtest 2>&1 | grep -v "^$" | while read -r line; do info "$line"; done
-sudo systemctl reload apache2
-ok "Apache rechargé"
+sudo systemctl restart apache2
+ok "Apache redémarré"
 
 # =============================================================================
 # 8. Healthcheck
