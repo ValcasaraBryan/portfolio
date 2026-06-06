@@ -77,7 +77,7 @@ function can(array $user, string $feature, string $action): bool
     return match ($role) {
         'superadmin' => true,
         'admin'      => !($feature === 'users' && $action !== 'read'),
-        'editor'     => in_array($feature, ['categories', 'skills', 'educations'], true)
+        'editor'     => in_array($feature, ['categories', 'skills', 'educations', 'experiences', 'certifications', 'projects'], true)
                         && in_array($action, ['read', 'write'], true),
         default      => false,
     };

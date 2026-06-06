@@ -61,7 +61,7 @@ register_shutdown_function(function () use ($startTime) {
     );
 });
 
-$allowed = ['auth', 'categories', 'skills', 'educations', 'users'];
+$allowed = ['auth', 'categories', 'skills', 'educations', 'experiences', 'certifications', 'projects', 'users'];
 if (!in_array($resource, $allowed, true)) {
     json_response(['error' => 'Not found'], 404);
 }

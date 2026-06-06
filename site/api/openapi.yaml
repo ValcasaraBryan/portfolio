@@ -1,72 +1,66 @@
 openapi: 3.0.0
-
 info:
   title: Portfolio API
-  version: "2.0.0"
-  description: |
-    REST API du portfolio de Bryan Valcasara.
+  version: 2.0.0
+  description: 'REST API v2 du portfolio de Bryan Valcasara.
 
-    ## Deux versions d'API
 
-    ### V1 — Session PHP (`/api/`)
-    Utilisée par le panneau admin (`/admin/`). L'authentification se fait via
-    `POST /api/auth.php?action=login` qui pose un cookie de session `PHPSESSID`.
+    Authentification via JWT Bearer — se connecter via `POST /api/v2/auth/login`.
 
-    ### V2 — JWT Bearer (`/api/v2/`)
-    Nouvelle API RESTful avec authentification par JWT. Se connecter via
-    `POST /api/v2/auth/login` pour obtenir un token Bearer.
     Inclure `Authorization: Bearer <token>` dans chaque requête protégée.
 
-    ## Localisation
-    La plupart des endpoints GET publics acceptent `?lang=fr` ou `?lang=en` (défaut : `fr`).
 
-    ## Codes d'erreur communs
+    ## Localisation
+
+    Les endpoints GET publics acceptent `?lang=fr` ou `?lang=en` (défaut : `fr`).
+
+
+    ## Codes d''erreur communs
+
     - `400` — Paramètres manquants ou invalides
+
     - `401` — Non authentifié
+
     - `403` — Droits insuffisants
+
     - `422` — Données métier invalides
+
     - `429` — Trop de tentatives (rate limiting)
 
+    '
 servers:
-  - url: /
-    description: Racine du site (les chemins incluent /api/ ou /api/v2/)
-
+- url: /
+  description: Racine du site (les chemins incluent /api/v2/)
 components:
   securitySchemes:
-    SessionCookie:
-      type: apiKey
-      in: cookie
-      name: PHPSESSID
-      description: Cookie de session PHP. Posé automatiquement après `POST /api/auth.php?action=login`.
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
       description: Token JWT obtenu via `POST /api/v2/auth/login`. Expire après 1 heure.
-
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: PHPSESSID
+      description: Cookie de session PHP. Utilisé uniquement pour `auth/exchange`.
   schemas:
-
-    # ─── Utilitaires ────────────────────────────────────────────────────────────
-
     Error:
       type: object
       properties:
         error:
           type: string
-          example: "Invalid credentials"
-
+          example: Invalid credentials
     Success:
       type: object
       properties:
         success:
           type: boolean
           example: true
-
-    # ─── Auth V2 ────────────────────────────────────────────────────────────────
-
     LoginRequest:
       type: object
-      required: [username, password]
+      required:
+      - username
+      - password
       properties:
         username:
           type: string
@@ -74,8 +68,7 @@ components:
         password:
           type: string
           format: password
-          example: "s3cr3t_p4ss"
-
+          example: s3cr3t
     LoginResponse:
       type: object
       properties:
@@ -89,14 +82,13 @@ components:
           example: 3600
         user:
           $ref: '#/components/schemas/AdminUser'
-
     RefreshRequest:
       type: object
-      required: [refresh_token]
+      required:
+      - refresh_token
       properties:
         refresh_token:
           type: string
-
     RefreshResponse:
       type: object
       properties:
@@ -107,7 +99,6 @@ components:
         expires_in:
           type: integer
           example: 3600
-
     AdminUser:
       type: object
       properties:
@@ -120,13 +111,15 @@ components:
           format: email
         role:
           type: string
-          enum: [superadmin, admin, editor]
+          enum:
+          - superadmin
+          - admin
+          - editor
         permissions:
           type: object
           nullable: true
-          description: |
-            Permissions granulaires (null = utilise les droits du rôle par défaut).
-            Structure : `{ "feature": { "read": true, "write": true, "delete": false } }`
+          description: 'Permissions granulaires (null = droits du rôle par défaut). Structure : { "feature": { "read": true,
+            "write": true, "delete": false } }'
         last_login_at:
           type: string
           format: date-time
@@ -134,10 +127,11 @@ components:
         created_at:
           type: string
           format: date-time
-
     AdminUserWriteRequest:
       type: object
-      required: [username, password]
+      required:
+      - username
+      - password
       properties:
         username:
           type: string
@@ -150,14 +144,14 @@ components:
           format: email
         role:
           type: string
-          enum: [superadmin, admin, editor]
+          enum:
+          - superadmin
+          - admin
+          - editor
           default: editor
         permissions:
           type: object
           nullable: true
-
-    # ─── Skills ─────────────────────────────────────────────────────────────────
-
     Skill:
       type: object
       properties:
@@ -172,14 +166,16 @@ components:
           nullable: true
         category_color:
           type: string
-          example: "#7ED9B1"
+          example: '#7ED9B1'
         skill_description:
           type: string
           nullable: true
-
     SkillWriteRequest:
       type: object
-      required: [name_fr, name_en, category_key]
+      required:
+      - name_fr
+      - name_en
+      - category_key
       properties:
         name_fr:
           type: string
@@ -192,9 +188,26 @@ components:
         category_key:
           type: string
           description: Clé canonique de la catégorie (ex. "frontend", "backend")
-
-    # ─── Skill Categories ───────────────────────────────────────────────────────
-
+    SkillRef:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    SkillSyncRequest:
+      type: object
+      required:
+      - skill_ids
+      properties:
+        skill_ids:
+          type: array
+          items:
+            type: integer
+          example:
+          - 1
+          - 3
+          - 7
     Category:
       type: object
       properties:
@@ -215,14 +228,14 @@ components:
           nullable: true
         color:
           type: string
-          pattern: '^#[0-9A-Fa-f]{6}$'
-          example: "#7ED9B1"
+          pattern: ^#[0-9A-Fa-f]{6}$
+          example: '#7ED9B1'
         sort_order:
           type: integer
-
     CategoryWriteRequest:
       type: object
-      required: [key]
+      required:
+      - key
       properties:
         key:
           type: string
@@ -237,13 +250,10 @@ components:
           type: string
         color:
           type: string
-          pattern: '^#[0-9A-Fa-f]{6}$'
-          default: "#888888"
+          pattern: ^#[0-9A-Fa-f]{6}$
+          default: '#888888'
         sort_order:
           type: integer
-
-    # ─── Educations / Formations ─────────────────────────────────────────────────
-
     Education:
       type: object
       properties:
@@ -270,10 +280,14 @@ components:
         description:
           type: string
           nullable: true
-
     EducationWriteRequest:
       type: object
-      required: [school, title, level, city, start_date]
+      required:
+      - school
+      - title
+      - level
+      - city
+      - start_date
       properties:
         school:
           type: string
@@ -300,19 +314,15 @@ components:
           type: string
         mention:
           type: string
-
-    # ─── Expériences ────────────────────────────────────────────────────────────
-
     ExperienceType:
       type: string
       enum:
-        - internship
-        - permanent_contract
-        - fixed_term_contract
-        - work_study
-        - freelance
-        - self_employed
-
+      - internship
+      - permanent_contract
+      - fixed_term_contract
+      - work_study
+      - freelance
+      - self_employed
     Experience:
       type: object
       properties:
@@ -336,13 +346,68 @@ components:
         description:
           type: string
           nullable: true
-        skills:
-          type: array
-          items:
-            $ref: '#/components/schemas/Skill'
-
-    # ─── Projets ────────────────────────────────────────────────────────────────
-
+    ExperienceWriteRequest:
+      type: object
+      required:
+      - company
+      - role_fr
+      - type
+      - start_date
+      properties:
+        company:
+          type: string
+        role_fr:
+          type: string
+        role_en:
+          type: string
+        type:
+          $ref: '#/components/schemas/ExperienceType'
+        location:
+          type: string
+          nullable: true
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+          nullable: true
+        description_fr:
+          type: string
+          nullable: true
+        description_en:
+          type: string
+          nullable: true
+    CertificationFull:
+      type: object
+      properties:
+        id:
+          type: integer
+        year:
+          type: integer
+          nullable: true
+          example: 2024
+        name:
+          type: string
+        formation_id:
+          type: integer
+          nullable: true
+        formation_title:
+          type: string
+          nullable: true
+    CertificationWriteRequest:
+      type: object
+      required:
+      - name
+      properties:
+        year:
+          type: integer
+          nullable: true
+        name:
+          type: string
+        formation_id:
+          type: integer
+          nullable: true
     Project:
       type: object
       properties:
@@ -372,246 +437,80 @@ components:
           type: boolean
         category:
           type: string
-          enum: [web, opensource, side]
-        skills:
-          type: array
-          items:
-            $ref: '#/components/schemas/Skill'
-
-    # ─── Formations (V1) ────────────────────────────────────────────────────────
-
-    Formation:
+          enum:
+          - web
+          - opensource
+          - side
+          nullable: true
+    ProjectWriteRequest:
       type: object
+      required:
+      - name_fr
       properties:
-        id:
-          type: integer
-        school:
+        name_fr:
           type: string
-        city:
+        name_en:
           type: string
-        start_date:
-          type: string
-          format: date
-        end_date:
-          type: string
-          format: date
-          nullable: true
-        mention:
+        description_fr:
           type: string
           nullable: true
-        title:
-          type: string
-        level:
-          type: string
-        description:
-          type: string
-          nullable: true
-        skills:
-          type: array
-          items:
-            $ref: '#/components/schemas/Skill'
-        certifications:
-          type: array
-          items:
-            $ref: '#/components/schemas/Certification'
-
-    # ─── Certifications ─────────────────────────────────────────────────────────
-
-    Certification:
-      type: object
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-        year:
-          type: integer
-          nullable: true
-          example: 2024
-        formation_id:
-          type: integer
-
-    # ─── Profil ─────────────────────────────────────────────────────────────────
-
-    Profile:
-      type: object
-      properties:
-        name:
-          type: string
-        title:
-          type: string
-        status:
-          type: string
-          nullable: true
-        bio:
-          type: string
-          nullable: true
-        location:
-          type: string
-          nullable: true
-        email:
-          type: string
-          format: email
-          nullable: true
-        phone:
+        description_en:
           type: string
           nullable: true
         photo_url:
           type: string
           nullable: true
-        about_photo_url:
+        date:
           type: string
+          format: date
           nullable: true
-        cover_url:
-          type: string
-          nullable: true
-        favicon_url:
-          type: string
-          nullable: true
-        links:
-          type: array
-          items:
-            $ref: '#/components/schemas/Link'
-
-    # ─── Liens sociaux ───────────────────────────────────────────────────────────
-
-    Link:
-      type: object
-      properties:
-        id:
-          type: integer
-        platform:
-          type: string
         url:
           type: string
           format: uri
-        icon:
-          type: string
           nullable: true
-        icon_dark:
-          type: string
-          nullable: true
-
-    # ─── Contact ─────────────────────────────────────────────────────────────────
-
-    ContactMessage:
-      type: object
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-        email:
-          type: string
-          format: email
-        subject:
-          type: string
-        message:
-          type: string
-        sent_at:
-          type: string
-          format: date-time
-
-    # ─── CV ──────────────────────────────────────────────────────────────────────
-
-    CvMetadata:
-      type: object
-      properties:
-        exists:
-          type: boolean
-        url:
-          type: string
-          nullable: true
-        updated_at:
-          type: string
-          format: date-time
-          nullable: true
-        download_name:
-          type: string
-          nullable: true
-        external_url:
+        github_url:
           type: string
           format: uri
           nullable: true
-
-    # ─── i18n ────────────────────────────────────────────────────────────────────
-
-    I18nBundle:
-      type: object
-      properties:
-        fr:
-          type: object
-          description: Clés de traduction française (sections imbriquées)
-        en:
-          type: object
-          description: Clés de traduction anglaise (sections imbriquées)
-
-    # ─── Tab routes ──────────────────────────────────────────────────────────────
-
-    TabRoute:
-      type: object
-      properties:
-        tab_name:
+        category:
           type: string
-          enum: [about, experiences, creations, formations, contact]
-        url_path:
-          type: string
-          pattern: '^/[a-z0-9][a-z0-9-]*$'
-          example: "/about"
-
+          enum:
+          - web
+          - opensource
+          - side
+          nullable: true
+        is_favorite:
+          type: integer
+          enum:
+          - 0
+          - 1
+          default: 0
 tags:
-  - name: auth-v1
-    description: |
-      **V1** — Authentification par session PHP.
-      Utilisée par le panneau admin `/admin/`.
-  - name: auth-v2
-    description: |
-      **V2** — Authentification JWT Bearer.
-      Refresh token rotation inclus.
-  - name: profile
-    description: Informations du profil portfolio (nom, bio, photo, liens…)
-  - name: experiences
-    description: Expériences professionnelles
-  - name: projects
-    description: Projets du portfolio
-  - name: formations
-    description: Formations / éducation (V1)
-  - name: educations
-    description: Formations / éducation (V2)
-  - name: certifications
-    description: Certifications attachées aux formations
-  - name: skills
-    description: Compétences techniques
-  - name: categories
-    description: Catégories de compétences
-  - name: users
-    description: Gestion des utilisateurs admin (superadmin uniquement)
-  - name: contact
-    description: Formulaire de contact et messages reçus
-  - name: links
-    description: Liens réseaux sociaux
-  - name: cv
-    description: CV / fichier PDF
-  - name: i18n
-    description: Clés de traduction de l'interface
-  - name: upload
-    description: Upload de fichiers (images)
-  - name: utils
-    description: Utilitaires (vérification URL, challenge CAPTCHA, routes onglets)
-
+- name: auth-v2
+  description: '**V2** — Authentification JWT Bearer. Refresh token rotation inclus.'
+- name: experiences
+  description: Expériences professionnelles
+- name: projects
+  description: Projets du portfolio
+- name: certifications
+  description: Certifications attachées aux formations
+- name: educations
+  description: Formations / éducation (V2)
+- name: skills
+  description: Compétences techniques
+- name: categories
+  description: Catégories de compétences
+- name: users
+  description: Gestion des utilisateurs admin (superadmin uniquement)
 paths:
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # V2 — AUTH
-  # ═══════════════════════════════════════════════════════════════════════════════
-
   /api/v2/auth/login:
     post:
-      tags: [auth-v2]
+      tags:
+      - auth-v2
       summary: Connexion (JWT)
-      description: |
-        Retourne un access token (JWT, 1h) et un refresh token (7 jours).
-        Rate-limitée à **5 tentatives échouées** par IP par 15 minutes.
+      description: 'Retourne un access token (JWT, 1h) et un refresh token (7 jours).
+
+        Rate-limitée à **5 tentatives échouées** par IP par 15 minutes.'
       operationId: v2AuthLogin
       requestBody:
         required: true
@@ -620,41 +519,41 @@ paths:
             schema:
               $ref: '#/components/schemas/LoginRequest'
       responses:
-        "200":
+        '200':
           description: Connexion réussie
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoginResponse'
-        "400":
+        '400':
           description: Champs manquants
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        "401":
+        '401':
           description: Identifiants incorrects
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        "429":
+        '429':
           description: Trop de tentatives
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   /api/v2/auth/logout:
     post:
-      tags: [auth-v2]
+      tags:
+      - auth-v2
       summary: Déconnexion (révocation JWT)
       description: Révoque le JTI du token courant dans la table `jwt_revoked_tokens`.
       operationId: v2AuthLogout
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: Token révoqué
           content:
             application/json:
@@ -664,20 +563,18 @@ paths:
                   ok:
                     type: boolean
                     example: true
-        "401":
+        '401':
           description: Token manquant ou invalide
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   /api/v2/auth/refresh:
     post:
-      tags: [auth-v2]
+      tags:
+      - auth-v2
       summary: Rafraîchissement du token
-      description: |
-        Échange un refresh token valide contre un nouveau couple
-        access token / refresh token (rotation).
+      description: Échange un refresh token valide contre un nouveau couple access token / refresh token (rotation).
       operationId: v2AuthRefresh
       requestBody:
         required: true
@@ -686,100 +583,96 @@ paths:
             schema:
               $ref: '#/components/schemas/RefreshRequest'
       responses:
-        "200":
+        '200':
           description: Nouveau token émis
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/RefreshResponse'
-        "400":
+        '400':
           description: refresh_token manquant
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        "401":
+        '401':
           description: Refresh token invalide, expiré ou révoqué
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   /api/v2/auth/me:
     get:
-      tags: [auth-v2]
+      tags:
+      - auth-v2
       summary: Profil de l'utilisateur courant
       operationId: v2AuthMe
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: Données de l'utilisateur authentifié
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AdminUser'
-        "401":
+        '401':
           description: Non authentifié
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        "404":
-          description: Utilisateur introuvable (ne devrait pas arriver avec un JWT valide)
+        '404':
+          description: Utilisateur introuvable
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   /api/v2/auth/exchange:
     get:
-      tags: [auth-v2]
+      tags:
+      - auth-v2
       summary: Échange session PHP → JWT (superadmin)
-      description: |
-        Permet à un superadmin connecté via la session PHP V1 d'obtenir un JWT V2.
-        Utile pour la migration ou les outils internes.
+      description: Permet à un superadmin connecté via la session PHP V1 d'obtenir un JWT V2.
       operationId: v2AuthExchange
       security:
-        - SessionCookie: []
+      - SessionCookie: []
       responses:
-        "200":
+        '200':
           description: JWT émis
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoginResponse'
-        "401":
+        '401':
           description: Session PHP inactive
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        "403":
+        '403':
           description: Rôle insuffisant (superadmin requis)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # V2 — SKILLS
-  # ═══════════════════════════════════════════════════════════════════════════════
-
   /api/v2/skills:
     get:
-      tags: [skills]
-      summary: Liste des compétences (V2, public)
+      tags:
+      - skills
+      summary: Liste des compétences (public)
       operationId: v2SkillsList
       parameters:
-        - name: lang
-          in: query
-          schema:
-            type: string
-            enum: [fr, en]
-            default: fr
+      - name: lang
+        in: query
+        schema:
+          type: string
+          enum:
+          - fr
+          - en
+          default: fr
       responses:
-        "200":
+        '200':
           description: Liste des compétences
           content:
             application/json:
@@ -788,11 +681,12 @@ paths:
                 items:
                   $ref: '#/components/schemas/Skill'
     post:
-      tags: [skills]
-      summary: Créer une compétence (V2)
+      tags:
+      - skills
+      summary: Créer une compétence
       operationId: v2SkillsCreate
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -800,7 +694,7 @@ paths:
             schema:
               $ref: '#/components/schemas/SkillWriteRequest'
       responses:
-        "201":
+        '201':
           description: Compétence créée
           content:
             application/json:
@@ -809,26 +703,26 @@ paths:
                 properties:
                   id:
                     type: integer
-        "403":
+        '403':
           description: Permission `skills.write` manquante
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   /api/v2/skills/{id}:
     put:
-      tags: [skills]
-      summary: Mettre à jour une compétence (V2)
+      tags:
+      - skills
+      summary: Mettre à jour une compétence
       operationId: v2SkillsUpdate
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
       requestBody:
         required: true
         content:
@@ -836,67 +730,64 @@ paths:
             schema:
               $ref: '#/components/schemas/SkillWriteRequest'
       responses:
-        "200":
+        '200':
           description: Compétence mise à jour
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Success'
-        "403":
+        '403':
           description: Permission `skills.write` manquante
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        "422":
+        '422':
           description: ID manquant
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     delete:
-      tags: [skills]
-      summary: Supprimer une compétence (V2)
+      tags:
+      - skills
+      summary: Supprimer une compétence
       operationId: v2SkillsDelete
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
       responses:
-        "200":
-          description: Compétence supprimée
+        '200':
+          description: Opération réussie
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Success'
-        "403":
+        '403':
           description: Permission `skills.delete` manquante
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        "422":
+        '422':
           description: ID manquant
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # V2 — CATEGORIES
-  # ═══════════════════════════════════════════════════════════════════════════════
-
   /api/v2/categories:
     get:
-      tags: [categories]
-      summary: Liste des catégories (V2, public)
+      tags:
+      - categories
+      summary: Liste des catégories (public)
       operationId: v2CategoriesList
       responses:
-        "200":
+        '200':
           description: Liste des catégories de compétences
           content:
             application/json:
@@ -905,11 +796,12 @@ paths:
                 items:
                   $ref: '#/components/schemas/Category'
     post:
-      tags: [categories]
-      summary: Créer une catégorie (V2)
+      tags:
+      - categories
+      summary: Créer une catégorie
       operationId: v2CategoriesCreate
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -917,7 +809,7 @@ paths:
             schema:
               $ref: '#/components/schemas/CategoryWriteRequest'
       responses:
-        "201":
+        '201':
           description: Catégorie créée
           content:
             application/json:
@@ -926,33 +818,27 @@ paths:
                 properties:
                   id:
                     type: integer
-        "403":
+        '403':
           description: Permission `categories.write` manquante
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        "422":
-          description: Champ `key` manquant
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
   /api/v2/categories/{id}:
     put:
-      tags: [categories]
-      summary: Mettre à jour une catégorie (V2)
+      tags:
+      - categories
+      summary: Mettre à jour une catégorie
       description: La clé (`key`) est immuable et ignorée si fournie.
       operationId: v2CategoriesUpdate
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
       requestBody:
         required: true
         content:
@@ -960,62 +846,96 @@ paths:
             schema:
               $ref: '#/components/schemas/CategoryWriteRequest'
       responses:
-        "200":
+        '200':
           description: Catégorie mise à jour
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Success'
-        "403":
+        '403':
           description: Permission manquante
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     delete:
-      tags: [categories]
-      summary: Supprimer une catégorie (V2)
+      tags:
+      - categories
+      summary: Supprimer une catégorie
       operationId: v2CategoriesDelete
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
       responses:
-        "200":
-          description: Catégorie supprimée
+        '200':
+          description: Opération réussie
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Success'
-        "403":
+        '403':
           description: Permission `categories.delete` manquante
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # V2 — EDUCATIONS
-  # ═══════════════════════════════════════════════════════════════════════════════
-
+        '422':
+          description: ID manquant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v2/categories/{id}/skills:
+    get:
+      tags:
+      - categories
+      summary: Skills d'une catégorie (public)
+      operationId: v2CategoriesSkillsList
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: lang
+        in: query
+        schema:
+          type: string
+          enum:
+          - fr
+          - en
+          default: fr
+      responses:
+        '200':
+          description: Liste des compétences de la catégorie
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SkillRef'
   /api/v2/educations:
     get:
-      tags: [educations]
-      summary: Liste des formations (V2, public)
+      tags:
+      - educations
+      summary: Liste des formations (public)
       operationId: v2EducationsList
       parameters:
-        - name: lang
-          in: query
-          schema:
-            type: string
-            enum: [fr, en]
-            default: fr
+      - name: lang
+        in: query
+        schema:
+          type: string
+          enum:
+          - fr
+          - en
+          default: fr
       responses:
-        "200":
+        '200':
           description: Liste des formations
           content:
             application/json:
@@ -1024,11 +944,12 @@ paths:
                 items:
                   $ref: '#/components/schemas/Education'
     post:
-      tags: [educations]
-      summary: Créer une formation (V2)
+      tags:
+      - educations
+      summary: Créer une formation
       operationId: v2EducationsCreate
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -1036,7 +957,7 @@ paths:
             schema:
               $ref: '#/components/schemas/EducationWriteRequest'
       responses:
-        "201":
+        '201':
           description: Formation créée
           content:
             application/json:
@@ -1045,26 +966,26 @@ paths:
                 properties:
                   id:
                     type: integer
-        "403":
+        '403':
           description: Permission `educations.write` manquante
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
   /api/v2/educations/{id}:
     put:
-      tags: [educations]
-      summary: Mettre à jour une formation (V2)
+      tags:
+      - educations
+      summary: Mettre à jour une formation
       operationId: v2EducationsUpdate
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
       requestBody:
         required: true
         content:
@@ -1072,396 +993,148 @@ paths:
             schema:
               $ref: '#/components/schemas/EducationWriteRequest'
       responses:
-        "200":
+        '200':
           description: Formation mise à jour
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Success'
-        "403":
+        '403':
           description: Permission manquante
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '422':
+          description: ID manquant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
-      tags: [educations]
-      summary: Supprimer une formation (V2)
+      tags:
+      - educations
+      summary: Supprimer une formation
       operationId: v2EducationsDelete
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
       responses:
-        "200":
-          description: Formation supprimée
+        '200':
+          description: Opération réussie
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Success'
-        "403":
+        '403':
           description: Permission `educations.delete` manquante
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # V2 — USERS
-  # ═══════════════════════════════════════════════════════════════════════════════
-
-  /api/v2/users:
+        '422':
+          description: ID manquant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v2/educations/{id}/skills:
     get:
-      tags: [users]
-      summary: Liste des utilisateurs admin (superadmin)
-      operationId: v2UsersList
-      security:
-        - BearerAuth: []
+      tags:
+      - educations
+      summary: Skills liés (V2, public)
+      operationId: v2EducationsSkillsList
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: lang
+        in: query
+        schema:
+          type: string
+          enum:
+          - fr
+          - en
+          default: fr
       responses:
-        "200":
-          description: Liste des utilisateurs
+        '200':
+          description: Liste des compétences associées
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/AdminUser'
-        "403":
-          description: Rôle superadmin requis
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-    post:
-      tags: [users]
-      summary: Créer un utilisateur admin (superadmin)
-      operationId: v2UsersCreate
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AdminUserWriteRequest'
-      responses:
-        "201":
-          description: Utilisateur créé
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  id:
-                    type: integer
-        "403":
-          description: Rôle superadmin requis
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        "422":
-          description: Mot de passe trop court (< 8 caractères) ou username déjà pris
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /api/v2/users/{id}:
+                  $ref: '#/components/schemas/SkillRef'
     put:
-      tags: [users]
-      summary: Mettre à jour un utilisateur admin (superadmin)
-      description: |
-        Si `password` est fourni (≥ 8 chars), il est re-hashé et `must_change_password` est remis à 0.
-        Protections : impossible de rétrograder/supprimer le dernier superadmin.
-      operationId: v2UsersUpdate
+      tags:
+      - educations
+      summary: Synchroniser les skills (V2)
+      description: Remplace la liste complète des skills associés (DELETE + INSERT).
+      operationId: v2EducationsSkillsSync
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                email:
-                  type: string
-                  format: email
-                role:
-                  type: string
-                  enum: [superadmin, admin, editor]
-                permissions:
-                  type: object
-                  nullable: true
-                password:
-                  type: string
-                  format: password
-                  minLength: 8
+              $ref: '#/components/schemas/SkillSyncRequest'
       responses:
-        "200":
-          description: Utilisateur mis à jour
+        '200':
+          description: Association mise à jour
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Success'
-        "403":
-          description: Rôle superadmin requis
+        '401':
+          description: Non authentifié
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        "422":
-          description: Mot de passe invalide ou impossible de rétrograder le dernier superadmin
+        '403':
+          description: Permission `educations.write` manquante
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-    delete:
-      tags: [users]
-      summary: Supprimer un utilisateur admin (superadmin)
-      description: |
-        Protections : impossible de se supprimer soi-même ou de supprimer le dernier superadmin.
-      operationId: v2UsersDelete
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Utilisateur supprimé
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Success'
-        "403":
-          description: Rôle superadmin requis
+        '422':
+          description: skill_ids manquant ou invalide
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        "422":
-          description: Impossible de supprimer soi-même ou le dernier superadmin
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /api/v2/users/{id}/permissions:
-    patch:
-      tags: [users]
-      summary: Mettre à jour les permissions d'un utilisateur (superadmin)
-      operationId: v2UsersUpdatePermissions
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [permissions]
-              properties:
-                permissions:
-                  type: object
-                  description: |
-                    Objet de permissions granulaires.
-                    Structure : `{ "skills": { "read": true, "write": true, "delete": false } }`
-      responses:
-        "200":
-          description: Permissions mises à jour
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Success'
-        "403":
-          description: Rôle superadmin requis
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        "422":
-          description: Champ `permissions` manquant
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # V1 — AUTH
-  # ═══════════════════════════════════════════════════════════════════════════════
-
-  /api/auth.php:
+  /api/v2/experiences:
     get:
-      tags: [auth-v1]
-      summary: Vérifier l'état d'authentification (V1)
-      operationId: v1AuthCheck
-      parameters:
-        - name: action
-          in: query
-          required: true
-          schema:
-            type: string
-            enum: [check]
-      responses:
-        "200":
-          description: État de la session
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  authenticated:
-                    type: boolean
-    post:
-      tags: [auth-v1]
-      summary: Actions d'authentification (V1)
-      description: |
-        Plusieurs actions selon le paramètre `action` :
-        - **`login`** : connexion (username + password). Rate-limitée à 5 tentatives/15 min/IP.
-          Retourne `{ ok: true, must_change_password: bool }`.
-        - **`logout`** : déconnexion (session requise). Retourne `{ ok: true }`.
-        - **`change_password`** : changement de mot de passe (session requise, min 8 chars).
-          Retourne `{ ok: true }`.
-      operationId: v1AuthAction
-      parameters:
-        - name: action
-          in: query
-          required: true
-          schema:
-            type: string
-            enum: [login, logout, change_password]
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                username:
-                  type: string
-                  description: Requis pour `login`
-                password:
-                  type: string
-                  format: password
-                  description: Requis pour `login` et `change_password`
-      responses:
-        "200":
-          description: Action réussie
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                  must_change_password:
-                    type: boolean
-                    description: Présent uniquement pour l'action `login`
-        "401":
-          description: Identifiants incorrects ou session invalide
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        "429":
-          description: Trop de tentatives (login uniquement)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # V1 — PROFIL
-  # ═══════════════════════════════════════════════════════════════════════════════
-
-  /api/profile.php:
-    get:
-      tags: [profile]
-      summary: Récupérer le profil (public)
-      operationId: v1ProfileGet
-      parameters:
-        - name: lang
-          in: query
-          schema:
-            type: string
-            enum: [fr, en]
-            default: fr
-      responses:
-        "200":
-          description: Données du profil
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Profile'
-    put:
-      tags: [profile]
-      summary: Mettre à jour le profil (admin V1)
-      operationId: v1ProfileUpdate
-      security:
-        - SessionCookie: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              description: |
-                Champs du profil avec variantes de traduction.
-                Exemple de champs : `name`, `title`, `title_en`, `status`, `status_en`,
-                `bio`, `bio_en`, `location`, `email`, `phone`,
-                `photo_url`, `about_photo_url`, `cover_url`, `favicon_url`.
-      responses:
-        "200":
-          description: Profil mis à jour
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Success'
-        "401":
-          description: Session invalide
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # V1 — EXPÉRIENCES
-  # ═══════════════════════════════════════════════════════════════════════════════
-
-  /api/experiences.php:
-    get:
-      tags: [experiences]
+      tags:
+      - experiences
       summary: Liste des expériences (public)
-      operationId: v1ExperiencesList
+      operationId: v2ExperiencesList
       parameters:
-        - name: lang
-          in: query
-          schema:
-            type: string
-            enum: [fr, en]
-            default: fr
+      - name: lang
+        in: query
+        schema:
+          type: string
+          enum:
+          - fr
+          - en
+          default: fr
       responses:
-        "200":
-          description: Liste des expériences avec compétences associées
+        '200':
+          description: Liste des expériences professionnelles
           content:
             application/json:
               schema:
@@ -1469,46 +1142,20 @@ paths:
                 items:
                   $ref: '#/components/schemas/Experience'
     post:
-      tags: [experiences]
-      summary: Créer une expérience (admin V1)
-      operationId: v1ExperiencesCreate
+      tags:
+      - experiences
+      summary: Créer une expérience
+      operationId: v2ExperiencesCreate
       security:
-        - SessionCookie: []
+      - BearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [company, role, type, start_date]
-              properties:
-                company:
-                  type: string
-                role:
-                  type: string
-                role_en:
-                  type: string
-                location:
-                  type: string
-                start_date:
-                  type: string
-                  format: date
-                end_date:
-                  type: string
-                  format: date
-                  nullable: true
-                type:
-                  $ref: '#/components/schemas/ExperienceType'
-                description:
-                  type: string
-                description_en:
-                  type: string
-                skill_ids:
-                  type: array
-                  items:
-                    type: integer
+              $ref: '#/components/schemas/ExperienceWriteRequest'
       responses:
-        "201":
+        '201':
           description: Expérience créée
           content:
             application/json:
@@ -1517,519 +1164,199 @@ paths:
                 properties:
                   id:
                     type: integer
-        "401":
-          description: Session invalide
+        '401':
+          description: Non authentifié
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission `experiences.write` manquante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Type d'expérience invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v2/experiences/{id}:
     put:
-      tags: [experiences]
-      summary: Mettre à jour une expérience (admin V1)
-      operationId: v1ExperiencesUpdate
+      tags:
+      - experiences
+      summary: Mettre à jour une expérience
+      operationId: v2ExperiencesUpdate
       security:
-        - SessionCookie: []
+      - BearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [id]
-              properties:
-                id:
-                  type: integer
+              $ref: '#/components/schemas/ExperienceWriteRequest'
       responses:
-        "200":
+        '200':
           description: Expérience mise à jour
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Success'
+        '403':
+          description: Permission `experiences.write` manquante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: ID manquant ou type invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
-      tags: [experiences]
-      summary: Supprimer une expérience (admin V1)
-      operationId: v1ExperiencesDelete
+      tags:
+      - experiences
+      summary: Supprimer une expérience
+      operationId: v2ExperiencesDelete
       security:
-        - SessionCookie: []
+      - BearerAuth: []
       parameters:
-        - name: id
-          in: query
-          required: true
-          schema:
-            type: integer
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
       responses:
-        "200":
-          description: Expérience supprimée
+        '200':
+          description: Opération réussie
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Success'
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # V1 — PROJETS
-  # ═══════════════════════════════════════════════════════════════════════════════
-
-  /api/projects.php:
+        '403':
+          description: Permission `experiences.delete` manquante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: ID manquant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v2/experiences/{id}/skills:
     get:
-      tags: [projects]
-      summary: Liste des projets (public)
-      operationId: v1ProjectsList
+      tags:
+      - experiences
+      summary: Skills liés (V2, public)
+      operationId: v2ExperiencesSkillsList
       parameters:
-        - name: lang
-          in: query
-          schema:
-            type: string
-            enum: [fr, en]
-            default: fr
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: lang
+        in: query
+        schema:
+          type: string
+          enum:
+          - fr
+          - en
+          default: fr
       responses:
-        "200":
-          description: Liste des projets avec compétences associées
+        '200':
+          description: Liste des compétences associées
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Project'
-    post:
-      tags: [projects]
-      summary: Créer un projet (admin V1)
-      operationId: v1ProjectsCreate
-      security:
-        - SessionCookie: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name, category]
-              properties:
-                name:
-                  type: string
-                name_en:
-                  type: string
-                description:
-                  type: string
-                description_en:
-                  type: string
-                photo_url:
-                  type: string
-                date:
-                  type: string
-                  format: date
-                url:
-                  type: string
-                  format: uri
-                github_url:
-                  type: string
-                  format: uri
-                category:
-                  type: string
-                  enum: [web, opensource, side]
-                skill_ids:
-                  type: array
-                  items:
-                    type: integer
-      responses:
-        "201":
-          description: Projet créé
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  id:
-                    type: integer
+                  $ref: '#/components/schemas/SkillRef'
     put:
-      tags: [projects]
-      summary: Mettre à jour un projet (admin V1)
-      operationId: v1ProjectsUpdate
+      tags:
+      - experiences
+      summary: Synchroniser les skills (V2)
+      description: Remplace la liste complète des skills associés (DELETE + INSERT).
+      operationId: v2ExperiencesSkillsSync
       security:
-        - SessionCookie: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [id]
-              properties:
-                id:
-                  type: integer
-      responses:
-        "200":
-          description: Projet mis à jour
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Success'
-    patch:
-      tags: [projects]
-      summary: Basculer le statut "favori" d'un projet (admin V1)
-      operationId: v1ProjectsToggleFavorite
-      security:
-        - SessionCookie: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [id, is_favorite]
-              properties:
-                id:
-                  type: integer
-                is_favorite:
-                  type: boolean
-      responses:
-        "200":
-          description: Statut mis à jour
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Success'
-    delete:
-      tags: [projects]
-      summary: Supprimer un projet (admin V1)
-      operationId: v1ProjectsDelete
-      security:
-        - SessionCookie: []
+      - BearerAuth: []
       parameters:
-        - name: id
-          in: query
-          required: true
-          schema:
-            type: integer
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkillSyncRequest'
       responses:
-        "200":
-          description: Projet supprimé
+        '200':
+          description: Association mise à jour
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Success'
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # V1 — SKILLS
-  # ═══════════════════════════════════════════════════════════════════════════════
-
-  /api/skills.php:
+        '401':
+          description: Non authentifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission `experiences.write` manquante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: skill_ids manquant ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v2/certifications:
     get:
-      tags: [skills]
-      summary: Liste des compétences (V1)
-      description: |
-        - Avec `?lang=` : vue publique localisée (name, category, category_color, skill_description).
-        - Sans `lang` : vue admin avec toutes les variantes (name_fr, name_en, category_fr, category_en, description_fr, description_en).
-      operationId: v1SkillsList
-      parameters:
-        - name: lang
-          in: query
-          schema:
-            type: string
-            enum: [fr, en]
-      responses:
-        "200":
-          description: Liste des compétences
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Skill'
-    post:
-      tags: [skills]
-      summary: Créer une compétence (admin V1)
-      operationId: v1SkillsCreate
-      security:
-        - SessionCookie: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SkillWriteRequest'
-      responses:
-        "201":
-          description: Compétence créée
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  id:
-                    type: integer
-    put:
-      tags: [skills]
-      summary: Mettre à jour une compétence (admin V1)
-      operationId: v1SkillsUpdate
-      security:
-        - SessionCookie: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              allOf:
-                - $ref: '#/components/schemas/SkillWriteRequest'
-                - type: object
-                  required: [id]
-                  properties:
-                    id:
-                      type: integer
-      responses:
-        "200":
-          description: Compétence mise à jour
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Success'
-    delete:
-      tags: [skills]
-      summary: Supprimer une compétence (admin V1)
-      operationId: v1SkillsDelete
-      security:
-        - SessionCookie: []
-      parameters:
-        - name: id
-          in: query
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Compétence supprimée
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Success'
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # V1 — SKILL CATEGORIES
-  # ═══════════════════════════════════════════════════════════════════════════════
-
-  /api/skill-categories.php:
-    get:
-      tags: [categories]
-      summary: Liste des catégories (V1, public)
-      operationId: v1CategoriesList
-      responses:
-        "200":
-          description: Liste des catégories
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Category'
-    post:
-      tags: [categories]
-      summary: Créer une catégorie (admin V1)
-      operationId: v1CategoriesCreate
-      security:
-        - SessionCookie: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CategoryWriteRequest'
-      responses:
-        "201":
-          description: Catégorie créée
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  id:
-                    type: integer
-    put:
-      tags: [categories]
-      summary: Mettre à jour une catégorie (admin V1)
-      operationId: v1CategoriesUpdate
-      security:
-        - SessionCookie: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              allOf:
-                - $ref: '#/components/schemas/CategoryWriteRequest'
-                - type: object
-                  required: [id]
-                  properties:
-                    id:
-                      type: integer
-      responses:
-        "200":
-          description: Catégorie mise à jour
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Success'
-    delete:
-      tags: [categories]
-      summary: Supprimer une catégorie (admin V1)
-      operationId: v1CategoriesDelete
-      security:
-        - SessionCookie: []
-      parameters:
-        - name: id
-          in: query
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Catégorie supprimée
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Success'
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # V1 — FORMATIONS
-  # ═══════════════════════════════════════════════════════════════════════════════
-
-  /api/formations.php:
-    get:
-      tags: [formations]
-      summary: Liste des formations avec certifications et compétences (public)
-      operationId: v1FormationsList
-      parameters:
-        - name: lang
-          in: query
-          schema:
-            type: string
-            enum: [fr, en]
-            default: fr
-      responses:
-        "200":
-          description: Liste des formations
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Formation'
-    post:
-      tags: [formations]
-      summary: Créer une formation (admin V1)
-      operationId: v1FormationsCreate
-      security:
-        - SessionCookie: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/EducationWriteRequest'
-      responses:
-        "201":
-          description: Formation créée
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  id:
-                    type: integer
-    put:
-      tags: [formations]
-      summary: Mettre à jour une formation (admin V1)
-      operationId: v1FormationsUpdate
-      security:
-        - SessionCookie: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              allOf:
-                - $ref: '#/components/schemas/EducationWriteRequest'
-                - type: object
-                  required: [id]
-                  properties:
-                    id:
-                      type: integer
-      responses:
-        "200":
-          description: Formation mise à jour
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Success'
-    delete:
-      tags: [formations]
-      summary: Supprimer une formation (admin V1)
-      operationId: v1FormationsDelete
-      security:
-        - SessionCookie: []
-      parameters:
-        - name: id
-          in: query
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Formation supprimée
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Success'
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # V1 — CERTIFICATIONS
-  # ═══════════════════════════════════════════════════════════════════════════════
-
-  /api/certifications.php:
-    get:
-      tags: [certifications]
+      tags:
+      - certifications
       summary: Liste des certifications (public)
-      operationId: v1CertificationsList
-      parameters:
-        - name: formation_id
-          in: query
-          description: Filtrer par formation
-          schema:
-            type: integer
+      operationId: v2CertificationsList
       responses:
-        "200":
+        '200':
           description: Liste des certifications
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Certification'
+                  $ref: '#/components/schemas/CertificationFull'
     post:
-      tags: [certifications]
-      summary: Créer une certification (admin V1)
-      operationId: v1CertificationsCreate
+      tags:
+      - certifications
+      summary: Créer une certification
+      operationId: v2CertificationsCreate
       security:
-        - SessionCookie: []
+      - BearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [name, formation_id]
-              properties:
-                name:
-                  type: string
-                  maxLength: 200
-                year:
-                  type: integer
-                  nullable: true
-                  minimum: 1970
-                  maximum: 2099
-                formation_id:
-                  type: integer
+              $ref: '#/components/schemas/CertificationWriteRequest'
       responses:
-        "201":
+        '201':
           description: Certification créée
           content:
             application/json:
@@ -2038,567 +1365,492 @@ paths:
                 properties:
                   id:
                     type: integer
-                  success:
-                    type: boolean
+        '401':
+          description: Non authentifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission `certifications.write` manquante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v2/certifications/{id}:
     put:
-      tags: [certifications]
-      summary: Mettre à jour une certification (admin V1)
-      operationId: v1CertificationsUpdate
+      tags:
+      - certifications
+      summary: Mettre à jour une certification
+      operationId: v2CertificationsUpdate
       security:
-        - SessionCookie: []
+      - BearerAuth: []
       parameters:
-        - name: id
-          in: query
-          required: true
-          schema:
-            type: integer
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                  maxLength: 200
-                year:
-                  type: integer
-                  nullable: true
-                formation_id:
-                  type: integer
+              $ref: '#/components/schemas/CertificationWriteRequest'
       responses:
-        "200":
+        '200':
           description: Certification mise à jour
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Success'
+        '403':
+          description: Permission `certifications.write` manquante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: ID manquant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
-      tags: [certifications]
-      summary: Supprimer une certification (admin V1)
-      operationId: v1CertificationsDelete
+      tags:
+      - certifications
+      summary: Supprimer une certification
+      operationId: v2CertificationsDelete
       security:
-        - SessionCookie: []
+      - BearerAuth: []
       parameters:
-        - name: id
-          in: query
-          required: true
-          schema:
-            type: integer
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
       responses:
-        "200":
-          description: Certification supprimée
+        '200':
+          description: Opération réussie
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Success'
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # V1 — CONTACT
-  # ═══════════════════════════════════════════════════════════════════════════════
-
-  /api/contact.php:
+        '403':
+          description: Permission `certifications.delete` manquante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: ID manquant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v2/projects:
     get:
-      tags: [contact]
-      summary: Liste des messages de contact (admin V1)
-      operationId: v1ContactList
-      security:
-        - SessionCookie: []
+      tags:
+      - projects
+      summary: Liste des projets (public)
+      operationId: v2ProjectsList
+      parameters:
+      - name: lang
+        in: query
+        schema:
+          type: string
+          enum:
+          - fr
+          - en
+          default: fr
       responses:
-        "200":
-          description: Messages reçus
+        '200':
+          description: Liste des projets
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ContactMessage'
+                  $ref: '#/components/schemas/Project'
     post:
-      tags: [contact]
-      summary: Soumettre le formulaire de contact (public, CAPTCHA requis)
-      operationId: v1ContactSubmit
+      tags:
+      - projects
+      summary: Créer un projet
+      operationId: v2ProjectsCreate
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectWriteRequest'
+      responses:
+        '201':
+          description: Projet créé
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+        '401':
+          description: Non authentifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission `projects.write` manquante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Catégorie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v2/projects/{id}:
+    put:
+      tags:
+      - projects
+      summary: Mettre à jour un projet
+      operationId: v2ProjectsUpdate
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectWriteRequest'
+      responses:
+        '200':
+          description: Projet mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '403':
+          description: Permission `projects.write` manquante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: ID manquant ou catégorie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+      - projects
+      summary: Supprimer un projet
+      operationId: v2ProjectsDelete
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Opération réussie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '403':
+          description: Permission `projects.delete` manquante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: ID manquant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v2/projects/{id}/skills:
+    get:
+      tags:
+      - projects
+      summary: Skills liés (V2, public)
+      operationId: v2ProjectsSkillsList
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: lang
+        in: query
+        schema:
+          type: string
+          enum:
+          - fr
+          - en
+          default: fr
+      responses:
+        '200':
+          description: Liste des compétences associées
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SkillRef'
+    put:
+      tags:
+      - projects
+      summary: Synchroniser les skills (V2)
+      description: Remplace la liste complète des skills associés (DELETE + INSERT).
+      operationId: v2ProjectsSkillsSync
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkillSyncRequest'
+      responses:
+        '200':
+          description: Association mise à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '401':
+          description: Non authentifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission `projects.write` manquante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: skill_ids manquant ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v2/users:
+    get:
+      tags:
+      - users
+      summary: Liste des utilisateurs admin (superadmin)
+      operationId: v2UsersList
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Liste des utilisateurs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminUser'
+        '403':
+          description: Rôle superadmin requis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags:
+      - users
+      summary: Créer un utilisateur admin (superadmin)
+      operationId: v2UsersCreate
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserWriteRequest'
+      responses:
+        '201':
+          description: Utilisateur créé
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+        '403':
+          description: Rôle superadmin requis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Mot de passe trop court (< 8 caractères) ou username déjà pris
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v2/users/{id}:
+    put:
+      tags:
+      - users
+      summary: Mettre à jour un utilisateur admin (superadmin)
+      description: 'Si `password` est fourni (≥ 8 chars), il est re-hashé et `must_change_password` est remis à 0.
+
+        Protections : impossible de rétrograder/supprimer le dernier superadmin.'
+      operationId: v2UsersUpdate
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [name, email, subject, message, altcha]
               properties:
-                name:
-                  type: string
                 email:
                   type: string
                   format: email
-                subject:
+                role:
                   type: string
-                  maxLength: 255
-                message:
-                  type: string
-                altcha:
-                  type: string
-                  description: Solution Altcha CAPTCHA (obtenue via `GET /api/altcha.php`)
-      responses:
-        "201":
-          description: Message envoyé
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Success'
-        "400":
-          description: Données invalides ou CAPTCHA échoué
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-    delete:
-      tags: [contact]
-      summary: Supprimer un message de contact (admin V1)
-      operationId: v1ContactDelete
-      security:
-        - SessionCookie: []
-      parameters:
-        - name: id
-          in: query
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Message supprimé
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Success'
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # V1 — LIENS SOCIAUX
-  # ═══════════════════════════════════════════════════════════════════════════════
-
-  /api/links.php:
-    get:
-      tags: [links]
-      summary: Liste des liens sociaux (public)
-      operationId: v1LinksList
-      responses:
-        "200":
-          description: Liens sociaux
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Link'
-    post:
-      tags: [links]
-      summary: Créer un lien social (admin V1)
-      operationId: v1LinksCreate
-      security:
-        - SessionCookie: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [platform, url]
-              properties:
-                platform:
-                  type: string
-                url:
-                  type: string
-                  format: uri
-                icon:
-                  type: string
-                icon_dark:
-                  type: string
-      responses:
-        "201":
-          description: Lien créé
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  id:
-                    type: integer
-    put:
-      tags: [links]
-      summary: Mettre à jour un lien social (admin V1)
-      operationId: v1LinksUpdate
-      security:
-        - SessionCookie: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [id, platform, url]
-              properties:
-                id:
-                  type: integer
-                platform:
-                  type: string
-                url:
-                  type: string
-                  format: uri
-                icon:
-                  type: string
-                icon_dark:
-                  type: string
-      responses:
-        "200":
-          description: Lien mis à jour
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Success'
-    delete:
-      tags: [links]
-      summary: Supprimer un lien social (admin V1)
-      operationId: v1LinksDelete
-      security:
-        - SessionCookie: []
-      parameters:
-        - name: id
-          in: query
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Lien supprimé
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Success'
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # V1 — CV
-  # ═══════════════════════════════════════════════════════════════════════════════
-
-  /api/cv.php:
-    get:
-      tags: [cv]
-      summary: Métadonnées du CV (public)
-      operationId: v1CvGet
-      parameters:
-        - name: lang
-          in: query
-          schema:
-            type: string
-            enum: [fr, en]
-            default: fr
-      responses:
-        "200":
-          description: Informations sur le CV
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CvMetadata'
-    post:
-      tags: [cv]
-      summary: Uploader un CV PDF (admin V1)
-      description: Upload multipart. Fichier PDF uniquement, max 5 Mo.
-      operationId: v1CvUpload
-      security:
-        - SessionCookie: []
-      parameters:
-        - name: lang
-          in: query
-          schema:
-            type: string
-            enum: [fr, en]
-            default: fr
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              required: [cv]
-              properties:
-                cv:
-                  type: string
-                  format: binary
-                  description: Fichier PDF (max 5 Mo)
-      responses:
-        "200":
-          description: CV uploadé
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  url:
-                    type: string
-                  updated_at:
-                    type: string
-                    format: date-time
-    patch:
-      tags: [cv]
-      summary: Mettre à jour les métadonnées du CV (admin V1)
-      operationId: v1CvPatch
-      security:
-        - SessionCookie: []
-      parameters:
-        - name: lang
-          in: query
-          schema:
-            type: string
-            enum: [fr, en]
-            default: fr
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                download_name:
-                  type: string
-                  description: "Nom du fichier lors du téléchargement (pattern : lettres, chiffres, tirets, underscores + .pdf)"
-                  example: CV_Bryan_Valcasara.pdf
-                external_url:
-                  type: string
-                  format: uri
-                  description: URL externe du CV (prend le dessus sur le fichier uploadé)
-      responses:
-        "200":
-          description: Métadonnées mises à jour
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Success'
-    delete:
-      tags: [cv]
-      summary: Supprimer le CV (admin V1)
-      operationId: v1CvDelete
-      security:
-        - SessionCookie: []
-      parameters:
-        - name: lang
-          in: query
-          schema:
-            type: string
-            enum: [fr, en]
-            default: fr
-      responses:
-        "200":
-          description: CV supprimé
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Success'
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # V1 — I18N
-  # ═══════════════════════════════════════════════════════════════════════════════
-
-  /api/i18n.php:
-    get:
-      tags: [i18n]
-      summary: Récupérer les traductions de l'interface (public)
-      operationId: v1I18nGet
-      responses:
-        "200":
-          description: Clés de traduction FR + EN
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/I18nBundle'
-    put:
-      tags: [i18n]
-      summary: Mettre à jour les traductions (admin V1)
-      operationId: v1I18nUpdate
-      security:
-        - SessionCookie: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/I18nBundle'
-      responses:
-        "200":
-          description: Traductions mises à jour
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Success'
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # V1 — UPLOAD
-  # ═══════════════════════════════════════════════════════════════════════════════
-
-  /api/upload.php:
-    post:
-      tags: [upload]
-      summary: Uploader une image (admin V1)
-      description: |
-        Formats acceptés : JPEG, PNG, WebP, GIF, SVG, ICO. Taille max : 2 Mo.
-        Les images sont optimisées et converties en WebP si possible.
-        Le fichier reçoit un nom UUID normalisé (jamais le nom original du client).
-      operationId: v1UploadImage
-      security:
-        - SessionCookie: []
-      parameters:
-        - name: type
-          in: query
-          required: true
-          schema:
-            type: string
-            enum: [project, link, profile]
-          description: Détermine le sous-dossier de stockage dans `/uploads/`
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              required: [image]
-              properties:
-                image:
-                  type: string
-                  format: binary
-                  description: Fichier image (max 2 Mo)
-      responses:
-        "200":
-          description: Image uploadée
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  url:
-                    type: string
-                    example: "/uploads/project/a1b2c3d4.webp"
-        "400":
-          description: Type MIME invalide, fichier trop lourd ou type de dossier inconnu
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # V1 — TAB ROUTES
-  # ═══════════════════════════════════════════════════════════════════════════════
-
-  /api/tab_routes.php:
-    get:
-      tags: [utils]
-      summary: Récupérer la configuration des onglets (public)
-      operationId: v1TabRoutesGet
-      responses:
-        "200":
-          description: Routes et configuration des onglets
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  routes:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/TabRoute'
-                  config:
-                    type: object
-                    properties:
-                      default_tab:
-                        type: string
-                      home_tab:
-                        type: string
-    put:
-      tags: [utils]
-      summary: Mettre à jour la configuration des onglets (admin V1)
-      operationId: v1TabRoutesUpdate
-      security:
-        - SessionCookie: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                routes:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/TabRoute'
-                config:
+                  enum:
+                  - superadmin
+                  - admin
+                  - editor
+                permissions:
                   type: object
-                  properties:
-                    default_tab:
-                      type: string
-                    home_tab:
-                      type: string
+                  nullable: true
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
       responses:
-        "200":
-          description: Configuration mise à jour
+        '200':
+          description: Utilisateur mis à jour
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Success'
-
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # UTILITAIRES
-  # ═══════════════════════════════════════════════════════════════════════════════
-
-  /api/altcha.php:
-    get:
-      tags: [utils]
-      summary: Générer un challenge CAPTCHA Altcha (public)
-      description: |
-        Retourne un challenge Altcha signé via HMAC. À utiliser avec la librairie
-        Altcha côté client pour générer la solution à soumettre dans le formulaire de contact.
-      operationId: v1AltchaChallenge
-      responses:
-        "200":
-          description: Challenge Altcha
+        '403':
+          description: Rôle superadmin requis
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  algorithm:
-                    type: string
-                    example: SHA-256
-                  challenge:
-                    type: string
-                  maxnumber:
-                    type: integer
-                  salt:
-                    type: string
-                  signature:
-                    type: string
-
-  /api/check-url.php:
-    get:
-      tags: [utils]
-      summary: Vérifier si une URL externe est accessible (public, cache 24h)
-      operationId: v1CheckUrl
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Mot de passe invalide ou impossible de rétrograder le dernier superadmin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+      - users
+      summary: Supprimer un utilisateur admin (superadmin)
+      description: 'Protections : impossible de se supprimer soi-même ou de supprimer le dernier superadmin.'
+      operationId: v2UsersDelete
+      security:
+      - BearerAuth: []
       parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            type: string
-            format: uri
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
       responses:
-        "200":
-          description: Résultat de la vérification
+        '200':
+          description: Utilisateur supprimé
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  online:
-                    type: boolean
+                $ref: '#/components/schemas/Success'
+        '403':
+          description: Rôle superadmin requis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Impossible de supprimer soi-même ou le dernier superadmin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v2/users/{id}/permissions:
+    patch:
+      tags:
+      - users
+      summary: Mettre à jour les permissions d'un utilisateur (superadmin)
+      operationId: v2UsersUpdatePermissions
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - permissions
+              properties:
+                permissions:
+                  type: object
+                  description: 'Objet de permissions granulaires. Structure : { "skills": { "read": true, "write": true, "delete":
+                    false } }'
+      responses:
+        '200':
+          description: Permissions mises à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '403':
+          description: Rôle superadmin requis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Champ `permissions` manquant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

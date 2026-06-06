@@ -1,7 +1,42 @@
 <?php
 
-$id   = $GLOBALS['_route']['id'] ?? null;
+$id   = $GLOBALS['_route']['id']  ?? null;
+$sub  = $GLOBALS['_route']['sub'] ?? null;
 $lang = in_array($_GET['lang'] ?? 'fr', ['fr', 'en'], true) ? $_GET['lang'] : 'fr';
+
+if ($sub === 'skills' && $id !== null) {
+    switch (method()) {
+
+        case 'GET':
+            $stmt = $pdo->prepare(
+                'SELECT s.id, st.name
+                 FROM formation_skills fs
+                 JOIN skills s  ON s.id = fs.skill_id
+                 JOIN skill_translations st ON st.skill_id = s.id AND st.locale = :locale
+                 WHERE fs.formation_id = :id
+                 ORDER BY st.name'
+            );
+            $stmt->execute([':locale' => $lang, ':id' => $id]);
+            json_response($stmt->fetchAll());
+
+        case 'PUT':
+            $user = jwt_guard();
+            require_perm($user, 'educations', 'write');
+            $d = body();
+            if (!isset($d['skill_ids']) || !is_array($d['skill_ids'])) {
+                json_response(['error' => 'skill_ids array is required'], 422);
+            }
+            $pdo->prepare('DELETE FROM formation_skills WHERE formation_id = ?')->execute([$id]);
+            $ins = $pdo->prepare('INSERT INTO formation_skills (formation_id, skill_id) VALUES (?, ?)');
+            foreach ($d['skill_ids'] as $skillId) {
+                $ins->execute([$id, (int) $skillId]);
+            }
+            json_response(['success' => true]);
+
+        default:
+            json_response(['error' => 'Method not allowed'], 405);
+    }
+}
 
 function upsert_education_translation(PDO $pdo, int $formId, string $locale,
                                       string $title, ?string $level, ?string $description): void

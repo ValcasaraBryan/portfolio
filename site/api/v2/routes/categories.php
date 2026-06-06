@@ -1,6 +1,21 @@
 <?php
 
-$id = $GLOBALS['_route']['id'] ?? null;
+$id   = $GLOBALS['_route']['id']  ?? null;
+$sub  = $GLOBALS['_route']['sub'] ?? null;
+$lang = in_array($_GET['lang'] ?? 'fr', ['fr', 'en'], true) ? $_GET['lang'] : 'fr';
+
+if ($sub === 'skills' && $id !== null) {
+    $stmt = $pdo->prepare(
+        'SELECT s.id, st.name, COALESCE(st.description, \'\') AS description
+         FROM skill_categories sc
+         JOIN skills s  ON s.category = sc.key
+         JOIN skill_translations st ON st.skill_id = s.id AND st.locale = :locale
+         WHERE sc.id = :id
+         ORDER BY st.name'
+    );
+    $stmt->execute([':locale' => $lang, ':id' => $id]);
+    json_response($stmt->fetchAll());
+}
 
 switch (method()) {
 
