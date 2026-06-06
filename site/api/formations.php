@@ -78,7 +78,7 @@ switch (method()) {
         json_response(get_formations($pdo, $locale));
 
     case 'POST':
-        require_auth();
+        require_min_role('editor');
         $d    = body();
         $stmt = $pdo->prepare(
             'INSERT INTO `formations` (`school`,`title`,`level`,`city`,`start_date`,`end_date`,`description`,`mention`)
@@ -121,7 +121,7 @@ switch (method()) {
         json_response(['id' => $formId], 201);
 
     case 'PUT':
-        require_auth();
+        require_min_role('editor');
         $d    = body();
         $stmt = $pdo->prepare(
             'UPDATE `formations`
@@ -166,7 +166,7 @@ switch (method()) {
         json_response(['success' => true]);
 
     case 'DELETE':
-        require_auth();
+        require_min_role('admin');
         $id   = $_GET['id'] ?? null;
         $stmt = $pdo->prepare('DELETE FROM `formations` WHERE `id` = ?');
         $stmt->execute([$id]);

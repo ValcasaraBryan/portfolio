@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['error' => 'Method not allowed'], 405);
 }
 
-require_auth();
+require_min_role('editor');
 
 // Validation du paramètre type
 $type = $_GET['type'] ?? '';

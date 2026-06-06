@@ -69,7 +69,7 @@ switch (method()) {
         json_response(get_projects($pdo, $locale));
 
     case 'POST':
-        require_auth();
+        require_min_role('editor');
         $d        = body();
         $category = $d['category'] ?? null;
         if ($category !== null && !in_array($category, ['web', 'opensource', 'side'], true)) {
@@ -113,7 +113,7 @@ switch (method()) {
         json_response(['id' => $projectId], 201);
 
     case 'PUT':
-        require_auth();
+        require_min_role('editor');
         $d        = body();
         $category = $d['category'] ?? null;
         if ($category !== null && !in_array($category, ['web', 'opensource', 'side'], true)) {
@@ -159,14 +159,14 @@ switch (method()) {
         json_response(['success' => true]);
 
     case 'PATCH':
-        require_auth();
+        require_min_role('editor');
         $d = body();
         $pdo->prepare('UPDATE `projects` SET `is_favorite`=:fav WHERE `id`=:id')
             ->execute([':fav' => (int)(bool)($d['is_favorite'] ?? 0), ':id' => (int)$d['id']]);
         json_response(['success' => true]);
 
     case 'DELETE':
-        require_auth();
+        require_min_role('admin');
         $id   = $_GET['id'] ?? null;
         $stmt = $pdo->prepare('DELETE FROM `projects` WHERE `id` = ?');
         $stmt->execute([$id]);

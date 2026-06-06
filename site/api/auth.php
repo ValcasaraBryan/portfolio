@@ -65,7 +65,7 @@ if ($action === 'login' && method() === 'POST') {
         json_response(['error' => 'Too many attempts. Try again in 15 minutes.'], 429);
     }
 
-    $stmt = $pdo->prepare('SELECT `id`, `password_hash`, `must_change_password` FROM `admin_users` WHERE `username` = ?');
+    $stmt = $pdo->prepare('SELECT `id`, `password_hash`, `must_change_password`, `role` FROM `admin_users` WHERE `username` = ?');
     $stmt->execute([$username]);
     $user = $stmt->fetch();
 
@@ -80,7 +80,8 @@ if ($action === 'login' && method() === 'POST') {
     @unlink($cacheFile);
 
     session_regenerate_id(true);
-    $_SESSION['admin_id'] = $user['id'];
+    $_SESSION['admin_id']   = $user['id'];
+    $_SESSION['admin_role'] = $user['role'] ?? 'admin';
     json_response(['ok' => true, 'must_change_password' => (bool) $user['must_change_password']]);
 }
 

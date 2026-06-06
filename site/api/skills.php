@@ -46,7 +46,7 @@ switch (method()) {
         json_response($stmt->fetchAll());
 
     case 'POST':
-        require_auth();
+        require_min_role('editor');
         $d      = body();
         // category_key (nouveau form admin groupé) ou category_fr (ancien form) — fallback gracieux
         $catKey = $d['category_key'] ?? $d['category_fr'] ?? '';
@@ -71,7 +71,7 @@ switch (method()) {
         json_response(['id' => $id], 201);
 
     case 'PUT':
-        require_auth();
+        require_min_role('editor');
         $d      = body();
         $catKey = $d['category_key'] ?? $d['category_fr'] ?? '';
         $stmt = $pdo->prepare(
@@ -95,7 +95,7 @@ switch (method()) {
         json_response(['success' => true]);
 
     case 'DELETE':
-        require_auth();
+        require_min_role('admin');
         $id   = $_GET['id'] ?? null;
         $stmt = $pdo->prepare('DELETE FROM `skills` WHERE `id` = ?');
         $stmt->execute([$id]);

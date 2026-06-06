@@ -19,7 +19,7 @@ switch (method()) {
         }
 
     case 'POST':
-        require_auth();
+        require_min_role('admin');
         try {
             $data = body();
 
@@ -48,7 +48,7 @@ switch (method()) {
         }
 
     case 'PUT':
-        require_auth();
+        require_min_role('admin');
         try {
             $data = body();
 
@@ -88,7 +88,7 @@ switch (method()) {
         }
 
     case 'DELETE':
-        require_auth();
+        require_min_role('admin');
         try {
             $id = intval($_GET['id'] ?? 0);
             if ($id <= 0) {

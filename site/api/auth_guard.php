@@ -34,3 +34,23 @@ function require_auth(): void
         exit;
     }
 }
+
+function get_session_role(): string
+{
+    // Fallback 'admin' pour les sessions ouvertes avant la migration 025 (pas de rôle en session)
+    return $_SESSION['admin_role'] ?? 'admin';
+}
+
+function require_min_role(string $minRole): void
+{
+    require_auth();
+    static $hierarchy = ['editor' => 0, 'admin' => 1, 'superadmin' => 2];
+    $userLevel = $hierarchy[get_session_role()] ?? 0;
+    $minLevel  = $hierarchy[$minRole]           ?? 99;
+    if ($userLevel < $minLevel) {
+        http_response_code(403);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Forbidden: insufficient role']);
+        exit;
+    }
+}

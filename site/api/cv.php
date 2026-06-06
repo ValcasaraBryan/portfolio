@@ -41,13 +41,13 @@ try {
     if ($method === 'GET') {
         handleGet($pdo, $lang, $filepath, $fileurl);
     } elseif ($method === 'POST') {
-        require_auth();
+        require_min_role('admin');
         handlePost($filepath, $fileurl);
     } elseif ($method === 'PATCH') {
-        require_auth();
+        require_min_role('admin');
         handlePatch($pdo, $lang);
     } elseif ($method === 'DELETE') {
-        require_auth();
+        require_min_role('admin');
         handleDelete($filepath);
     } else {
         http_response_code(405);

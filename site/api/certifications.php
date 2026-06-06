@@ -49,7 +49,7 @@ switch (method()) {
 
     /* ── POST ─────────────────────────────────────────────────── */
     case 'POST':
-        require_auth();
+        require_min_role('editor');
         $d = body();
 
         $name = trim($d['name'] ?? '');
@@ -84,7 +84,7 @@ switch (method()) {
 
     /* ── PUT ──────────────────────────────────────────────────── */
     case 'PUT':
-        require_auth();
+        require_min_role('editor');
         $id = intval($_GET['id'] ?? 0);
         if ($id <= 0) {
             json_response(['error' => 'id invalide'], 400);
@@ -116,7 +116,7 @@ switch (method()) {
 
     /* ── DELETE ───────────────────────────────────────────────── */
     case 'DELETE':
-        require_auth();
+        require_min_role('admin');
         $id = intval($_GET['id'] ?? 0);
         if ($id <= 0) {
             json_response(['error' => 'id invalide'], 400);

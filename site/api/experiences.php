@@ -127,7 +127,7 @@ switch (method()) {
 
     /* ── POST (création) ─────────────────────────────────────────── */
     case 'POST':
-        require_auth();
+        require_min_role('editor');
         $d    = body();
         $type = validate_type($d['type'] ?? null);
 
@@ -176,7 +176,7 @@ switch (method()) {
 
     /* ── PUT (modification) ──────────────────────────────────────── */
     case 'PUT':
-        require_auth();
+        require_min_role('editor');
         $d    = body();
         $type = validate_type($d['type'] ?? null);
 
@@ -226,7 +226,7 @@ switch (method()) {
 
     /* ── DELETE ──────────────────────────────────────────────────── */
     case 'DELETE':
-        require_auth();
+        require_min_role('admin');
         $id = $_GET['id'] ?? null;
         $pdo->prepare('DELETE FROM `experiences` WHERE `id` = ?')->execute([$id]);
         json_response(['success' => true]);

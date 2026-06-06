@@ -38,7 +38,7 @@ switch (method()) {
         }
 
     case 'PUT':
-        require_auth();
+        require_min_role('admin');
         try {
             $data = body();
 

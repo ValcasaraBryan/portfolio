@@ -22,7 +22,7 @@ switch (method()) {
         json_response($stmt->fetchAll());
 
     case 'POST':
-        require_auth();
+        require_min_role('admin');
         $d = body();
         $key = trim($d['key'] ?? '');
         if ($key === '') {
@@ -47,7 +47,7 @@ switch (method()) {
         json_response(['id' => (int)$pdo->lastInsertId()], 201);
 
     case 'PUT':
-        require_auth();
+        require_min_role('admin');
         $d  = body();
         $id = (int)($d['id'] ?? 0);
         if ($id === 0) {
@@ -76,7 +76,7 @@ switch (method()) {
         json_response(['success' => true]);
 
     case 'DELETE':
-        require_auth();
+        require_min_role('admin');
         $id = (int)($_GET['id'] ?? 0);
         if ($id === 0) {
             json_response(['error' => 'id is required'], 422);
