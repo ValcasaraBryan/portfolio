@@ -155,10 +155,18 @@ $DRY_RUN && MIGRATE_CMD="$MIGRATE_CMD --dry-run"
 $MIGRATE_CMD
 
 # =============================================================================
-# 4. Composer (optionnel)
+# 4. Composer (optionnel — forcé si composer.lock a changé dans ce pull)
 # =============================================================================
-if $WITH_COMPOSER; then
+COMPOSER_LOCK_CHANGED=false
+if [[ "$BEFORE" != "$AFTER" ]] && \
+   git diff "${BEFORE}..${AFTER}" --name-only 2>/dev/null | grep -q "composer.lock"; then
+  COMPOSER_LOCK_CHANGED=true
+fi
+
+if $WITH_COMPOSER || $COMPOSER_LOCK_CHANGED; then
   section "Dépendances PHP (Composer)"
+  $COMPOSER_LOCK_CHANGED && ! $WITH_COMPOSER && \
+    warn "composer.lock modifié — installation automatique des dépendances"
   if $DRY_RUN; then
     dry "composer install --no-dev --optimize-autoloader"
   else
