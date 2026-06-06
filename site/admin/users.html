@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Utilisateurs — Admin Portfolio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "react":              "https://esm.sh/react@18.2.0",
+      "react/jsx-runtime":  "https://esm.sh/react@18.2.0/jsx-runtime",
+      "react-dom/client":   "https://esm.sh/react-dom@18.2.0/client",
+      "@emotion/react":     "https://esm.sh/@emotion/react@11.11.0?deps=react@18.2.0",
+      "@emotion/styled":    "https://esm.sh/@emotion/styled@11.11.0?deps=react@18.2.0,@emotion/react@11.11.0",
+      "@mui/material":      "https://esm.sh/@mui/material@5.15.0?deps=react@18.2.0,react-dom@18.2.0,@emotion/react@11.11.0,@emotion/styled@11.11.0",
+      "@mui/icons-material":"https://esm.sh/@mui/icons-material@5.15.0?deps=react@18.2.0,@mui/material@5.15.0"
+    }
+  }
+  </script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #111; color: #fff; }
+    #root { min-height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="module">
+    import React, { useState, useEffect, useCallback } from 'react';
+    import { createRoot } from 'react-dom/client';
+    import {
+      Box, AppBar, Toolbar, Typography, Button, IconButton,
+      Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
+      Dialog, DialogTitle, DialogContent, DialogActions,
+      TextField, Alert, Snackbar, CircularProgress, Chip,
+      MenuItem, Select, FormControl, InputLabel,
+      Checkbox, FormControlLabel, FormGroup,
+      Divider, Tooltip,
+      createTheme, ThemeProvider, CssBaseline,
+    } from '@mui/material';
+    import { Edit, Delete, Lock, ArrowBack } from '@mui/icons-material';
+
+    const API_V2 = '../api/v2';
+
+    const FEATURES  = ['categories', 'skills', 'educations', 'experiences', 'users'];
+    const ACTIONS   = ['read', 'write', 'delete'];
+    const ROLES     = ['superadmin', 'admin', 'editor'];
+
+    const DEFAULT_PERMS = {
+      superadmin: () => Object.fromEntries(FEATURES.map(f => [f, Object.fromEntries(ACTIONS.map(a => [a, true]))])),
+      admin:      () => Object.fromEntries(FEATURES.map(f => [f, { read: true, write: f !== 'users', delete: f !== 'users' }])),
+      editor:     () => Object.fromEntries(FEATURES.map(f => [f, { read: true, write: f !== 'users', delete: false }])),
+    };
+
+    const theme = createTheme({
+      palette: {
+        mode: 'dark',
+        primary:    { main: '#7ED9B1' },
+        background: { default: '#111', paper: '#1a1a1a' },
+      },
+      typography: { fontFamily: "'Inter', sans-serif" },
+    });
+
+    /* ── JWT helpers ─────────────────────────────────────── */
+    const getToken  = ()       => sessionStorage.getItem('jwt_token');
+    const setToken  = (t)      => sessionStorage.setItem('jwt_token', t);
+    const setRToken = (t)      => sessionStorage.setItem('jwt_refresh', t);
+    const getRToken = ()       => sessionStorage.getItem('jwt_refresh');
+    const clearAuth = ()       => { sessionStorage.removeItem('jwt_token'); sessionStorage.removeItem('jwt_refresh'); };
+
+    const apiFetch = async (path, opts = {}) => {
+      const token = getToken();
+      const res = await fetch(`${API_V2}/${path}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        ...opts,
+      });
+      if (res.status === 401) {
+        clearAuth();
+        window.location.reload();
+        return;
+      }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      return res.json();
+    };
+
+    /* ── Role chip colors ────────────────────────────────── */
+    const roleColor = { superadmin: 'error', admin: 'warning', editor: 'info' };
+
+    /* ── Login form ──────────────────────────────────────── */
+    function LoginForm({ onLogin }) {
+      const [username, setUsername] = useState('');
+      const [password, setPassword] = useState('');
+      const [error,    setError]    = useState('');
+      const [loading,  setLoading]  = useState(false);
+
+      const submit = async (e) => {
+        e.preventDefault();
+        setLoading(true); setError('');
+        try {
+          const res = await fetch(`${API_V2}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Login failed');
+          if (data.user.role !== 'superadmin') {
+            throw new Error('Accès refusé : rôle superadmin requis');
+          }
+          setToken(data.token);
+          setRToken(data.refresh_token);
+          onLogin(data.user);
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return React.createElement(Box, {
+        sx: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }
+      },
+        React.createElement(Box, { component: 'form', onSubmit: submit,
+          sx: { width: 360, p: 4, background: '#1a1a1a', borderRadius: 2, border: '1px solid #222' }
+        },
+          React.createElement(Typography, { variant: 'h5', mb: 3, color: 'primary' }, 'Gestion Utilisateurs'),
+          error && React.createElement(Alert, { severity: 'error', sx: { mb: 2 } }, error),
+          React.createElement(TextField, {
+            label: 'Identifiant', fullWidth: true, required: true,
+            value: username, onChange: e => setUsername(e.target.value),
+            sx: { mb: 2 }, autoFocus: true,
+          }),
+          React.createElement(TextField, {
+            label: 'Mot de passe', type: 'password', fullWidth: true, required: true,
+            value: password, onChange: e => setPassword(e.target.value),
+            sx: { mb: 3 },
+          }),
+          React.createElement(Button, {
+            type: 'submit', variant: 'contained', fullWidth: true,
+            disabled: loading, color: 'primary',
+          }, loading ? React.createElement(CircularProgress, { size: 24 }) : 'Connexion'),
+          React.createElement(Button, {
+            href: 'index.html', startIcon: React.createElement(ArrowBack),
+            sx: { mt: 2 }, fullWidth: true,
+          }, 'Retour admin panel')
+        )
+      );
+    }
+
+    /* ── Permission grid ─────────────────────────────────── */
+    function PermGrid({ permissions, onChange, disabled }) {
+      const effective = permissions || DEFAULT_PERMS.editor();
+
+      const toggle = (feature, action) => {
+        const next = JSON.parse(JSON.stringify(effective));
+        if (!next[feature]) next[feature] = {};
+        next[feature][action] = !next[feature][action];
+        onChange(next);
+      };
+
+      return React.createElement(Box, { sx: { overflowX: 'auto' } },
+        React.createElement(Table, { size: 'small' },
+          React.createElement(TableHead, null,
+            React.createElement(TableRow, null,
+              React.createElement(TableCell, null, 'Feature'),
+              ACTIONS.map(a => React.createElement(TableCell, { key: a, align: 'center' }, a))
+            )
+          ),
+          React.createElement(TableBody, null,
+            FEATURES.map(f =>
+              React.createElement(TableRow, { key: f },
+                React.createElement(TableCell, null, f),
+                ACTIONS.map(a =>
+                  React.createElement(TableCell, { key: a, align: 'center' },
+                    React.createElement(Checkbox, {
+                      checked:  !!(effective[f] && effective[f][a]),
+                      onChange: () => toggle(f, a),
+                      disabled,
+                      size: 'small',
+                      color: 'primary',
+                    })
+                  )
+                )
+              )
+            )
+          )
+        )
+      );
+    }
+
+    /* ── User dialog (create / edit) ─────────────────────── */
+    function UserDialog({ open, onClose, onSaved, initial }) {
+      const isEdit = !!initial;
+      const [form,    setForm]    = useState(() => ({
+        username:    initial?.username    ?? '',
+        email:       initial?.email       ?? '',
+        role:        initial?.role        ?? 'editor',
+        password:    '',
+        permissions: initial?.permissions ?? null,
+      }));
+      const [useCustomPerms, setUseCustomPerms] = useState(!!initial?.permissions);
+      const [loading, setLoading] = useState(false);
+      const [error,   setError]   = useState('');
+
+      const perms = useCustomPerms
+        ? (form.permissions || DEFAULT_PERMS[form.role]())
+        : null;
+
+      const handleRoleChange = (role) => {
+        setForm(f => ({ ...f, role, permissions: useCustomPerms ? DEFAULT_PERMS[role]() : null }));
+      };
+
+      const submit = async () => {
+        setLoading(true); setError('');
+        try {
+          const payload = {
+            username:    form.username,
+            email:       form.email,
+            role:        form.role,
+            permissions: useCustomPerms ? perms : null,
+          };
+          if (form.password) payload.password = form.password;
+          if (!isEdit) {
+            if (!form.password) { setError('Le mot de passe est requis'); setLoading(false); return; }
+            await apiFetch('users', { method: 'POST', body: JSON.stringify(payload) });
+          } else {
+            await apiFetch(`users/${initial.id}`, { method: 'PUT', body: JSON.stringify(payload) });
+          }
+          onSaved();
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return React.createElement(Dialog, { open, onClose, maxWidth: 'md', fullWidth: true },
+        React.createElement(DialogTitle, null, isEdit ? 'Modifier utilisateur' : 'Nouvel utilisateur'),
+        React.createElement(DialogContent, null,
+          error && React.createElement(Alert, { severity: 'error', sx: { mb: 2, mt: 1 } }, error),
+          React.createElement(TextField, {
+            label: 'Identifiant', fullWidth: true, required: true,
+            value: form.username,
+            onChange: e => setForm(f => ({ ...f, username: e.target.value })),
+            sx: { mb: 2, mt: 1 }, disabled: isEdit,
+          }),
+          React.createElement(TextField, {
+            label: 'Email', type: 'email', fullWidth: true,
+            value: form.email,
+            onChange: e => setForm(f => ({ ...f, email: e.target.value })),
+            sx: { mb: 2 },
+          }),
+          React.createElement(TextField, {
+            label: isEdit ? 'Nouveau mot de passe (laisser vide pour ne pas changer)' : 'Mot de passe',
+            type: 'password', fullWidth: true, required: !isEdit,
+            value: form.password,
+            onChange: e => setForm(f => ({ ...f, password: e.target.value })),
+            sx: { mb: 2 },
+          }),
+          React.createElement(FormControl, { fullWidth: true, sx: { mb: 2 } },
+            React.createElement(InputLabel, null, 'Rôle'),
+            React.createElement(Select, {
+              value: form.role,
+              label: 'Rôle',
+              onChange: e => handleRoleChange(e.target.value),
+            },
+              ROLES.map(r => React.createElement(MenuItem, { key: r, value: r }, r))
+            )
+          ),
+          React.createElement(FormControlLabel, {
+            control: React.createElement(Checkbox, {
+              checked: useCustomPerms,
+              onChange: e => {
+                setUseCustomPerms(e.target.checked);
+                if (e.target.checked) setForm(f => ({ ...f, permissions: DEFAULT_PERMS[f.role]() }));
+                else setForm(f => ({ ...f, permissions: null }));
+              },
+              color: 'primary',
+            }),
+            label: 'Permissions personnalisées (override du rôle)',
+          }),
+          useCustomPerms && React.createElement(Box, { sx: { mt: 2 } },
+            React.createElement(Typography, { variant: 'caption', color: 'text.secondary', mb: 1, display: 'block' },
+              'Permissions par fonctionnalité'
+            ),
+            React.createElement(PermGrid, {
+              permissions: perms,
+              onChange: next => setForm(f => ({ ...f, permissions: next })),
+              disabled: false,
+            })
+          )
+        ),
+        React.createElement(DialogActions, null,
+          React.createElement(Button, { onClick: onClose }, 'Annuler'),
+          React.createElement(Button, {
+            onClick: submit, variant: 'contained', disabled: loading,
+          }, loading ? React.createElement(CircularProgress, { size: 20 }) : (isEdit ? 'Sauvegarder' : 'Créer'))
+        )
+      );
+    }
+
+    /* ── Main app ────────────────────────────────────────── */
+    function UsersApp() {
+      const [currentUser, setCurrentUser] = useState(null);
+      const [users,       setUsers]       = useState([]);
+      const [loading,     setLoading]     = useState(false);
+      const [dialog,      setDialog]      = useState({ open: false, initial: null });
+      const [permsDialog, setPermsDialog] = useState({ open: false, user: null });
+      const [snack,       setSnack]       = useState({ open: false, msg: '', sev: 'success' });
+
+      const toast = (msg, sev = 'success') => setSnack({ open: true, msg, sev });
+
+      const loadUsers = useCallback(async () => {
+        setLoading(true);
+        try {
+          const data = await apiFetch('users');
+          if (data) setUsers(data);
+        } catch (err) {
+          toast(err.message, 'error');
+        } finally {
+          setLoading(false);
+        }
+      }, []);
+
+      useEffect(() => {
+        if (!currentUser) {
+          const token = getToken();
+          if (token) {
+            // Token JWT existant → vérifier qu'il est toujours valide
+            apiFetch('auth/me').then(me => {
+              if (me && me.role === 'superadmin') {
+                setCurrentUser(me);
+              } else {
+                clearAuth();
+              }
+            }).catch(clearAuth);
+          } else {
+            // Pas de JWT → tenter un échange depuis la session PHP admin
+            // (fetch brut pour éviter la boucle reload sur 401)
+            fetch(`${API_V2}/auth/exchange`, { credentials: 'same-origin' })
+              .then(res => res.ok ? res.json() : null)
+              .then(data => {
+                if (data && data.token && data.user?.role === 'superadmin') {
+                  setToken(data.token);
+                  setRToken(data.refresh_token);
+                  setCurrentUser(data.user);
+                }
+              })
+              .catch(() => { /* session absente → formulaire de login */ });
+          }
+        } else {
+          loadUsers();
+        }
+      }, [currentUser]);
+
+      const logout = async () => {
+        try { await apiFetch('auth/logout', { method: 'POST' }); } catch {}
+        clearAuth();
+        setCurrentUser(null);
+      };
+
+      const deleteUser = async (user) => {
+        if (!confirm(`Supprimer l'utilisateur "${user.username}" ?`)) return;
+        try {
+          await apiFetch(`users/${user.id}`, { method: 'DELETE' });
+          toast('Utilisateur supprimé');
+          loadUsers();
+        } catch (err) {
+          toast(err.message, 'error');
+        }
+      };
+
+      const savePerms = async (userId, permissions) => {
+        try {
+          await apiFetch(`users/${userId}/permissions`, {
+            method: 'PATCH',
+            body: JSON.stringify({ permissions }),
+          });
+          toast('Permissions mises à jour');
+          setPermsDialog({ open: false, user: null });
+          loadUsers();
+        } catch (err) {
+          toast(err.message, 'error');
+        }
+      };
+
+      if (!currentUser) {
+        return React.createElement(ThemeProvider, { theme },
+          React.createElement(CssBaseline, null),
+          React.createElement(LoginForm, { onLogin: setCurrentUser })
+        );
+      }
+
+      return React.createElement(ThemeProvider, { theme },
+        React.createElement(CssBaseline, null),
+
+        /* AppBar */
+        React.createElement(AppBar, { position: 'static', color: 'transparent', elevation: 0,
+          sx: { borderBottom: '1px solid #222' }
+        },
+          React.createElement(Toolbar, null,
+            React.createElement(Button, { href: 'index.html', startIcon: React.createElement(ArrowBack),
+              size: 'small', sx: { mr: 2 }
+            }, 'Admin Panel'),
+            React.createElement(Typography, { variant: 'h6', sx: { flexGrow: 1 } }, 'Gestion des utilisateurs'),
+            React.createElement(Chip, {
+              label: currentUser.username,
+              color: roleColor[currentUser.role] || 'default',
+              size: 'small', sx: { mr: 2 },
+            }),
+            React.createElement(Button, { onClick: logout, size: 'small', color: 'inherit',
+              variant: 'outlined', sx: { borderColor: '#444' }
+            }, 'Déconnexion')
+          )
+        ),
+
+        /* Main content */
+        React.createElement(Box, { sx: { p: 3 } },
+          React.createElement(Box, { sx: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 } },
+            React.createElement(Typography, { variant: 'h5' }, 'Utilisateurs'),
+            React.createElement(Button, {
+              variant: 'contained', color: 'primary',
+              onClick: () => setDialog({ open: true, initial: null }),
+            }, '+ Nouvel utilisateur')
+          ),
+
+          loading
+            ? React.createElement(Box, { sx: { display: 'flex', justifyContent: 'center', mt: 4 } },
+                React.createElement(CircularProgress, { color: 'primary' })
+              )
+            : React.createElement(TableContainer, { component: Paper, sx: { background: '#1a1a1a' } },
+                React.createElement(Table, null,
+                  React.createElement(TableHead, null,
+                    React.createElement(TableRow, null,
+                      React.createElement(TableCell, null, 'ID'),
+                      React.createElement(TableCell, null, 'Identifiant'),
+                      React.createElement(TableCell, null, 'Email'),
+                      React.createElement(TableCell, null, 'Rôle'),
+                      React.createElement(TableCell, null, 'Permissions'),
+                      React.createElement(TableCell, null, 'Dernière connexion'),
+                      React.createElement(TableCell, null, 'Actions')
+                    )
+                  ),
+                  React.createElement(TableBody, null,
+                    users.map(u =>
+                      React.createElement(TableRow, { key: u.id },
+                        React.createElement(TableCell, null, u.id),
+                        React.createElement(TableCell, null, u.username),
+                        React.createElement(TableCell, null, u.email || '—'),
+                        React.createElement(TableCell, null,
+                          React.createElement(Chip, {
+                            label: u.role, size: 'small',
+                            color: roleColor[u.role] || 'default',
+                          })
+                        ),
+                        React.createElement(TableCell, null,
+                          u.permissions
+                            ? React.createElement(Chip, { label: 'Custom', size: 'small', variant: 'outlined' })
+                            : React.createElement(Typography, { variant: 'caption', color: 'text.secondary' }, 'Rôle par défaut')
+                        ),
+                        React.createElement(TableCell, null,
+                          u.last_login_at
+                            ? new Date(u.last_login_at).toLocaleString('fr-FR')
+                            : '—'
+                        ),
+                        React.createElement(TableCell, null,
+                          React.createElement(Tooltip, { title: 'Modifier' },
+                            React.createElement(IconButton, {
+                              size: 'small', color: 'primary',
+                              onClick: () => setDialog({ open: true, initial: u }),
+                            }, React.createElement(Edit, { fontSize: 'small' }))
+                          ),
+                          React.createElement(Tooltip, { title: 'Permissions' },
+                            React.createElement(IconButton, {
+                              size: 'small', color: 'info',
+                              onClick: () => setPermsDialog({ open: true, user: u }),
+                            }, React.createElement(Lock, { fontSize: 'small' }))
+                          ),
+                          u.id !== currentUser.id && React.createElement(Tooltip, { title: 'Supprimer' },
+                            React.createElement(IconButton, {
+                              size: 'small', color: 'error',
+                              onClick: () => deleteUser(u),
+                            }, React.createElement(Delete, { fontSize: 'small' }))
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+        ),
+
+        /* User create/edit dialog */
+        React.createElement(UserDialog, {
+          open:    dialog.open,
+          initial: dialog.initial,
+          onClose: () => setDialog({ open: false, initial: null }),
+          onSaved: () => {
+            setDialog({ open: false, initial: null });
+            toast(dialog.initial ? 'Utilisateur modifié' : 'Utilisateur créé');
+            loadUsers();
+          },
+        }),
+
+        /* Permissions dialog */
+        permsDialog.open && React.createElement(Dialog, {
+          open: true,
+          onClose: () => setPermsDialog({ open: false, user: null }),
+          maxWidth: 'md', fullWidth: true,
+        },
+          React.createElement(DialogTitle, null,
+            `Permissions — ${permsDialog.user.username} (${permsDialog.user.role})`
+          ),
+          React.createElement(DialogContent, null,
+            React.createElement(Typography, { variant: 'caption', color: 'text.secondary', mb: 2, display: 'block' },
+              'Les permissions ci-dessous s\'appliquent en priorité sur les droits du rôle.'
+            ),
+            React.createElement(PermGridEditable, {
+              user: permsDialog.user,
+              onSave: (perms) => savePerms(permsDialog.user.id, perms),
+              onCancel: () => setPermsDialog({ open: false, user: null }),
+            })
+          )
+        ),
+
+        /* Snackbar */
+        React.createElement(Snackbar, {
+          open:    snack.open,
+          autoHideDuration: 4000,
+          onClose: () => setSnack(s => ({ ...s, open: false })),
+          anchorOrigin: { vertical: 'bottom', horizontal: 'right' },
+        },
+          React.createElement(Alert, { severity: snack.sev, onClose: () => setSnack(s => ({ ...s, open: false })) },
+            snack.msg
+          )
+        )
+      );
+    }
+
+    /* ── Permissions dialog inner component ──────────────── */
+    function PermGridEditable({ user, onSave, onCancel }) {
+      const DEFAULT_PERMS = {
+        superadmin: () => Object.fromEntries(FEATURES.map(f => [f, Object.fromEntries(ACTIONS.map(a => [a, true]))])),
+        admin:      () => Object.fromEntries(FEATURES.map(f => [f, { read: true, write: f !== 'users', delete: f !== 'users' }])),
+        editor:     () => Object.fromEntries(FEATURES.map(f => [f, { read: true, write: f !== 'users', delete: false }])),
+      };
+      const [perms, setPerms] = useState(
+        user.permissions || (DEFAULT_PERMS[user.role] ? DEFAULT_PERMS[user.role]() : {})
+      );
+      const toggle = (feature, action) => {
+        setPerms(p => {
+          const next = JSON.parse(JSON.stringify(p));
+          if (!next[feature]) next[feature] = {};
+          next[feature][action] = !next[feature][action];
+          return next;
+        });
+      };
+      return React.createElement(React.Fragment, null,
+        React.createElement(Table, { size: 'small' },
+          React.createElement(TableHead, null,
+            React.createElement(TableRow, null,
+              React.createElement(TableCell, null, 'Feature'),
+              ACTIONS.map(a => React.createElement(TableCell, { key: a, align: 'center' }, a))
+            )
+          ),
+          React.createElement(TableBody, null,
+            FEATURES.map(f =>
+              React.createElement(TableRow, { key: f },
+                React.createElement(TableCell, null, f),
+                ACTIONS.map(a =>
+                  React.createElement(TableCell, { key: a, align: 'center' },
+                    React.createElement(Checkbox, {
+                      checked:  !!(perms[f] && perms[f][a]),
+                      onChange: () => toggle(f, a),
+                      size: 'small', color: 'primary',
+                    })
+                  )
+                )
+              )
+            )
+          )
+        ),
+        React.createElement(Box, { sx: { display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 } },
+          React.createElement(Button, { onClick: onCancel }, 'Annuler'),
+          React.createElement(Button, {
+            variant: 'contained', onClick: () => onSave(perms),
+          }, 'Sauvegarder')
+        )
+      );
+    }
+
+    createRoot(document.getElementById('root')).render(React.createElement(UsersApp));
+  </script>
+</body>
+</html>

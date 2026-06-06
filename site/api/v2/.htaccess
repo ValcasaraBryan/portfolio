@@ -1,0 +1,8 @@
+Options -Indexes
+RewriteEngine On
+
+# Préserve le header Authorization que Apache supprime lors des rewrites
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ index.php [QSA,L]

@@ -1774,7 +1774,8 @@
     const SKILLS_NAV         = { id: 'skills',           label: 'Skills' };
     const SKILL_CAT_NAV      = { id: 'skill_categories', label: 'Catégories skills' };
     const TAB_ROUTES_NAV     = { id: 'tab_routes',       label: 'URLs des onglets' };
-    const ALL_NAV            = [...SECTIONS, SKILLS_NAV, SKILL_CAT_NAV, PROFILE_NAV, CV_NAV, TAB_ROUTES_NAV, I18N_NAV];
+    const USERS_NAV          = { id: 'users_mgmt', label: 'Utilisateurs (JWT)', href: 'users.html' };
+    const ALL_NAV            = [...SECTIONS, SKILLS_NAV, SKILL_CAT_NAV, PROFILE_NAV, CV_NAV, TAB_ROUTES_NAV, I18N_NAV, USERS_NAV];
 
     function AdminApp() {
       const [active, setActive] = useState('experiences');
@@ -1822,13 +1823,20 @@
             React.createElement(List, null,
               ALL_NAV.map(s =>
                 React.createElement(ListItem, { key: s.id, disablePadding: true },
-                  React.createElement(ListItemButton, {
-                    selected: active === s.id,
-                    onClick:  () => setActive(s.id),
-                    sx: { '&.Mui-selected': { color: '#7ED9B1', background: 'rgba(126,217,177,0.08)' } },
-                  },
-                    React.createElement(ListItemText, { primary: s.label, primaryTypographyProps: { fontSize: '0.875rem' } })
-                  )
+                  s.href
+                    ? React.createElement(ListItemButton, {
+                        component: 'a', href: s.href,
+                        sx: { color: '#7ED9B1', opacity: 0.7, '&:hover': { opacity: 1 } },
+                      },
+                        React.createElement(ListItemText, { primary: s.label, primaryTypographyProps: { fontSize: '0.875rem' } })
+                      )
+                    : React.createElement(ListItemButton, {
+                        selected: active === s.id,
+                        onClick:  () => setActive(s.id),
+                        sx: { '&.Mui-selected': { color: '#7ED9B1', background: 'rgba(126,217,177,0.08)' } },
+                      },
+                        React.createElement(ListItemText, { primary: s.label, primaryTypographyProps: { fontSize: '0.875rem' } })
+                      )
                 )
               )
             )
