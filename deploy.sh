@@ -37,7 +37,23 @@ if ! $SKIP_BUILD; then
 fi
 
 # =============================================================================
-# 2. Configs Apache — lien symbolique depuis le projet
+# 2. Base de données — migrations
+# =============================================================================
+section "Base de données — migrations SQL"
+
+source "$ROOT/.env" 2>/dev/null || true
+
+if mysql -h "${DB_HOST:-127.0.0.1}" -P "${DB_PORT:-3306}" \
+         -u "${DB_USER:-}" -p"${DB_PASSWORD:-}" \
+         -e "USE \`${DB_NAME:-}\`;" 2>/dev/null; then
+    ok "Base '${DB_NAME}' accessible"
+    bash "$ROOT/bdd/migrate.sh"
+else
+    fail "Base de données inaccessible — vérifiez le .env et l'état de MySQL"
+fi
+
+# =============================================================================
+# 3. Configs Apache — lien symbolique depuis le projet
 # =============================================================================
 section "Configuration Apache (liens symboliques)"
 
@@ -127,7 +143,7 @@ for conf in portfolio.conf portfolio-le-ssl.conf; do
 done
 
 # =============================================================================
-# 3. Dépendances PHP
+# 4. Dépendances PHP
 # =============================================================================
 section "Dépendances PHP (Composer)"
 
@@ -137,7 +153,7 @@ composer install --no-dev --optimize-autoloader --no-interaction 2>&1 \
 ok "Composer à jour"
 
 # =============================================================================
-# 4. Build assets JS/CSS
+# 5. Build assets JS/CSS
 # =============================================================================
 if ! $SKIP_BUILD; then
     section "Build assets (JS + CSS)"
@@ -149,7 +165,7 @@ else
 fi
 
 # =============================================================================
-# 5. Droits de fichiers
+# 6. Droits de fichiers
 # =============================================================================
 section "Sécurité — droits de fichiers"
 
@@ -158,7 +174,7 @@ bash "$ROOT/securite.sh" --fix 2>&1 \
     | grep -v "^$"
 
 # =============================================================================
-# 6. Vérification config Apache + rechargement
+# 7. Vérification config Apache + rechargement
 # =============================================================================
 section "Rechargement Apache"
 
@@ -167,7 +183,7 @@ sudo systemctl reload apache2
 ok "Apache rechargé"
 
 # =============================================================================
-# 7. Healthcheck
+# 8. Healthcheck
 # =============================================================================
 section "Healthcheck"
 
